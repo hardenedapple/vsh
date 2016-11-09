@@ -1,0 +1,21 @@
+#!/usr/bin/bash
+
+# TODO Have to play around with these settings to find the most useful for vsh.
+# stty -echonl -icanon -iexten isig onocr
+stty tabs -onlcr icanon -echo -onlcr iexten isig -echonl -crterase
+
+
+PAGER=
+export PAGER
+
+# nroff encodes bold and underlines using backspaces.
+# acme doesn't handle this very well -- I don't know whether by design or not.
+# Use 'col -b' to remove backspaces and characters just before them.
+# TODO -- look for a way to tell nroff not to encode things with backspaces.
+# NOTE -- this isn't required for the patched version of acme I've compiled --
+# I've told it to remove previous characters in the buffer when a backspace is
+# echoed. This may cause a problem with unicode, I don't know.
+MANPAGER='col -b'
+export MANPAGER
+
+exec /usr/bin/bash
