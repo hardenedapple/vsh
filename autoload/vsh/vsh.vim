@@ -1,10 +1,20 @@
-function ftplugin_helpers#vsh#CurrentPrompt()
+" Strange things noticed.
+" See output on terminal after closing neovim
+"
+" ~ [18:22:38] % vim test.vsh                                                                            [0,1083]
+" "test.vsh" "test.vsh" 87L, 3911C
+" ".vim/my_plugins/vsh/autoload/vsh/vsh.py" ".vim/my_plugins/vsh/autoload/vsh/vsh.py" 78L, 2950C
+" Error detected while processing function provider#python#Call:
+" line   18:
+" Invalid channel "1"%                                                                                                                                                                                                              ~ [18:39:29] %                                                                                                                                                                                                           [0,1084]
+
+function vsh#vsh#CurrentPrompt()
   " Handle being at the start of the file
   let l:retval = search(b:prompt, 'bncW', 0)
   return l:retval ? l:retval : 1
 endfunction
 
-function ftplugin_helpers#vsh#NextPrompt()
+function vsh#vsh#NextPrompt()
   " Handle being at the end of the file
   let l:eof = line('$')
   let l:retval = search(b:prompt, 'nW', l:eof)
@@ -36,7 +46,7 @@ endfunction
 "
 "
 
-function ftplugin_helpers#vsh#MoveToNextPrompt(mode, count)
+function vsh#vsh#MoveToNextPrompt(mode, count)
   " Description:
   "   Searches forward until the next prompt in the current buffefr.
   "   Moves the cursor to the start of the command in that buffer.
@@ -65,7 +75,7 @@ function ftplugin_helpers#vsh#MoveToNextPrompt(mode, count)
   endif
 endfunction
 
-function ftplugin_helpers#vsh#MoveToPrevPrompt(mode, count)
+function vsh#vsh#MoveToPrevPrompt(mode, count)
   " For description see above.
   let origcol = virtcol('.')
   normal! 0
@@ -98,7 +108,7 @@ function ftplugin_helpers#vsh#MoveToPrevPrompt(mode, count)
   endif
 endfunction
 
-function ftplugin_helpers#vsh#ParseVSHCommand(line)
+function vsh#vsh#ParseVSHCommand(line)
   " Check we've been given a command line and not some junk
   let promptstart = match(a:line, b:prompt)
   if promptstart == -1
@@ -122,15 +132,15 @@ function ftplugin_helpers#vsh#ParseVSHCommand(line)
   endif
 endfunction
 
-function ftplugin_helpers#vsh#CommandRange()
+function vsh#vsh#CommandRange()
   let l:eof = line('$')
-  let l:startline = ftplugin_helpers#vsh#CurrentPrompt()
+  let l:startline = vsh#vsh#CurrentPrompt()
   " If no current prompt, no range
   if l:startline == 0
     return ''
   endif
 
-  let l:nextprompt = ftplugin_helpers#vsh#NextPrompt()
+  let l:nextprompt = vsh#vsh#NextPrompt()
   let l:cur_output_len = l:nextprompt - l:startline
 
   " If we are at the last prompt in the file, range is from here to EOF.
@@ -146,19 +156,19 @@ function ftplugin_helpers#vsh#CommandRange()
   endif
 endfunction
 
-function ftplugin_helpers#vsh#ReplaceInput()
-  let l:command = ftplugin_helpers#vsh#ParseVSHCommand(getline(ftplugin_helpers#vsh#CurrentPrompt()))
+function vsh#vsh#ReplaceInput()
+  let l:command = vsh#vsh#ParseVSHCommand(getline(vsh#vsh#CurrentPrompt()))
   if l:command == ''
     return
   endif
-  call ftplugin_helpers#vsh#RunCommand(ftplugin_helpers#vsh#CommandRange(), l:command)
+  call vsh#vsh#RunCommand(vsh#vsh#CommandRange(), l:command)
 endfunction
 
 if !has('nvim') || !has('python3')
-  function ftplugin_helpers#vsh#StartSubprocess()
+  function vsh#vsh#StartSubprocess()
   endfunction
 
-  function ftplugin_helpers#vsh#RunCommand(command_range, command)
+  function vsh#vsh#RunCommand(command_range, command)
     if a:command_range
       exe a:command_range . '! ' . a:command
     else
@@ -187,10 +197,10 @@ else
   "       This is done by forming a command line that moves between both ends
   "       of the range I want and mapping it with <expr>.
   "       i.e. create a function that returns
-  "       ':<C-u>normal! '.ftplugin_helpers#vsh#CurrentPrompt().'ggv'.ftplugin_helpers#vsh#NextPrompt().'gg<CR>'
+  "       ':<C-u>normal! '.vsh#vsh#CurrentPrompt().'ggv'.vsh#vsh#NextPrompt().'gg<CR>'
   "       (but fixing all the bugs that are bound to be in that command line,
   "       and moving to the prompt instead of the line)
-  "     - Remove the ftplugin_helpers/ directory
+  "     - Remove the vsh/ directory
 
   " XXX Inherent problems in the idea
   "     What happens when the user removes the prompt that caused the latest
@@ -210,9 +220,9 @@ else
   "   Better remembering of current position.
 
   let s:callbacks = {
-        \ 'on_stdout': function('ftplugin_helpers#vsh#InsertText'),
-        \ 'on_stderr': function('ftplugin_helpers#vsh#InsertText'),
-        \ 'on_exit': function('ftplugin_helpers#vsh#SubprocessClosed'),
+        \ 'on_stdout': function('vsh#vsh#InsertText'),
+        \ 'on_stderr': function('vsh#vsh#InsertText'),
+        \ 'on_exit': function('vsh#vsh#SubprocessClosed'),
         \ 'pty': 1,
         \ 'TERM': 'dumb'
         \ }
@@ -227,7 +237,7 @@ else
   "     confusing because you have to find the largest window viewing this
   "     buffer, on the autocmd of resizing Vim).
 
-  function ftplugin_helpers#vsh#StartSubprocess()
+  function vsh#vsh#StartSubprocess()
     " TODO Take shell from env and allow choosing shell
     "      Store the insert position in some way other than a mark (don't want
     "      to have problems from a user modifying it).
@@ -252,10 +262,10 @@ else
     endif
   endfunction
 
-  function ftplugin_helpers#vsh#RunCommand(command_range, command)
+  function vsh#vsh#RunCommand(command_range, command)
     if !b:vsh_job
       echoerr 'No subprocess currently running!'
-      echoerr 'Suggest :call ftplugin_helpers#vsh#StartSubprocess()'
+      echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
       return
     endif
 
@@ -268,7 +278,7 @@ else
     endif
   endfunction
 
-  function ftplugin_helpers#vsh#SubprocessClosed(job_id, data, event)
+  function vsh#vsh#SubprocessClosed(job_id, data, event)
     " Callback is run in the users current buffer, not the buffer that
     " the job is started in
     " XXX Can't run a python function here (which would be easier to ensure we
@@ -291,11 +301,11 @@ else
     endif
   endfunction
 
-  function ftplugin_helpers#vsh#InsertText(job_id, data, event)
+  function vsh#vsh#InsertText(job_id, data, event)
     python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
   endfunction
 
-  function ftplugin_helpers#vsh#SendControlChar()
+  function vsh#vsh#SendControlChar()
     let orig_char = toupper(nr2char(getchar()))
     let char_code = char2nr(l:orig_char)
     let l:cntrl_char = l:char_code - char2nr('@')
@@ -309,9 +319,9 @@ else
 endif
 
 
-function ftplugin_helpers#vsh#NewPrompt(skip_output, count)
+function vsh#vsh#NewPrompt(skip_output, count)
   if a:skip_output
-    call ftplugin_helpers#vsh#MoveToNextPrompt('n', a:count)
+    call vsh#vsh#MoveToNextPrompt('n', a:count)
     " If we were at the start of the buffer, don't want to ring the bell, so
     " don't move up.
     " If we reached the end of the buffer (i.e. we were originally at the last

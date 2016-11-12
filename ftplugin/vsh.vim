@@ -7,7 +7,7 @@ let b:prompt = 'vimshell: >'
 
 " Get a process for this job
 if !get(b:, 'vsh_job', 0)
-  call ftplugin_helpers#vsh#StartSubprocess()
+  call vsh#vsh#StartSubprocess()
 endif
 
 " Don't insert newlines when writing a long command
@@ -24,28 +24,28 @@ setlocal comments=:vimshell\:\ >\ #,:vimshell\:\ >
 setlocal formatoptions+=r
 setlocal formatoptions+=o
 
-nnoremap <buffer> <silent> <C-n> :<C-U>call ftplugin_helpers#vsh#MoveToNextPrompt('n', v:count1)<CR>
-nnoremap <buffer> <silent> <C-p> :<C-U>call ftplugin_helpers#vsh#MoveToPrevPrompt('n', v:count1)<CR>
-vnoremap <buffer> <silent> <C-n> :<C-U>call ftplugin_helpers#vsh#MoveToNextPrompt('v', v:count1)<CR>
-vnoremap <buffer> <silent> <C-p> :<C-U>call ftplugin_helpers#vsh#MoveToPrevPrompt('v', v:count1)<CR>
-onoremap <buffer> <silent> <C-n> :<C-U>call ftplugin_helpers#vsh#MoveToNextPrompt('o', v:count1)<CR>
-onoremap <buffer> <silent> <C-p> :<C-U>call ftplugin_helpers#vsh#MoveToPrevPrompt('o', v:count1)<CR>
-nnoremap <buffer> <silent> <CR>  :call ftplugin_helpers#vsh#ReplaceInput()<CR>
-nnoremap <buffer> <silent> <localleader>n  :<C-U>call ftplugin_helpers#vsh#NewPrompt(1, v:count1)<CR>
+nnoremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt('n', v:count1)<CR>
+nnoremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt('n', v:count1)<CR>
+vnoremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt('v', v:count1)<CR>
+vnoremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt('v', v:count1)<CR>
+onoremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt('o', v:count1)<CR>
+onoremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt('o', v:count1)<CR>
+nnoremap <buffer> <silent> <CR>  :call vsh#vsh#ReplaceInput()<CR>
+nnoremap <buffer> <silent> <localleader>n  :<C-U>call vsh#vsh#NewPrompt(1, v:count1)<CR>
 
 " TODO Add a text object that selects the current CommandRange() (and command
 " line if using the 'a').
-nnoremap <buffer> <localleader>o  :<C-U><C-r>=ftplugin_helpers#vsh#CommandRange()<CR>
+nnoremap <buffer> <localleader>o  :<C-U><C-r>=vsh#vsh#CommandRange()<CR>
 
-" TODO Make shortcut to call ftplugin_helpers#vsh#ReplaceInput() and then
-" ftplugin_helpers#vsh#MoveToNextPrompt()
+" TODO Make shortcut to call vsh#vsh#ReplaceInput() and then
+" vsh#vsh#MoveToNextPrompt()
 
 " Send control characters to the underlying terminal -- it will turn these into
 " signals sent to the process in the forground.
-nnoremap <buffer> <silent> <localleader>c :<C-U>call ftplugin_helpers#vsh#SendControlChar()<CR>
+nnoremap <buffer> <silent> <localleader>c :<C-U>call vsh#vsh#SendControlChar()<CR>
 
 " This command is much more well-behaved in the memory-less version.
 " We can't tell what output belongs to what command in the full-featured
 " version, so output goes all over the place, but the commands do get run in
 " the correct order, so it's still useful to a point.
-command -buffer -range Rerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:prompt . '/call ftplugin_helpers#vsh#ReplaceInput()'
+command -buffer -range Rerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:prompt . '/call vsh#vsh#ReplaceInput()'
