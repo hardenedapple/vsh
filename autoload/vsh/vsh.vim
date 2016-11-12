@@ -200,7 +200,25 @@ else
   "       ':<C-u>normal! '.vsh#vsh#CurrentPrompt().'ggv'.vsh#vsh#NextPrompt().'gg<CR>'
   "       (but fixing all the bugs that are bound to be in that command line,
   "       and moving to the prompt instead of the line)
-  "     - Remove the vsh/ directory
+  "  Things that may be cool.
+  "     - Special handling of $EDITOR to use the current vim session?
+  "       Don't know how I'd do this -- but it's something win(1) had and I
+  "       found useful.
+  "       Something with v:servername? Could I set an environment variable to
+  "       pass information to the slave pseudoterminal then create a small
+  "       program that communicates over RPC channel it finds in that
+  "       environment variable.
+  "       Hopefully that would mean I could open up the file to edit in another
+  "       window of the current neovim instance.
+  "     - Change :lcd when changing directory in the buffer
+  "       This would mean you can use 'gf' on files from 'ls' output
+  "       This is emulating what win(1) does.
+  "     - Special handling of git/hg commands to use fugitive/lawrencium
+  "       Don't think this is that good an idea to be honest: it would be
+  "       setting a precedent for special handling of different commands which
+  "     - Put jobresize() on an autocmd for a window resize (or if that gets
+  "       confusing because you have to find the largest window viewing this
+  "       buffer, on the autocmd of resizing Vim).
 
   " XXX Inherent problems in the idea
   "     What happens when the user removes the prompt that caused the latest
@@ -215,9 +233,6 @@ else
 
   " XXX In the future there may be an option to put output into echo area, but
   " this shouldn't be difficult to add given the structure I'm thinking of.
-  "
-  " TODO
-  "   Better remembering of current position.
 
   let s:callbacks = {
         \ 'on_stdout': function('vsh#vsh#InsertText'),
@@ -227,20 +242,8 @@ else
         \ 'TERM': 'dumb'
         \ }
 
-  " TODO
-  "   If I run the bash process on a new pseudo terminal slave
-  "     Make the $TERM variable dumb so I don't have any strange things.
-  "     Run a script that changes the tty settings to better suit my use
-  "     before execl()'ing bash.
-  "     Set PAGER='' and MANPAGER='col -b'
-  "     Put jobresize() on an autocmd for a window resize (or if that gets
-  "     confusing because you have to find the largest window viewing this
-  "     buffer, on the autocmd of resizing Vim).
-
   function vsh#vsh#StartSubprocess()
     " TODO Take shell from env and allow choosing shell
-    "      Store the insert position in some way other than a mark (don't want
-    "      to have problems from a user modifying it).
     if get(b:, 'vsh_job', 0)
       echoerr 'Already a subprocess running for this buffer'
       return
