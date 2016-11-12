@@ -180,13 +180,28 @@ else
   "     - Fix where the data is put into the buffer
   "       . Don't use a mark that the user can modify
   "     - Make text object for a command and inner command ('ac', 'ic').
-  "       Inner command is just the output of the command, a command includes
-  "       the prompt.
+  "       'ac' acts on the entire prompt line.
+  "       'ic' acts on the command after the prompt.
+  "       'ao' acts on the prompt line and its output
+  "       'io' acts just on the command output
+  "       This is done by forming a command line that moves between both ends
+  "       of the range I want and mapping it with <expr>.
+  "       i.e. create a function that returns
+  "       ':<C-u>normal! '.ftplugin_helpers#vsh#CurrentPrompt().'ggv'.ftplugin_helpers#vsh#NextPrompt().'gg<CR>'
+  "       (but fixing all the bugs that are bound to be in that command line,
+  "       and moving to the prompt instead of the line)
+  "     - Remove the ftplugin_helpers/ directory
 
   " XXX Inherent problems in the idea
   "     What happens when the user removes the prompt that caused the latest
   "     output?
+  "         Just deal with it -- it's not that bad.
   "     How should the user use interactive programs?
+  "         Things that use ncurses should not be used.
+  "         Programs that take user input that isn't line-buffered may be more
+  "         important -- whatever they are.
+  "         I can deal with it via direct calls to jobsend(), it's just whether
+  "         to create a nice user interface to deal with it.
 
   " XXX In the future there may be an option to put output into echo area, but
   " this shouldn't be difficult to add given the structure I'm thinking of.
