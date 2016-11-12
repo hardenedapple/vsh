@@ -112,7 +112,14 @@ function ftplugin_helpers#vsh#ParseVSHCommand(line)
   if l:command =~ '\s*#'
     return ''
   endif
-  return l:command
+
+  " If the first character is a space, remove it for convenience, but don't do
+  " more than that in case spaces are important (e.g. python REPL).
+  if l:command[0] == ' '
+    return l:command[1:]
+  else
+    return l:command
+  endif
 endfunction
 
 function ftplugin_helpers#vsh#CommandRange()
