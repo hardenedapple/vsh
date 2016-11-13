@@ -26,21 +26,19 @@ function vsh#vsh#NextPrompt()
   return l:retval ? l:retval : l:eof + 1
 endfunction
 
-function s:PromptEnd(count_whitespace, motion_prompt)
+function s:PromptEnd(promptline, count_whitespace, motion_prompt)
   " Return the column position where the prompt on this current line ends.
-  " With a:count_whitespace 2 skip all whitespace after the prompt.
-  " With a:count_whitespace 1 skip one whitespace character after the prompt.
-  " With a:count_whitespace 0 don't skip any whitespace prompt.
-  let promptline = getline('.')
+  " With a:count_whitespace truthy skip whitespace characters after the prompt.
+  " With a:count_whitespace falsey don't skip any whitespace prompt.
   let l:prompt = a:motion_prompt ? vsh#vsh#MotionPrompt() : b:prompt
-  if l:promptline !~# l:prompt
+  if a:promptline !~# l:prompt
     return -1
   endif
 
   let promptend = len(l:prompt)
 
   if a:count_whitespace
-    while l:promptline[l:promptend] =~ '\s'
+    while a:promptline[l:promptend] =~ '\s'
       let l:promptend += 1
     endwhile
   endif
@@ -55,7 +53,7 @@ endfunction
 " command or trailing whitespace isn't overwritten by the output of a command
 " above it.
 function s:MoveToPromptStart()
-  let promptend = s:PromptEnd(1, 1)
+  let promptend = s:PromptEnd(getline('.'), 1, 1)
   if l:promptend != -1
     let l:promptend += 1
     exe "normal! ".l:promptend."|"
@@ -364,15 +362,20 @@ endfunction
 
 function vsh#vsh#SelectCommand(include_whitespace)
   " Operate on either all the command line, or all text in the command line.
-  let promptend = s:PromptEnd(a:include_whitespace, 0)
+  let promptline = vsh#vsh#CurrentPrompt()
+  let curprompt = getline(l:promptline)
+
+  let promptend = s:PromptEnd(l:curprompt, a:include_whitespace, 0)
   if l:promptend == -1
     " Ring the bell to show that we can't select anything.
     " I found the line below to ring the bell in the CountJump plugin.
     return ":\<C-u>normal! \<C-\>\<C-n>\<Esc>"
   endif
 
-  let l:promptend += 1
-  return ":\<C-u>normal! ".l:promptend."|v$h\<CR>"
+  " Note: Move to start of line, then move right instead of using '|' because
+  " PromptEnd gives the number of characters from the start that the command
+  " is, not the number of screen columns.
+  return ":\<C-u>normal! ".l:promptline."gg0".l:promptend."lv$h\<CR>"
 endfunction
 
 function vsh#vsh#SelectOutput(include_prompt)
