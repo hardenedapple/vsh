@@ -140,7 +140,7 @@ function vsh#vsh#ParseVSHCommand(line)
   " Check we've been given a command line and not some junk
   let promptstart = match(a:line, b:prompt)
   if promptstart == -1
-    return ''
+    return -1
   endif
 
   let l:command = a:line[promptstart + len(b:prompt):]
@@ -148,7 +148,7 @@ function vsh#vsh#ParseVSHCommand(line)
   " Can't just pass the # on to the bash command, as it gets expanded out in
   " the 'exe' command.
   if l:command =~ '\s*#'
-    return ''
+    return -1
   endif
 
   " If the first character is a space, remove it for convenience, but don't do
@@ -182,7 +182,7 @@ endfunction
 
 function vsh#vsh#ReplaceInput()
   let l:command = vsh#vsh#ParseVSHCommand(getline(vsh#vsh#CurrentPrompt()))
-  if l:command == ''
+  if l:command == -1
     return
   endif
   call vsh#vsh#RunCommand(vsh#vsh#CommandRange(), l:command)
