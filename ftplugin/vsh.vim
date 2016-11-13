@@ -67,9 +67,9 @@ onoremap <silent><expr> <Plug>(OuterCOMMAND) vsh#vsh#SelectOutput(1)
 "" Default mappings
 let s:mappings = [
 \  [ 'ic', '<Plug>(InnerCommand)' ],
-\  [ 'iC', '<Plug>(InnerCOMMAND)' ],
-\  [ 'ac', '<Plug>(OuterCommand)' ],
-\  [ 'aC', '<Plug>(OuterCOMMAND)' ]
+\  [ 'io', '<Plug>(InnerCOMMAND)' ],
+\  [ 'ac', '<Plug>(Outeroommand)' ],
+\  [ 'ao', '<Plug>(OuterCOMMAND)' ]
 \]
 
 for [lhs, rhs] in s:mappings

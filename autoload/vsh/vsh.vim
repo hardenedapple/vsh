@@ -154,12 +154,12 @@ function vsh#vsh#ParseVSHCommand(line)
   return l:command
 endfunction
 
-function vsh#vsh#CommandRange()
+function vsh#vsh#CommandSpan()
   let l:eof = line('$')
   let l:startline = vsh#vsh#CurrentPrompt()
   " If no current prompt, no range
   if l:startline == 0
-    return ''
+    return []
   endif
 
   let l:nextprompt = vsh#vsh#NextPrompt()
@@ -172,10 +172,18 @@ function vsh#vsh#CommandRange()
   endif
 
   if l:cur_output_len == 1
+    return []
+  else
+    return [l:startline, l:nextprompt - 1]
+  endif
+endfunction
+
+function vsh#vsh#CommandRange()
+  let span = vsh#vsh#CommandSpan()
+  if l:span == []
     return ''
   else
-    return (l:startline + 1) . ',' . (l:nextprompt - 1)
-  endif
+    return (l:span[0] + 1) . ',' . (l:span[1])
 endfunction
 
 function vsh#vsh#ReplaceInput()
@@ -211,17 +219,6 @@ else
   "         but switching to that buffer would cause problems.
   "     - Fix where the data is put into the buffer
   "       . Don't use a mark that the user can modify
-  "     - Make text object for a command and inner command ('ac', 'ic').
-  "       'ac' acts on the entire prompt line.
-  "       'ic' acts on the command after the prompt.
-  "       'ao' acts on the prompt line and its output
-  "       'io' acts just on the command output
-  "       This is done by forming a command line that moves between both ends
-  "       of the range I want and mapping it with <expr>.
-  "       i.e. create a function that returns
-  "       ':<C-u>normal! '.vsh#vsh#CurrentPrompt().'ggv'.vsh#vsh#NextPrompt().'gg<CR>'
-  "       (but fixing all the bugs that are bound to be in that command line,
-  "       and moving to the prompt instead of the line)
   "  Things that may be cool.
   "     - Special handling of $EDITOR to use the current vim session?
   "       Don't know how I'd do this -- but it's something win(1) had and I
@@ -379,4 +376,14 @@ function vsh#vsh#SelectCommand(include_whitespace)
 endfunction
 
 function vsh#vsh#SelectOutput(include_prompt)
+  let span = vsh#vsh#CommandSpan()
+  if l:span == []
+    return ":\<C-u>normal! \<C-\>\<C-n>\<Esc>"
+  else
+    let startline = l:span[0]
+    if !a:include_prompt
+      let startline += 1
+    endif
+
+    return ":\<C-u>normal! ".l:startline."ggV".l:span[1]."gg\<CR>"
 endfunction
