@@ -3,7 +3,7 @@ if exists("b:did_ftplugin")
 endif
 let b:did_ftplugin = 1
 
-let b:prompt = 'vimshell: >'
+let b:prompt = 'vimshell: > '
 
 " Get a process for this job
 if !get(b:, 'vsh_job', 0)

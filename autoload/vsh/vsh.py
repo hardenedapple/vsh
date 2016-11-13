@@ -11,7 +11,7 @@ def vsh_outputlen(buf, curprompt):
     if len(buf) <= curprompt:
         return 0
 
-    prompt = buf.vars['prompt']
+    prompt = vim.eval('vsh#vsh#MotionPrompt()')
     # curprompt represents the first line of output.
     found_prompt = False
     for (count, line) in enumerate(buf[curprompt:]):

@@ -8,17 +8,44 @@
 " line   18:
 " Invalid channel "1"%                                                                                                                                                                                                              ~ [18:39:29] %                                                                                                                                                                                                           [0,1084]
 
+function vsh#vsh#MotionPrompt()
+  " Creates a prompt for motion that ignores all whitespace
+  return substitute(b:prompt, '\s\+$', '', '')
+endfunction
+
 function vsh#vsh#CurrentPrompt()
   " Handle being at the start of the file
-  let l:retval = search(b:prompt, 'bncW', 0)
+  let l:retval = search(vsh#vsh#MotionPrompt(), 'bncW', 0)
   return l:retval ? l:retval : 1
 endfunction
 
 function vsh#vsh#NextPrompt()
   " Handle being at the end of the file
   let l:eof = line('$')
-  let l:retval = search(b:prompt, 'nW', l:eof)
+  let l:retval = search(vsh#vsh#MotionPrompt(), 'nW', l:eof)
   return l:retval ? l:retval : l:eof + 1
+endfunction
+
+function s:PromptEnd(count_whitespace, motion_prompt)
+  " Return the column position where the prompt on this current line ends.
+  " With a:count_whitespace 2 skip all whitespace after the prompt.
+  " With a:count_whitespace 1 skip one whitespace character after the prompt.
+  " With a:count_whitespace 0 don't skip any whitespace prompt.
+  let promptline = getline('.')
+  let l:prompt = a:motion_prompt ? vsh#vsh#MotionPrompt() : b:prompt
+  if l:promptline !~# l:prompt
+    return -1
+  endif
+
+  let promptend = len(l:prompt)
+
+  if a:count_whitespace
+    while l:promptline[l:promptend] =~ '\s'
+      let l:promptend += 1
+    endwhile
+  endif
+
+  return l:promptend
 endfunction
 
 " Skipping whitespace with 'normal w' doesn't do much most of the time, but it
@@ -28,10 +55,10 @@ endfunction
 " command or trailing whitespace isn't overwritten by the output of a command
 " above it.
 function s:MoveToPromptStart()
-  let promptline = line('.')
-  normal! w
-  if line('.') != promptline
-    normal! k$
+  let promptend = s:PromptEnd(1, 1)
+  if l:promptend != -1
+    let l:promptend += 1
+    exe "normal! ".l:promptend."|"
   endif
 endfunction
 
@@ -59,8 +86,9 @@ function vsh#vsh#MoveToNextPrompt(mode, count)
 
   " Multiple times if given a count
   let index = 0
+  let l:prompt = vsh#vsh#MotionPrompt()
   while l:index < a:count
-    if search(b:prompt, 'eW') == 0
+    if search(l:prompt, 'eW') == 0
       normal G
       return
       break
@@ -83,11 +111,9 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
     normal! gv
   endif
 
-  " TODO if count == 0 then just go to start of prompt?
-  "      will make a shortcut in the ftplugin (something like \s) to do that
-
   " If there is no previous prompt, do nothing.
-  if search(b:prompt, 'beW') == 0
+  let l:prompt = vsh#vsh#MotionPrompt()
+  if search(l:prompt, 'beW') == 0
     exe 'normal! ' . origcol . '|'
     return
   endif
@@ -95,7 +121,7 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
   " Multiple times if given a count.
   let index = 1
   while l:index < a:count
-    if search(b:prompt, 'beW') == 0
+    if search(l:prompt, 'beW') == 0
       break
     endif
     let l:index += 1
@@ -109,6 +135,8 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
 endfunction
 
 function vsh#vsh#ParseVSHCommand(line)
+  " Here we use the b:prompt variable as that's what the user asked us to use
+  " for specifying commands.
   " Check we've been given a command line and not some junk
   let promptstart = match(a:line, b:prompt)
   if promptstart == -1
@@ -125,11 +153,7 @@ function vsh#vsh#ParseVSHCommand(line)
 
   " If the first character is a space, remove it for convenience, but don't do
   " more than that in case spaces are important (e.g. python REPL).
-  if l:command[0] == ' '
-    return l:command[1:]
-  else
-    return l:command
-  endif
+  return l:command
 endfunction
 
 function vsh#vsh#CommandRange()
@@ -334,7 +358,7 @@ function vsh#vsh#NewPrompt(skip_output, count)
       silent normal! k
     endif
   endif
-  put = b:prompt . ' '
+  put = b:prompt
   startinsert!
 endfunction
 
