@@ -49,3 +49,34 @@ nnoremap <buffer> <silent> <localleader>c :<C-U>call vsh#vsh#SendControlChar()<C
 " version, so output goes all over the place, but the commands do get run in
 " the correct order, so it's still useful to a point.
 command -buffer -range Rerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:prompt . '/call vsh#vsh#ReplaceInput()'
+
+" Text object for the current buffer
+"" Visual plugin mappings
+vnoremap <silent><expr> <Plug>(InnerCommand) vsh#vsh#SelectCommand(1)
+vnoremap <silent><expr> <Plug>(InnerCOMMAND) vsh#vsh#SelectOutput(0)
+vnoremap <silent><expr> <Plug>(OuterCommand) vsh#vsh#SelectCommand(0)
+vnoremap <silent><expr> <Plug>(OuterCOMMAND) vsh#vsh#SelectOutput(1)
+
+"" Operator plugin mappings
+onoremap <silent><expr> <Plug>(InnerCommand) vsh#vsh#SelectCommand(1)
+onoremap <silent><expr> <Plug>(InnerCOMMAND) vsh#vsh#SelectOutput(0)
+onoremap <silent><expr> <Plug>(OuterCommand) vsh#vsh#SelectCommand(0)
+onoremap <silent><expr> <Plug>(OuterCOMMAND) vsh#vsh#SelectOutput(1)
+
+
+"" Default mappings
+let s:mappings = [
+\  [ 'ic', '<Plug>(InnerCommand)' ],
+\  [ 'iC', '<Plug>(InnerCOMMAND)' ],
+\  [ 'ac', '<Plug>(OuterCommand)' ],
+\  [ 'aC', '<Plug>(OuterCOMMAND)' ]
+\]
+
+for [lhs, rhs] in s:mappings
+  if !hasmapto(rhs, 'v')
+    exe 'xmap <buffer><unique>' lhs rhs
+  endif
+  if !hasmapto(rhs, 'o')
+    exe 'omap <buffer><unique>' lhs rhs
+  endif
+endfor

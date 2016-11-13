@@ -362,3 +362,18 @@ function vsh#vsh#NewPrompt(skip_output, count)
   startinsert!
 endfunction
 
+function vsh#vsh#SelectCommand(include_whitespace)
+  " Operate on either all the command line, or all text in the command line.
+  let promptend = s:PromptEnd(a:include_whitespace, 0)
+  if l:promptend == -1
+    " Ring the bell to show that we can't select anything.
+    " I found the line below to ring the bell in the CountJump plugin.
+    return ":\<C-u>normal! \<C-\>\<C-n>\<Esc>"
+  endif
+
+  let l:promptend += 1
+  return ":\<C-u>normal! ".l:promptend."|v$h\<CR>"
+endfunction
+
+function vsh#vsh#SelectOutput(include_prompt)
+endfunction
