@@ -1,4 +1,5 @@
 import vim
+import neovim
 
 def vsh_outputlen(buf, curprompt):
     '''
@@ -32,26 +33,7 @@ def vsh_outputlen(buf, curprompt):
     return count
 
 
-def vsh_insert_text(data, insert_buf):
-    '''
-    Insert text into a vsh buffer in the correct place.
-    Don't modify the user state and don't interrupt their workflow.
-
-    '''
-    try:
-        vsh_buf = vim.buffers[int(insert_buf)]
-    except KeyError:
-        vim.command('echoerr "Vsh text recieved for invalid buffer"')
-        return
-
-    # Don't print out the starting prompt of the shell.
-    if 'initialised' not in vsh_buf.vars or not vsh_buf.vars['initialised']:
-        vsh_buf.vars['initialised'] = 1
-        # TODO Find a better way to check this is just the starting prompt of
-        # the shell. This seems brittle.
-        if len(data) == 1:
-            return
-
+def vsh_insert_helper(data, vsh_buf):
     # Default to inserting text at end of file if input mark doesn't exist.
     insert_mark, _ = vsh_buf.mark('d')
     if insert_mark == 0:
@@ -69,7 +51,13 @@ def vsh_insert_text(data, insert_buf):
     insert_line = vsh_buf[insert_mark - 1]
     if not insert_line.startswith(prompt):
         firstline = data.pop(0)
-        vsh_buf[insert_mark - 1] = insert_line + firstline
+        # Don't worry about performance from pop() to insert(), this shouldn't
+        # really happen.
+        try:
+            vsh_buf[insert_mark - 1] = insert_line + firstline
+        except:
+            data.insert(0, firstline)
+            raise
 
     # Text may be modified between the times that output is flushed.
     # We have to hope that whatever line we mark is not removed between
@@ -90,6 +78,44 @@ def vsh_insert_text(data, insert_buf):
     if data:
         vsh_buf.append(data, insert_mark)
     vim.command('{}mark d'.format(len(data) + insert_mark))
+
+
+def vsh_insert_text(data, insert_buf):
+    '''
+    Insert text into a vsh buffer in the correct place.
+    Don't modify the user state and don't interrupt their workflow.
+
+    '''
+    try:
+        vsh_buf = vim.buffers[int(insert_buf)]
+    except KeyError:
+        vim.command('echoerr "Vsh text recieved for invalid buffer"')
+        return
+
+    # Don't print out the starting prompt of the shell.
+    if 'initialised' not in vsh_buf.vars or not vsh_buf.vars['initialised']:
+        vsh_buf.vars['initialised'] = 1
+        # TODO Find a better way to check this is just the starting prompt of
+        # the shell. This seems brittle.
+        if len(data) == 1:
+            return
+
+    # # If we're ever given empty output I'll uncomment this so the pop()
+    # # doesn't raise an exception.
+    # # I don't think it's possible, so I'll leave it uncommented for now.
+    # if not data:
+    #     return
+
+    try:
+        vsh_insert_helper(data, vsh_buf)
+    except neovim.api.nvim.NvimError as e:
+        # If data from the subshell contains NULL characters, then neovim
+        # replaces these with '\n' characters.
+        # This is rarely the case, so try to go without first, if needed, then
+        # go over all lines in the output and change the characters back.
+        if e.args == (b'string cannot contain newlines',):
+            vsh_insert_helper([val.replace('\n', '\x00') for val in data],
+                              vsh_buf)
 
 
 def vsh_clear_output(curline):
