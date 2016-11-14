@@ -59,16 +59,17 @@ def vsh_insert_text(data, insert_buf):
         # line number not a python buffer index.
         insert_mark = len(vsh_buf)
 
-    # This function is called on each flush of output.
-    # We are reading from a pty, which may flush in the middle of a command.
-    # Quite often the last entry in this list is empty, representing the
-    # newline the pty emitted to help get ready for the next line of output.
-    # When this next output is given to us, we append it linewise, which gives
-    # us an extra empty line.
-    # This is a brittle hack to stop that.
-    # TODO search for faults in this hack and fix if found.
-    if data[-1] == '':
-        data = data[:-1]
+    # Assume the insert position is not at the end of a command prompt, then we
+    # have already added some of the output from this command into the buffer.
+    # In that case, we want to allow for flushing of output in the middle of a
+    # line by adding the next piece of text non-linewise.
+    # If the last line included a trailing newline, then the last element in
+    # data would have been '' so this still works.
+    prompt = vim.eval('vsh#vsh#MotionPrompt()')
+    insert_line = vsh_buf[insert_mark - 1]
+    if not insert_line.startswith(prompt):
+        firstline = data.pop(0)
+        vsh_buf[insert_mark - 1] = insert_line + firstline
 
     # Text may be modified between the times that output is flushed.
     # We have to hope that whatever line we mark is not removed between
@@ -86,7 +87,8 @@ def vsh_insert_text(data, insert_buf):
     # have seen helps performance for commands with a lot of output.
     #
     # XXX Improve text insertion performance for commands with a lot of output.
-    vsh_buf.append(data, insert_mark)
+    if data:
+        vsh_buf.append(data, insert_mark)
     vim.command('{}mark d'.format(len(data) + insert_mark))
 
 

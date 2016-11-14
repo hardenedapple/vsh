@@ -10,21 +10,6 @@ Definite things to fix:
     - Fix where the data is put into the buffer
         . Don't use a mark that the user can modify
     - Use python 2 as well as python 3
-    - Handle broken lines
-        When the output from the slave terminal flushes in the middle of a line I
-        end up with a broken line in my file.
-        This is because I insert linewise, and don't have any logic to handle how
-        lines should be joined together.
-        One problem is that the prompt of the shell will always end without a
-        newline.
-        Assuming I can't tell what the prompt is (any method will inherently be
-        brittle because all I recieve is text, and I can't modify the shell because
-        I'll want to use python and gdb REPL's) I can't programmatically tell the
-        difference between a broken line and the end of output.
-        I need to insert not linewise -- to mark the last character of output, and
-        always insert from there.
-        After each text insert I could look to see if there is a newline character
-        immediately after the last output character, and if not add one there.
     - Take shell from env by default, allow choosing shell with g: variable.
     - Test cases
                 Moving around
