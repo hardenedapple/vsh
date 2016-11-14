@@ -32,9 +32,6 @@ def vsh_outputlen(buf, curprompt):
     return count
 
 
-# TODO
-#   This appears to take a long time for large output.
-#   It could be something else, 
 def vsh_insert_text(data, insert_buf):
     '''
     Insert text into a vsh buffer in the correct place.
@@ -96,3 +93,4 @@ def vsh_insert_text(data, insert_buf):
 def vsh_clear_output(curline):
     outputlen = vsh_outputlen(vim.current.buffer, curline)
     vim.current.buffer[curline:curline + outputlen] = []
+

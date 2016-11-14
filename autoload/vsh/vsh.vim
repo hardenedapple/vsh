@@ -1,13 +1,3 @@
-" Strange things noticed.
-" See output on terminal after closing neovim
-"
-" ~ [18:22:38] % vim test.vsh                                                                            [0,1083]
-" "test.vsh" "test.vsh" 87L, 3911C
-" ".vim/my_plugins/vsh/autoload/vsh/vsh.py" ".vim/my_plugins/vsh/autoload/vsh/vsh.py" 78L, 2950C
-" Error detected while processing function provider#python#Call:
-" line   18:
-" Invalid channel "1"%                                                                                                                                                                                                              ~ [18:39:29] %                                                                                                                                                                                                           [0,1084]
-
 function vsh#vsh#MotionPrompt()
   " Creates a prompt for motion that ignores all whitespace
   return substitute(b:prompt, '\s\+$', '', '')
@@ -59,17 +49,6 @@ function s:MoveToPromptStart()
     exe "normal! ".l:promptend."|"
   endif
 endfunction
-
-" Test cases for moving around:
-"
-"
-" vimcmd: >
-" vimcmd: >    	Hello there
-" vimcmd: > eieio
-" vimcmd: >   
-" vimcmd: > 
-"
-"
 
 function vsh#vsh#MoveToNextPrompt(mode, count)
   " Description:
@@ -212,52 +191,6 @@ if !has('nvim') || !has('python3')
   endfunction
 else
   let s:plugin_path = escape(expand('<sfile>:p:h'), '\ ')
-  " TODO
-  "   Definite things to fix
-  "     - Kill shell process when buffer is unloaded
-  "       . Run on the BufUnload event
-  "       . jobstop(b:vsh_job)
-  "       . Don't know how to get that particular buffer.
-  "         BufUnload knows what the buffer being closed is from '<afile>', but
-  "         the current buffer may be different to that.
-  "         I need to fetch a buffer-local variable from a different buffer,
-  "         but switching to that buffer would cause problems.
-  "     - Fix where the data is put into the buffer
-  "       . Don't use a mark that the user can modify
-  "  Things that may be cool.
-  "     - Special handling of $EDITOR to use the current vim session?
-  "       Don't know how I'd do this -- but it's something win(1) had and I
-  "       found useful.
-  "       Something with v:servername? Could I set an environment variable to
-  "       pass information to the slave pseudoterminal then create a small
-  "       program that communicates over RPC channel it finds in that
-  "       environment variable.
-  "       Hopefully that would mean I could open up the file to edit in another
-  "       window of the current neovim instance.
-  "     - Change :lcd when changing directory in the buffer
-  "       This would mean you can use 'gf' on files from 'ls' output
-  "       This is emulating what win(1) does.
-  "     - Special handling of git/hg commands to use fugitive/lawrencium
-  "       Don't think this is that good an idea to be honest: it would be
-  "       setting a precedent for special handling of different commands which
-  "     - Put jobresize() on an autocmd for a window resize (or if that gets
-  "       confusing because you have to find the largest window viewing this
-  "       buffer, on the autocmd of resizing Vim).
-
-  " XXX Inherent problems in the idea
-  "     What happens when the user removes the prompt that caused the latest
-  "     output?
-  "         Just deal with it -- it's not that bad.
-  "     How should the user use interactive programs?
-  "         Things that use ncurses should not be used.
-  "         Programs that take user input that isn't line-buffered may be more
-  "         important -- whatever they are.
-  "         I can deal with it via direct calls to jobsend(), it's just whether
-  "         to create a nice user interface to deal with it.
-
-  " XXX In the future there may be an option to put output into echo area, but
-  " this shouldn't be difficult to add given the structure I'm thinking of.
-
   let s:callbacks = {
         \ 'on_stdout': function('vsh#vsh#InsertText'),
         \ 'on_stderr': function('vsh#vsh#InsertText'),
@@ -267,7 +200,6 @@ else
         \ }
 
   function vsh#vsh#StartSubprocess()
-    " TODO Take shell from env and allow choosing shell
     if get(b:, 'vsh_job', 0)
       echoerr 'Already a subprocess running for this buffer'
       return
@@ -401,4 +333,5 @@ function vsh#vsh#SelectOutput(include_prompt)
     endif
 
     return ":\<C-u>normal! ".l:startline."ggV".l:span[1]."gg\<CR>"
+  endif
 endfunction
