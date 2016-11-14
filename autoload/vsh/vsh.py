@@ -57,7 +57,7 @@ def vsh_insert_text(data, insert_buf):
     if insert_mark == 0:
         # Use the total length of the buffer because insert_mark is a Vim
         # line number not a python buffer index.
-        insert_mark = len(vsh_buf.buffer)
+        insert_mark = len(vsh_buf)
 
     # This function is called on each flush of output.
     # We are reading from a pty, which may flush in the middle of a command.
