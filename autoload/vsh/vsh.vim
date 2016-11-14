@@ -187,23 +187,28 @@ function vsh#vsh#CommandRange()
 endfunction
 
 function vsh#vsh#ReplaceInput()
-  let l:command = vsh#vsh#ParseVSHCommand(getline(vsh#vsh#CurrentPrompt()))
+  let l:command_line = vsh#vsh#CurrentPrompt()
+  let l:command = vsh#vsh#ParseVSHCommand(getline(l:command_line))
   if l:command == -1
     return
   endif
-  call vsh#vsh#RunCommand(vsh#vsh#CommandRange(), l:command)
+  call vsh#vsh#RunCommand(l:command_line, l:command)
 endfunction
 
 if !has('nvim') || !has('python3')
   function vsh#vsh#StartSubprocess()
   endfunction
 
-  function vsh#vsh#RunCommand(command_range, command)
-    if a:command_range
-      exe a:command_range . '! ' . a:command
+  function vsh#vsh#RunCommand(command_line, command)
+    let l:command_range = vsh#vsh#CommandRange()
+    if l:command_range
+      exe l:command_range . '! ' . a:command
     else
       exe 'r! ' .  a:command
     endif
+
+    exe a:command_line
+    call s:MoveToPromptStart()
   endfunction
 else
   let s:plugin_path = escape(expand('<sfile>:p:h'), '\ ')
@@ -284,14 +289,24 @@ else
     endif
   endfunction
 
-  function vsh#vsh#RunCommand(command_range, command)
+  function vsh#vsh#RunCommand(command_line, command)
     if !b:vsh_job
       echoerr 'No subprocess currently running!'
       echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
       return
     endif
 
+    if line('.') != a:command_line
+      exe a:command_line
+      call s:MoveToPromptStart()
+    endif
+
+    " Use python so the cursor doesn't move and we don't have to faff around
+    " with saving and restoring.
+    " XXX Is there a vim function equivalent?
     python3 vsh_clear_output(int(vim.eval("line('.')")))
+
+    " XXX Mark use
     mark d
     let retval = jobsend(b:vsh_job, a:command . "\n")
     if retval == 0
