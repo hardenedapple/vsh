@@ -253,6 +253,9 @@ else
     " XXX Can't run a python function here (which would be easier to ensure we
     " don't change user state) because on closing nvim this callback is called
     " after the channel to the python interpreter has been closed.
+    if get(g:, 'vsh_vim_closing', 0)
+      return
+    endif
     let curbuffer = bufnr('%')
     if bufexists(self.buffer)
       exe 'keepjumps keepalt buffer ' . self.buffer
@@ -260,8 +263,6 @@ else
       let b:initialised = 0
       exe 'keepjumps keepalt buffer ' . curbuffer
     else
-      " If the buffer is wiped (:bw), and then we close nvim(1), then this
-      " condition is called.
       " XXX -- in 'release version' I'd remove this complaint as there's no
       " problem just not doing anything in this case.
       " At the moment I'm leaving it to get alerted about the order these

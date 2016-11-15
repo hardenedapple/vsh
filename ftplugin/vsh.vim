@@ -9,6 +9,10 @@ let b:prompt = 'vimshell: > '
 if !get(b:, 'vsh_job', 0)
   call vsh#vsh#StartSubprocess()
 endif
+if !get(g:, 'vsh_autocmds_setup', 0)
+  autocmd VimLeavePre * let g:vsh_vim_closing = 1
+  let g:vsh_autocmds_setup = 1
+endif
 
 " Don't insert newlines when writing a long command
 setlocal formatoptions-=t

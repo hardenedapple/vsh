@@ -1,36 +1,11 @@
-Definite things to fix:
-    - Kill shell process when buffer is unloaded
-        . Run on the BufUnload event
-        . jobstop(b:vsh_job)
-        . Don't know how to get that particular buffer.
-            BufUnload knows what the buffer being closed is from '<afile>', but
-            the current buffer may be different to that.
-            I need to fetch a buffer-local variable from a different buffer,
-            but switching to that buffer would cause problems.
-    - Fix where the data is put into the buffer
-        . Don't use a mark that the user can modify
-    - Use python 2 as well as python 3
-    - Take shell from env by default, allow choosing shell with g: variable.
-    - Test cases
-                Moving around
-                Removing text
-                Selecting text objects
-    - Look into performance of large output commands
-
-
 Things that may be cool.
-     - Special handling of $EDITOR to use the current vim session?
-         Don't know how I'd do this -- but it's something win(1) had and I
-         found useful.
-         Something with v:servername? Could I set an environment variable to
-         pass information to the slave pseudoterminal then create a small
-         program that communicates over RPC channel it finds in that
-         environment variable.
-         Hopefully that would mean I could open up the file to edit in another
-         window of the current neovim instance.
      - Change :lcd when changing directory in the buffer
          This would mean you can use 'gf' on files from 'ls' output
-         This is emulating what win(1) does.
+         This is emulating the rc(1) cd() shell function that modifies the
+         acme(1) win(1) window after finishing.
+         Could do similar: create a bash cd() function that checks its return
+         code and sends a signal back to the neovim server telling it to :lcd
+         in the vsh_buf.
      - Special handling of git/hg commands to use fugitive/lawrencium
          Don't think this is that good an idea to be honest: it would be
          setting a precedent for special handling of different commands which
@@ -64,25 +39,3 @@ Strange things noticed.
    Invalid channel "1"%                                                                                                                                                                                                                                                                                                                                                                                                                            ~ [18:39:29] %                                                                                                                                                                                                                                                                                                                                                                                                                     [0,1084]
    ```
 
-2) Can reproduce a problem with the following actions:
-   ```
-   vim test.vsh
-   :vnew test.txt
-   :bd 1
-   :q
-   ```
-   
-   Get the following output:
-   ```
-   ~ [19:01:48] % vim test.vsh                                                                                                                                                                                                                                                                                                                                                                                             [1,1027]
-   "test.vsh" "test.vsh" 45L, 1601C
-   Error detected while processing function vsh#vsh#StartSubprocess[19]..provider#python3#Call:
-   line     18:
-   Invalid channel "3"
-   "test.txt" [New File]
-   Error detected while processing function vsh#vsh#InsertText[1]..provider#python3#Call:
-   line     18:
-   Invalid channel "3"
-   ^C
-   ~ [19:03:13] %                                                                                                                                                                                                                                                                                                                                                                                                                 [130,1028]
-   ```
