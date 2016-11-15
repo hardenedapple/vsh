@@ -116,6 +116,8 @@ def vsh_insert_text(data, insert_buf):
         if e.args == (b'string cannot contain newlines',):
             vsh_insert_helper([val.replace('\n', '\x00') for val in data],
                               vsh_buf)
+        else:
+            raise
 
 
 def vsh_clear_output(curline):
