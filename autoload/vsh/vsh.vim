@@ -169,6 +169,8 @@ endfunction
 if !has('nvim') || !has('python3')
   function vsh#vsh#StartSubprocess()
   endfunction
+  function vsh#vsh#SendControlChar()
+  endfunction
 
   function vsh#vsh#RunCommand(command_line, command)
     let l:command_range = vsh#vsh#CommandRange()
