@@ -215,6 +215,11 @@ else
     endif
   endfunction
 
+ function vsh#vsh#CloseProcess()
+   python3 vsh_close_subprocess(vim.eval("b:vsh_job"))
+   unlet b:vsh_job
+ endfunction
+
   function vsh#vsh#RunCommand(command_line, command)
     if !b:vsh_job
       echoerr 'No subprocess currently running!'
@@ -329,4 +334,77 @@ function vsh#vsh#SelectOutput(include_prompt)
 
     return ":\<C-u>normal! ".l:startline."ggV".l:span[1]."gg\<CR>"
   endif
+endfunction
+
+
+"" Default mappings
+let s:operator_mappings = [
+      \  [ 'ic', '<Plug>(vshInnerCommand)' ],
+      \  [ 'io', '<Plug>(vshInnerCOMMAND)' ],
+      \  [ 'ac', '<Plug>(vshOuterCommand)' ],
+      \  [ 'ao', '<Plug>(vshOuterCOMMAND)' ]
+      \]
+
+function vsh#vsh#SetupMappings()
+
+  noremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt(mode(), v:count1)<CR>
+  noremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt(mode(), v:count1)<CR>
+  vnoremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt('v', v:count1)<CR>
+  vnoremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt('v', v:count1)<CR>
+  nnoremap <buffer> <silent> <CR>  :call vsh#vsh#ReplaceOutput()<CR>
+  nnoremap <buffer> <silent> <localleader>n  :<C-U>call vsh#vsh#NewPrompt(1, v:count1)<CR>
+
+  " TODO Add a text object that selects the current CommandRange() (and command
+  " line if using the 'a').
+  nnoremap <buffer> <localleader>o  :<C-U><C-r>=vsh#vsh#CommandRange()<CR>
+
+  " TODO Make shortcut to call vsh#vsh#ReplaceOutput() and then
+  " vsh#vsh#MoveToNextPrompt()
+
+  " Send control characters to the underlying terminal -- it will turn these into
+  " signals sent to the process in the forground.
+  nnoremap <buffer> <silent> <localleader>c :<C-U>call vsh#vsh#SendControlChar()<CR>
+
+  " This command is much more well-behaved in the memory-less version.
+  " We can't tell what output belongs to what command in the full-featured
+  " version, so output goes all over the place, but the commands do get run in
+  " the correct order, so it's still useful to a point.
+  command -buffer -range Rerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:prompt . '/call vsh#vsh#ReplaceOutput()'
+
+  " Text object for the current buffer
+  "" Visual plugin mappings
+  vnoremap <silent><expr> <Plug>(vshInnerCommand) vsh#vsh#SelectCommand(1)
+  vnoremap <silent><expr> <Plug>(vshInnerCOMMAND) vsh#vsh#SelectOutput(0)
+  vnoremap <silent><expr> <Plug>(vshOuterCommand) vsh#vsh#SelectCommand(0)
+  vnoremap <silent><expr> <Plug>(vshOuterCOMMAND) vsh#vsh#SelectOutput(1)
+
+  "" Operator plugin mappings
+  onoremap <silent><expr> <Plug>(vshInnerCommand) vsh#vsh#SelectCommand(1)
+  onoremap <silent><expr> <Plug>(vshInnerCOMMAND) vsh#vsh#SelectOutput(0)
+  onoremap <silent><expr> <Plug>(vshOuterCommand) vsh#vsh#SelectCommand(0)
+  onoremap <silent><expr> <Plug>(vshOuterCOMMAND) vsh#vsh#SelectOutput(1)
+
+
+  for [lhs, rhs] in s:operator_mappings
+    if !hasmapto(rhs, 'v')
+      exe 'xmap <buffer><unique>' lhs rhs
+    endif
+    if !hasmapto(rhs, 'o')
+      exe 'omap <buffer><unique>' lhs rhs
+    endif
+  endfor
+endfunction
+
+function vsh#vsh#TeardownMappings()
+  unmap <buffer> <C-n>
+  unmap <buffer> <C-p>
+  nunmap <buffer> <CR>
+  nunmap <buffer> <localleader>n
+  nunmap <buffer> <localleader>o
+  nunmap <buffer> <localleader>c
+  delcommand Rerun
+  for [lhs, rhs] in s:operator_mappings
+    exe 'xunmap <buffer> ' lhs
+    exe 'ounmap <buffer> ' lhs
+  endfor
 endfunction
