@@ -28,13 +28,11 @@ setlocal comments=:vimshell\:\ >\ #,:vimshell\:\ >
 setlocal formatoptions+=r
 setlocal formatoptions+=o
 
-nnoremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt('n', v:count1)<CR>
-nnoremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt('n', v:count1)<CR>
+noremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt(mode(), v:count1)<CR>
+noremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt(mode(), v:count1)<CR>
 vnoremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt('v', v:count1)<CR>
 vnoremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt('v', v:count1)<CR>
-onoremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt('o', v:count1)<CR>
-onoremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt('o', v:count1)<CR>
-nnoremap <buffer> <silent> <CR>  :call vsh#vsh#ReplaceInput()<CR>
+nnoremap <buffer> <silent> <CR>  :call vsh#vsh#ReplaceOutput()<CR>
 nnoremap <buffer> <silent> <localleader>n  :<C-U>call vsh#vsh#NewPrompt(1, v:count1)<CR>
 
 " TODO Add a text object that selects the current CommandRange() (and command

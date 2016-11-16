@@ -57,7 +57,7 @@ function vsh#vsh#MoveToNextPrompt(mode, count)
   "   If there are spaces between the prompt and the command line then skip
   "   them until reach the first character in the command.
   "   If there is no command after the prompt, move to the end of the line.
-  if a:mode == 'v'
+  if a:mode ==# 'v'
     normal! gv
   endif
 
@@ -73,20 +73,16 @@ function vsh#vsh#MoveToNextPrompt(mode, count)
     let l:index += 1
   endwhile
 
-  if a:mode != 'n'
-    normal! k
-  else
-    call s:MoveToPromptStart()
-  endif
+  call s:MoveToPromptStart()
 endfunction
 
 function vsh#vsh#MoveToPrevPrompt(mode, count)
   " For description see above.
   let origcol = virtcol('.')
-  normal! 0
-  if a:mode == 'v'
+  if a:mode ==# 'v'
     normal! gv
   endif
+  normal! 0
 
   " If there is no previous prompt, do nothing.
   let l:prompt = vsh#vsh#MotionPrompt()
@@ -104,11 +100,7 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
     let l:index += 1
   endwhile
 
-  if a:mode != 'n'
-    normal! j0
-  else
-    call s:MoveToPromptStart()
-  endif
+  call s:MoveToPromptStart()
 endfunction
 
 function vsh#vsh#ParseVSHCommand(line)
@@ -165,7 +157,7 @@ function vsh#vsh#CommandRange()
     return (l:span[0] + 1) . ',' . (l:span[1])
 endfunction
 
-function vsh#vsh#ReplaceInput()
+function vsh#vsh#ReplaceOutput()
   let l:command_line = vsh#vsh#CurrentPrompt()
   let l:command = vsh#vsh#ParseVSHCommand(getline(l:command_line))
   if l:command == -1
