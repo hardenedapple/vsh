@@ -1,5 +1,7 @@
 import vim
 import neovim
+import os
+import signal
 
 def vsh_outputlen(buf, curprompt):
     '''
@@ -124,3 +126,43 @@ def vsh_clear_output(curline):
     outputlen = vsh_outputlen(vim.current.buffer, curline)
     vim.current.buffer[curline:curline + outputlen] = []
 
+
+def vsh_close_subprocess(jobnr):
+    '''
+    Say "goodbye" to the vsh_job
+
+    I want to emulate what the terminal does as best as possible, which means
+    closing all file descriptors and sending a SIGHUP.
+    I think that jobclose() on a job started under a new pseudo terminal should
+    send SIGHUP to the foreground process group on that terminal, but it
+    doesn't -- I assume because the file descriptor is kept around somewhere.
+
+    Hence I have to manually send a SIGHUP to the foreground process group of
+    that pseudo terminal.
+    '''
+    # TODO
+    #   For now keep this free so that any exceptions raised are shown to the
+    #   user, later, once I know what exceptions may be raised, and why, I'll
+    #   see whether to try/except them or to avoid them some other way.
+    pid = int(vim.eval('jobpid({})'.format(jobnr)))
+    pgid = os.getpgid(pid)
+    os.killpg(pgid, signal.SIGHUP)
+
+def vsh_close_bufprocess(bufnr):
+    '''
+    Runs in autocmd context upon BufUnload event
+
+    '''
+    # # Should we remove the autocmd?
+    # vim.command('autocmd! BufUnload <buffer={}>'.format(bufnr))
+    buffer_vars = vim.buffers[bufnr].vars
+    try:
+        jobnr = int(buffer_vars['vsh_job'])
+    except KeyError:
+        vim.command('echoerr "vsh_close_bufprocess() called with non-existant vsh_job variable in buffer {}"'.format(bufnr))
+
+    # Could be 0 to mark a stopped process.
+    if jobnr:
+        vsh_close_subprocess(jobnr)
+    else:
+        print('jobnr is {} cannot close'.format(jobnr))
