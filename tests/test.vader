@@ -1,0 +1,43 @@
+# TODO
+#   Find what command line arguments need to be given to a vim instance in
+#   order to just run these tests.
+
+Given vsh (vsh buffer):
+  vimshell: >
+  vimshell: >    	echo Hello there
+
+Do (First motion of ):
+  \<C-n>ix
+
+Expect:
+  vimshell: x>
+  vimshell: >    	echo Hello there
+
+Do (Second motion of line):
+  \<C-n>\<C-n>ix
+
+Expect:
+  vimshell: >
+  vimshell: >    	xecho Hello there
+
+Do (Moving up does nothing):
+  \<C-p>ix
+
+Expect:
+  xvimshell: >
+  vimshell: >    	echo Hello there
+
+
+Do (Moving up does nothing):
+  \<C-n>\<C-p>ix
+
+Expect:
+  vimshell: x>
+  vimshell: >    	echo Hello there
+
+Do (Moving down at bottom line does nothing):
+  \<C-n>\<C-n>\<C-n>ix
+
+Expect:
+  vimshell: >
+  vimshell: >    	xecho Hello there
