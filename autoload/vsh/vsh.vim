@@ -74,7 +74,6 @@ function vsh#vsh#MoveToNextPrompt(mode, count)
   while l:index < a:count
     if search(l:prompt, 'eW') == 0
       normal G
-      return
       break
     endif
     let l:index += 1
