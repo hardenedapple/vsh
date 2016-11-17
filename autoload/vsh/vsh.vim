@@ -1,6 +1,13 @@
 function vsh#vsh#MotionPrompt()
   " Creates a prompt for motion that ignores all whitespace
-  return substitute(b:prompt, '\s\+$', '', '')
+  " Hardened with get() because it can get called in many different situations.
+  " XXX We return '' if there is no local prompt variable.
+  "     This means that the functions where search() is called search for '',
+  "     which uses the last used search pattern.
+  "     Stuff can hence can go anywhere.
+  "     I think it's not worth changing anything to stop this, as a vsh buffer
+  "     without a prompt variable is pretty useless.
+  return substitute(get(b:, 'prompt', ''), '\s\+$', '', '')
 endfunction
 
 function vsh#vsh#CurrentPrompt()

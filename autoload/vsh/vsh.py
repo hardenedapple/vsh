@@ -15,6 +15,9 @@ def vsh_outputlen(buf, curprompt):
         return 0
 
     prompt = vim.eval('vsh#vsh#MotionPrompt()')
+    if not prompt:
+        return 0
+
     # curprompt represents the first line of output.
     found_prompt = False
     for (count, line) in enumerate(buf[curprompt:]):
@@ -144,6 +147,9 @@ def vsh_close_subprocess(jobnr):
     #   For now keep this free so that any exceptions raised are shown to the
     #   user, later, once I know what exceptions may be raised, and why, I'll
     #   see whether to try/except them or to avoid them some other way.
+    #
+    #   XXX In the future, won't need this -- neovim issue #5619 has been
+    #   fixed & merged.
     pid = int(vim.eval('jobpid({})'.format(jobnr)))
     pgid = os.getpgid(pid)
     os.killpg(pgid, signal.SIGHUP)
