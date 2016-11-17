@@ -19,29 +19,9 @@ let b:prompt = 'vimshell: > '
 "   I think this is silly, but that's the semantics that are happening at the
 "   moment.
 " Having an autocmd on the BufUnload event means we don't know whether the
-" buffer is about to be removed or not, but even worse, for some reason, when
-" calling :bdelete on a buffer, our process gets stopped on the BufUnload
-" event, but then started again. (I guess the ftplugin is read again, and since
-" the buffer vars are deleted a new process gets started).
-"
+" buffer is about to be removed or not.
 " I can use the BufUnload autocmd to store the vsh_job variable globally and
-" kill that in the BufDelete event, but this doesn't work because the secondary
-" reading of the ftplugin file happens after the BufDelete event.
-"
-"
-"
-" Two things to note:
-"   vim test.vsh
-"   :new test.txt
-"   :bunload test.vsh
-"   :autocmd BufUnload
-"   :q
-"
-"   vim test.vsh
-"   :new test.txt
-"   :bdelete test.vsh
-"   :autocmd BufUnload
-"   :q
+" kill that in the BufDelete event.
 "
 "
 " Questions:
@@ -63,11 +43,6 @@ let b:prompt = 'vimshell: > '
 "
 "   Does using <afile> on a buffer without a backing file cause problems
 "   uniquely identifying the buffer?
-"
-"   Why is the ftplugin sourced again during :bdelete?
-"   Is the fgtplugin sourced twice during :bdelete in vim?
-"
-"   Does the same happen without any other plugins?
 
 
 let g:vsh_closing_job = 0

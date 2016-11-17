@@ -257,12 +257,9 @@ else
     if get(g:, 'vsh_vim_closing', 0)
       return
     endif
-    let curbuffer = bufnr('%')
     if bufexists(self.buffer)
-      exe 'keepjumps keepalt buffer ' . self.buffer
-      let b:vsh_job = 0
-      let b:initialised = 0
-      exe 'keepjumps keepalt buffer ' . curbuffer
+      call setbufvar(self.buffer, 'vsh_job', 0)
+      call setbufvar(self.buffer, 'initialised', 0)
     else
       " XXX -- in 'release version' I'd remove this complaint as there's no
       " problem just not doing anything in this case.
