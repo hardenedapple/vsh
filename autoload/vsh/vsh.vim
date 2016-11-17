@@ -171,6 +171,8 @@ if !has('nvim') || !has('python3')
   endfunction
   function vsh#vsh#SendControlChar()
   endfunction
+  function vsh#vsh#ClosedBuffer()
+  endfunction
 
   function vsh#vsh#RunCommand(command_line, command)
     let l:command_range = vsh#vsh#CommandRange()
@@ -202,12 +204,12 @@ else
 
     let start_script = s:plugin_path . '/vsh_shell_start'
     let job_id = jobstart([start_script], extend({'buffer': bufnr('%')}, s:callbacks))
-    if job_id == 0
+    if l:job_id == 0
       echoerr "Too many jobs started, can't start another."
-    elseif job_id == -1
+    elseif l:job_id == -1
       echoerr 'Failed to find bash executable.'
     else
-      let b:vsh_job = job_id
+      let b:vsh_job = l:job_id
     endif
 
     if !exists('g:vsh_py_loaded')
@@ -285,6 +287,13 @@ else
     endif
     call jobsend(b:vsh_job, nr2char(l:cntrl_char))
   endfunction
+
+  function vsh#vsh#ClosedBuffer()
+    if g:vsh_closing_job != 0
+      python3 vsh_close_subprocess(vim.eval("g:vsh_closing_job"))
+    endif
+  endfunction
+
 endif
 
 

@@ -148,21 +148,3 @@ def vsh_close_subprocess(jobnr):
     pgid = os.getpgid(pid)
     os.killpg(pgid, signal.SIGHUP)
 
-def vsh_close_bufprocess(bufnr):
-    '''
-    Runs in autocmd context upon BufUnload event
-
-    '''
-    # # Should we remove the autocmd?
-    # vim.command('autocmd! BufUnload <buffer={}>'.format(bufnr))
-    buffer_vars = vim.buffers[bufnr].vars
-    try:
-        jobnr = int(buffer_vars['vsh_job'])
-    except KeyError:
-        vim.command('echoerr "vsh_close_bufprocess() called with non-existant vsh_job variable in buffer {}"'.format(bufnr))
-
-    # Could be 0 to mark a stopped process.
-    if jobnr:
-        vsh_close_subprocess(jobnr)
-    else:
-        print('jobnr is {} cannot close'.format(jobnr))
