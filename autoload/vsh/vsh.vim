@@ -1,5 +1,12 @@
-function vsh#vsh#MotionPrompt()
-  " Creates a prompt for motion that ignores all whitespace
+" The user specifies a b:prompt variable that marks a command and/or a comment.
+" When moving around, we don't want to move over comments one at a time: they
+" are usually much more than the lines of commands.
+" Hence the b:prompt variable defines both the prefix that determines whether a
+" line should be removed when running a command and the prefix that determines
+" whether a line defines a command seperately.
+
+function vsh#vsh#SplitMarker()
+  " Ignore whitespace in the variable b:prompt
   " Hardened with get() because it can get called in many different situations.
   " XXX We return '' if there is no local prompt variable.
   "     This means that the functions where search() is called search for '',
@@ -10,24 +17,28 @@ function vsh#vsh#MotionPrompt()
   return substitute(get(b:, 'prompt', ''), '\s\+$', '', '')
 endfunction
 
-function vsh#vsh#CurrentPrompt()
+function vsh#vsh#CommandMarker()
+  return '\m' . b:prompt . '\s*[^#[:space:]]'
+endfunction
+
+function vsh#vsh#SegmentStart()
   " Handle being at the start of the file
-  let l:retval = search(vsh#vsh#MotionPrompt(), 'bncW', 0)
+  let l:retval = search(vsh#vsh#SplitMarker(), 'bncW', 0)
   return l:retval ? l:retval : 1
 endfunction
 
-function vsh#vsh#NextPrompt()
+function vsh#vsh#SegmentEnd()
   " Handle being at the end of the file
   let l:eof = line('$')
-  let l:retval = search(vsh#vsh#MotionPrompt(), 'nW', l:eof)
+  let l:retval = search(vsh#vsh#SplitMarker(), 'nW', l:eof)
   return l:retval ? l:retval : l:eof + 1
 endfunction
 
-function s:PromptEnd(promptline, count_whitespace, motion_prompt)
+function s:PromptEnd(promptline, count_whitespace, command_prompt)
   " Return the column position where the prompt on this current line ends.
   " With a:count_whitespace truthy skip whitespace characters after the prompt.
   " With a:count_whitespace falsey don't skip any whitespace prompt.
-  let l:prompt = a:motion_prompt ? vsh#vsh#MotionPrompt() : b:prompt
+  let l:prompt = a:command_prompt ? vsh#vsh#SplitMarker() : b:prompt
   if a:promptline !~# l:prompt
     return -1
   endif
@@ -70,16 +81,15 @@ function vsh#vsh#MoveToNextPrompt(mode, count)
 
   " Multiple times if given a count
   let index = 0
-  let l:prompt = vsh#vsh#MotionPrompt()
+  let l:prompt = vsh#vsh#CommandMarker()
   while l:index < a:count
     if search(l:prompt, 'eW') == 0
       normal G
+      call s:MoveToPromptStart()
       break
     endif
     let l:index += 1
   endwhile
-
-  call s:MoveToPromptStart()
 endfunction
 
 function vsh#vsh#MoveToPrevPrompt(mode, count)
@@ -91,7 +101,7 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
   normal! 0
 
   " If there is no previous prompt, do nothing.
-  let l:prompt = vsh#vsh#MotionPrompt()
+  let l:prompt = vsh#vsh#CommandMarker()
   if search(l:prompt, 'beW') == 0
     exe 'normal! ' . origcol . '|'
     return
@@ -106,7 +116,6 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
     let l:index += 1
   endwhile
 
-  call s:MoveToPromptStart()
 endfunction
 
 function vsh#vsh#ParseVSHCommand(line)
@@ -133,13 +142,13 @@ endfunction
 
 function vsh#vsh#CommandSpan()
   let l:eof = line('$')
-  let l:startline = vsh#vsh#CurrentPrompt()
+  let l:startline = vsh#vsh#SegmentStart()
   " If no current prompt, no range
   if l:startline == 0
     return []
   endif
 
-  let l:nextprompt = vsh#vsh#NextPrompt()
+  let l:nextprompt = vsh#vsh#SegmentEnd()
   let l:cur_output_len = l:nextprompt - l:startline
 
   " If we are at the last prompt in the file, range is from here to EOF.
@@ -164,7 +173,7 @@ function vsh#vsh#CommandRange()
 endfunction
 
 function vsh#vsh#ReplaceOutput()
-  let l:command_line = vsh#vsh#CurrentPrompt()
+  let l:command_line = vsh#vsh#SegmentStart()
   let l:command = vsh#vsh#ParseVSHCommand(getline(l:command_line))
   if l:command == -1
     return
@@ -318,7 +327,8 @@ endfunction
 
 function vsh#vsh#SelectCommand(include_whitespace)
   " Operate on either all the command line, or all text in the command line.
-  let promptline = vsh#vsh#CurrentPrompt()
+  let search_line = search(vsh#vsh#CommandMarker(), 'bncW', 0)
+  let promptline = l:search_line ? l:search_line : 1
   let curprompt = getline(l:promptline)
 
   let promptend = s:PromptEnd(l:curprompt, a:include_whitespace, 0)

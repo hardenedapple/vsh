@@ -4,40 +4,49 @@
 
 Given vsh (vsh buffer):
   vimshell: >
+  vimshell: >    	#echo Hello there
   vimshell: >    	echo Hello there
 
-Do (First motion of ):
+Do (Motion down skips comments and empty lines):
   \<C-n>ix
 
 Expect:
-  vimshell: x>
-  vimshell: >    	echo Hello there
+  vimshell: >
+  vimshell: >    	#echo Hello there
+  vimshell: >    	xecho Hello there
 
-Do (Second motion of line):
+Do (Motion down with no extra prompts moves to end):
   \<C-n>\<C-n>ix
 
 Expect:
   vimshell: >
+  vimshell: >    	#echo Hello there
   vimshell: >    	xecho Hello there
 
-Do (Moving up does nothing):
+Do (Moving up at start of file does nothing):
   \<C-p>ix
 
 Expect:
   xvimshell: >
+  vimshell: >    	#echo Hello there
   vimshell: >    	echo Hello there
 
 
-Do (Moving up does nothing):
+Do (Moving up with no previous prompt does nothing):
   \<C-n>\<C-p>ix
 
 Expect:
-  vimshell: x>
-  vimshell: >    	echo Hello there
+  vimshell: >
+  vimshell: >    	#echo Hello there
+  vimshell: >    	xecho Hello there
 
-Do (Moving down at bottom line does nothing):
-  \<C-n>\<C-n>\<C-n>ix
+Given vsh (vsh buffer):
+  vimshell: > echo Hello there
+  Hello there, this is output
+
+Do (Moving down at last prompt moves to end of output):
+  \<C-n>\<C-n>ix
 
 Expect:
-  vimshell: >
-  vimshell: >    	xecho Hello there
+  vimshell: > echo Hello there
+  xHello there, this is output
