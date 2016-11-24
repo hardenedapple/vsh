@@ -2,6 +2,10 @@
 #   Find what command line arguments need to be given to a vim instance in
 #   order to just run these tests.
 
+
+#"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
+#                                   Motion                                    #
+#"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
 Given vsh (vsh buffer):
   vimshell: >
   vimshell: >    	#echo Hello there
@@ -15,7 +19,7 @@ Expect:
   vimshell: >    	#echo Hello there
   vimshell: >    	xecho Hello there
 
-Do (Motion down with no extra prompts moves to end):
+Do (Motion down with no extra prompts stays at end):
   \<C-n>\<C-n>ix
 
 Expect:
@@ -40,6 +44,7 @@ Expect:
   vimshell: >    	#echo Hello there
   vimshell: >    	xecho Hello there
 
+
 Given vsh (vsh buffer):
   vimshell: > echo Hello there
   Hello there, this is output
@@ -50,3 +55,42 @@ Do (Moving down at last prompt moves to end of output):
 Expect:
   vimshell: > echo Hello there
   xHello there, this is output
+
+
+Given vsh (vsh buffer):
+  vimshell: > # vimshell: > ls
+  vimshell: > ls
+
+Do (Down motion includes saved output):
+  \<C-n>ix
+
+Expect:
+  vimshell: > # vimshell: > xls
+  vimshell: > ls
+
+Do (Up motion includes saved output):
+  \<C-n>\<C-n>\<C-p>ix
+
+Expect:
+  vimshell: > # vimshell: > xls
+  vimshell: > ls
+
+
+Given vsh (vsh buffer):
+  vimshell: > 
+  vimshell: > ls
+
+Do (Down motion includes complete prompts without commands):
+  \<C-n>ix
+
+Expect:
+  vimshell: >x 
+  vimshell: > ls
+
+Do (Up motion includes complete prompts without commands):
+  \<C-n>\<C-n>\<C-p>ix
+
+Expect:
+  vimshell: >x 
+  vimshell: > ls
+
