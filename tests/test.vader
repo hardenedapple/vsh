@@ -526,3 +526,24 @@ Expect:
   vimshell: >
   Output at the
   end of the buffer
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                             Runs basic commands                             "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Given vsh (vsh buffer):
+  vimshell: > echo Hello
+
+Execute (Run this command):
+  Rerun
+  " Sleep for a little while to give the pty time to respond
+  " Remove the prompt printed by the pty if in nvim
+  if has('nvim')
+    sleep 1
+    normal! Gdd
+  endif
+
+Expect:
+  vimshell: > echo Hello
+  Hello
+

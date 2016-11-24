@@ -188,6 +188,8 @@ if !has('nvim') || !has('python3')
   endfunction
   function vsh#vsh#ClosedBuffer()
   endfunction
+  function vsh#vsh#CloseProcess()
+  endfunction
 
   function vsh#vsh#RunCommand(command_line, command)
     let l:command_range = vsh#vsh#OutputRange()
