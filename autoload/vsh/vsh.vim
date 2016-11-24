@@ -181,6 +181,87 @@ function vsh#vsh#ReplaceOutput()
   call vsh#vsh#RunCommand(l:command_line, l:command)
 endfunction
 
+function vsh#vsh#SaveOutput(activate)
+  " Comment out the command for this output.
+  " This means we won't accidentaly re-run the command here (because the
+  " corresponding command is a comment).
+  let l:cur_cli = vsh#vsh#SegmentStart()
+  if l:cur_cli == 0
+    return
+  endif
+
+  " XXX NOTE: Assuming default &commentstring format of    '<something> %s'
+  let cur_command = getline(l:cur_cli)
+  let commentstart = s:commentstart()
+  " Just add the comment starter before the current command -- you can remove
+  " it with the Commentary mappings then.
+  if a:activate
+    if l:cur_command =~# l:commentstart . b:prompt
+      call setline(l:cur_cli, l:cur_command[len(l:commentstart):])
+    else
+      echo 'Output is not Saved'
+    endif
+  elseif l:cur_command =~# vsh#vsh#CommandMarker()
+    call setline(l:cur_cli, l:commentstart . l:cur_command)
+  else
+    echo 'Output is not Active'
+  endif
+endfunction
+
+function vsh#vsh#NewPrompt(skip_output, count)
+  if a:skip_output
+    exe vsh#vsh#SegmentEnd() - 1
+  endif
+  put = b:prompt
+  startinsert!
+endfunction
+
+function vsh#vsh#SelectCommand(include_whitespace)
+  " Operate on either all the command line, or all text in the command line.
+  let search_line = search(vsh#vsh#MotionMarker(), 'bncW', 0)
+  let promptline = l:search_line ? l:search_line : 1
+  let curprompt = getline(l:promptline)
+
+  let promptend = s:PromptEnd(l:curprompt, a:include_whitespace, 0)
+  if l:promptend == -1
+    " Ring the bell to show that we can't select anything.
+    " I found the line below to ring the bell in the CountJump plugin.
+    return ":\<C-u>normal! \<C-\>\<C-n>\<Esc>"
+  endif
+
+  " Note: Move to start of line, then move right instead of using '|' because
+  " PromptEnd gives the number of characters from the start that the command
+  " is, not the number of screen columns.
+  return ":\<C-u>normal! ".l:promptline."gg0".l:promptend."lv$h\<CR>"
+endfunction
+
+" SelectCommand() uses the MotionMarker() prompt, while this works with the
+" SplitMarker() prompt because that is what I've defined to separate output
+" from other output.
+function vsh#vsh#SelectOutput(include_prompt)
+  let span = vsh#vsh#CommandSpan()
+  if l:span == []
+    if !a:include_prompt
+      return ":\<C-u>normal! \<C-\>\<C-n>\<Esc>"
+    else
+      let startline = line('.')
+      let endline = line('.')
+    endif
+  else
+    let startline = l:span[0]
+    if !a:include_prompt
+      let startline += 1
+    endif
+
+    let endline = l:span[1]
+  endif
+
+  return ":\<C-u>normal! ".l:startline."ggV".l:endline."gg\<CR>"
+endfunction
+
+
+
+" Job control vs serial stuff.
 if !has('nvim') || !has('python3')
   function vsh#vsh#StartSubprocess()
   endfunction
@@ -313,85 +394,6 @@ else
   endfunction
 
 endif
-
-function vsh#vsh#SaveOutput(activate)
-  " Comment out the command for this output.
-  " This means we won't accidentaly re-run the command here (because the
-  " corresponding command is a comment).
-  let l:cur_cli = vsh#vsh#SegmentStart()
-  if l:cur_cli == 0
-    return
-  endif
-
-  " XXX NOTE: Assuming default &commentstring format of    '<something> %s'
-  let cur_command = getline(l:cur_cli)
-  let commentstart = s:commentstart()
-  " Just add the comment starter before the current command -- you can remove
-  " it with the Commentary mappings then.
-  if a:activate
-    if l:cur_command =~# l:commentstart . b:prompt
-      call setline(l:cur_cli, l:cur_command[len(l:commentstart):])
-    else
-      echo 'Output is not Saved'
-    endif
-  elseif l:cur_command =~# vsh#vsh#CommandMarker()
-    call setline(l:cur_cli, l:commentstart . l:cur_command)
-  else
-    echo 'Output is not Active'
-  endif
-endfunction
-
-function vsh#vsh#NewPrompt(skip_output, count)
-  if a:skip_output
-    exe vsh#vsh#SegmentEnd() - 1
-  endif
-  put = b:prompt
-  startinsert!
-endfunction
-
-function vsh#vsh#SelectCommand(include_whitespace)
-  " Operate on either all the command line, or all text in the command line.
-  let search_line = search(vsh#vsh#MotionMarker(), 'bncW', 0)
-  let promptline = l:search_line ? l:search_line : 1
-  let curprompt = getline(l:promptline)
-
-  let promptend = s:PromptEnd(l:curprompt, a:include_whitespace, 0)
-  if l:promptend == -1
-    " Ring the bell to show that we can't select anything.
-    " I found the line below to ring the bell in the CountJump plugin.
-    return ":\<C-u>normal! \<C-\>\<C-n>\<Esc>"
-  endif
-
-  " Note: Move to start of line, then move right instead of using '|' because
-  " PromptEnd gives the number of characters from the start that the command
-  " is, not the number of screen columns.
-  return ":\<C-u>normal! ".l:promptline."gg0".l:promptend."lv$h\<CR>"
-endfunction
-
-" SelectCommand() uses the MotionMarker() prompt, while this works with the
-" SplitMarker() prompt because that is what I've defined to separate output
-" from other output.
-function vsh#vsh#SelectOutput(include_prompt)
-  let span = vsh#vsh#CommandSpan()
-  if l:span == []
-    if !a:include_prompt
-      return ":\<C-u>normal! \<C-\>\<C-n>\<Esc>"
-    else
-      let startline = line('.')
-      let endline = line('.')
-    endif
-  else
-    let startline = l:span[0]
-    if !a:include_prompt
-      let startline += 1
-    endif
-
-    let endline = l:span[1]
-  endif
-
-  return ":\<C-u>normal! ".l:startline."ggV".l:endline."gg\<CR>"
-endfunction
-
 
 "" Default mappings
 let s:operator_mappings = [
