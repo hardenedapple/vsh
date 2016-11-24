@@ -8,32 +8,32 @@
 #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
 Given vsh (vsh buffer):
   vimshell: >
-  vimshell: >    	#echo Hello there
-  vimshell: >    	echo Hello there
+  vimshell: >    #echo Hello there
+  vimshell: >    echo Hello there
 
 Do (Motion down skips comments and empty lines):
   \<C-n>ix
 
 Expect:
   vimshell: >
-  vimshell: >    	#echo Hello there
-  vimshell: >    	xecho Hello there
+  vimshell: >    #echo Hello there
+  vimshell: >    xecho Hello there
 
 Do (Motion down with no extra prompts stays at end):
   \<C-n>\<C-n>ix
 
 Expect:
   vimshell: >
-  vimshell: >    	#echo Hello there
-  vimshell: >    	xecho Hello there
+  vimshell: >    #echo Hello there
+  vimshell: >    xecho Hello there
 
 Do (Moving up at start of file does nothing):
   \<C-p>ix
 
 Expect:
   xvimshell: >
-  vimshell: >    	#echo Hello there
-  vimshell: >    	echo Hello there
+  vimshell: >    #echo Hello there
+  vimshell: >    echo Hello there
 
 
 Do (Moving up with no previous prompt does nothing):
@@ -41,8 +41,8 @@ Do (Moving up with no previous prompt does nothing):
 
 Expect:
   vimshell: >
-  vimshell: >    	#echo Hello there
-  vimshell: >    	xecho Hello there
+  vimshell: >    #echo Hello there
+  vimshell: >    xecho Hello there
 
 
 Given vsh (vsh buffer):
@@ -94,3 +94,95 @@ Expect:
   vimshell: >x 
   vimshell: > ls
 
+
+# Tabs count as a command character
+Given vsh (vsh buffer):
+  vimshell: > 	ls
+
+Do (Don't skip tabs):
+  \<C-n>ix
+
+Expect:
+  vimshell: > x	ls
+
+#"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
+#                              Parsing Commands                               #
+#"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
+Given vsh (vsh buffer):
+  vimshell: >
+  vimshell: > 
+  vimshell: > ls
+  vimshell: >   ls
+  vimshell: > 	ls
+  vimshell: > # ls
+  vimshell: > #ls
+  vimshell: >   #ls
+  vimshell: >  	#ls
+  hello there
+
+
+Do (Parsing Works nicely):
+  :g/^/put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
+
+Expect:
+  vimshell: >
+  -1
+  vimshell: > 
+  -1
+  vimshell: > ls
+  ls
+  vimshell: >   ls
+    ls
+  vimshell: > 	ls
+  	ls
+  vimshell: > # ls
+  -1
+  vimshell: > #ls
+  -1
+  vimshell: >   #ls
+  -1
+  vimshell: >  	#ls
+   	#ls
+  hello there
+  -1
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                                Command Span                                 "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Given vsh (vsh buffer):
+  vimshell: >
+  vimshell: >
+
+  vimshell: >
+
+
+
+
+  vimshell: >
+
+
+Do (CommandSpan() works nicely):
+  :g/vimshell/s/$/\=string(vsh#vsh#CommandSpan())\<CR>
+
+Expect:
+  vimshell: >[]
+  vimshell: >[2, 3]
+
+  vimshell: >[4, 8]
+
+
+
+
+  vimshell: >[]
+
+Given vsh (vsh buffer):
+  vimshell: >
+  hello there
+
+Do (CommandSpan() Final line):
+  :s/$/\=string(vsh#vsh#CommandSpan())\<CR>
+
+Expect:
+  vimshell: >[1, 2]
+  hello there
