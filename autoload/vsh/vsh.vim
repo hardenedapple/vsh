@@ -372,6 +372,13 @@ else
   endfunction
 
   function vsh#vsh#InsertText(job_id, data, event)
+    " TODO Want to have undojoin here because it would stop the pollution of
+    " the undolist by the split of of pty output into multiple chunks.
+    " Unfortunately I'm getting an error about undojoin not allowed after an
+    " undo on the last line of output.
+    " I don't know where this previous :undo comes from -- I'll have a look at
+    " my other plugins to start with.
+    " undojoin | python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
     python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
   endfunction
 
