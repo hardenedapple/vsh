@@ -157,7 +157,7 @@ function vsh#vsh#CommandSpan()
   endif
 endfunction
 
-function vsh#vsh#CommandRange()
+function vsh#vsh#OutputRange()
   let span = vsh#vsh#CommandSpan()
   if l:span == []
     return ''
@@ -183,7 +183,7 @@ if !has('nvim') || !has('python3')
   endfunction
 
   function vsh#vsh#RunCommand(command_line, command)
-    let l:command_range = vsh#vsh#CommandRange()
+    let l:command_range = vsh#vsh#OutputRange()
     if l:command_range
       exe l:command_range . '! ' . a:command
     else
@@ -369,9 +369,9 @@ function vsh#vsh#SetupMappings()
   nnoremap <buffer> <silent> <CR>  :call vsh#vsh#ReplaceOutput()<CR>
   nnoremap <buffer> <silent> <localleader>n  :<C-U>call vsh#vsh#NewPrompt(1, v:count1)<CR>
 
-  " TODO Add a text object that selects the current CommandRange() (and command
+  " TODO Add a text object that selects the current OutputRange() (and command
   " line if using the 'a').
-  nnoremap <buffer> <localleader>o  :<C-U><C-r>=vsh#vsh#CommandRange()<CR>
+  nnoremap <buffer> <localleader>o  :<C-U><C-r>=vsh#vsh#OutputRange()<CR>
 
   " TODO Make shortcut to call vsh#vsh#ReplaceOutput() and then
   " vsh#vsh#MoveToNextPrompt()
