@@ -1,9 +1,7 @@
 " The user specifies a b:prompt variable that marks a command and/or a comment.
-" When moving around, we don't want to move over comments one at a time: they
-" are usually much more than the lines of commands.
-" Hence the b:prompt variable defines both the prefix that determines whether a
-" line should be removed when running a command and the prefix that determines
-" whether a line defines a command seperately.
+" This variable specifies what should be a command, what lines count as
+" non-output to replace, *and* how we move about the file.
+" These three functions form these strings from b:prompt
 
 function vsh#vsh#SplitMarker()
   " Ignore whitespace in the variable b:prompt
@@ -17,8 +15,15 @@ function vsh#vsh#SplitMarker()
   return substitute(get(b:, 'prompt', ''), '\s\+$', '', '')
 endfunction
 
+function vsh#vsh#MotionMarker()
+  " Should match a valid command without a comment, OR a command prompt without
+  " any space after it.
+  return '\V\^' . vsh#vsh#SplitMarker() . '\(\s\*\[^#[:space:]]\|\$\)'
+endfunction
+
 function vsh#vsh#CommandMarker()
-  return '\m' . b:prompt . '\s*[^#[:space:]]'
+  " Allow notes in the file -- make lines beginning with # a comment.
+  return '\V\^' . b:prompt . '\s\*\[^#[:space:]]'
 endfunction
 
 function vsh#vsh#SegmentStart()
@@ -81,7 +86,7 @@ function vsh#vsh#MoveToNextPrompt(mode, count)
 
   " Multiple times if given a count
   let index = 0
-  let l:prompt = vsh#vsh#CommandMarker()
+  let l:prompt = vsh#vsh#MotionMarker()
   while l:index < a:count
     if search(l:prompt, 'eW') == 0
       normal G
@@ -101,7 +106,7 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
   normal! 0
 
   " If there is no previous prompt, do nothing.
-  let l:prompt = vsh#vsh#CommandMarker()
+  let l:prompt = vsh#vsh#MotionMarker()
   if search(l:prompt, 'beW') == 0
     exe 'normal! ' . origcol . '|'
     return
@@ -122,21 +127,10 @@ function vsh#vsh#ParseVSHCommand(line)
   " Here we use the b:prompt variable as that's what the user asked us to use
   " for specifying commands.
   " Check we've been given a command line and not some junk
-  if a:line !~# '^' . b:prompt
+  if a:line !~# vsh#vsh#CommandMarker()
     return -1
   endif
-
-  let l:command = a:line[len(b:prompt):]
-  " Allow notes in the file -- make lines beginning with # a comment.
-  " Can't just pass the # on to the bash command, as it gets expanded out in
-  " the 'exe' command.
-  if l:command =~ '\s*#'
-    return -1
-  endif
-
-  " If the first character is a space, remove it for convenience, but don't do
-  " more than that in case spaces are important (e.g. python REPL).
-  return l:command
+  return a:line[len(b:prompt):]
 endfunction
 
 function vsh#vsh#CommandSpan()
@@ -326,7 +320,7 @@ endfunction
 
 function vsh#vsh#SelectCommand(include_whitespace)
   " Operate on either all the command line, or all text in the command line.
-  let search_line = search(vsh#vsh#CommandMarker(), 'bncW', 0)
+  let search_line = search(vsh#vsh#MotionMarker(), 'bncW', 0)
   let promptline = l:search_line ? l:search_line : 1
   let curprompt = getline(l:promptline)
 
