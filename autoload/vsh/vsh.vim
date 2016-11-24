@@ -15,10 +15,14 @@ function vsh#vsh#SplitMarker()
   return substitute(get(b:, 'prompt', ''), '\s\+$', '', '')
 endfunction
 
+function s:commentstart()
+  return substitute(&commentstring, '%s', '', '')
+endfunction
+
 function vsh#vsh#MotionMarker()
   " Should match a valid command without a comment, OR a command prompt without
   " any space after it.
-  return '\V\^' . b:prompt . '\(\s\*\[^#[:space:]]\|\$\)'
+  return '\V\(\^\|' . s:commentstart() . '\)' . b:prompt . '\(\s\*\[^#[:space:]]\|\$\)'
 endfunction
 
 function vsh#vsh#CommandMarker()
@@ -75,7 +79,7 @@ endfunction
 
 function vsh#vsh#MoveToNextPrompt(mode, count)
   " Description:
-  "   Searches forward until the next prompt in the current buffefr.
+  "   Searches forward until the next prompt in the current buffer.
   "   Moves the cursor to the start of the command in that buffer.
   "   If there are spaces between the prompt and the command line then skip
   "   them until reach the first character in the command.
@@ -312,7 +316,7 @@ function vsh#vsh#SaveOutput(activate)
 
   " XXX NOTE: Assuming default &commentstring format of    '<something> %s'
   let cur_command = getline(l:cur_cli)
-  let commentstart = substitute(&commentstring, '%s', '', '')
+  let commentstart = s:commentstart()
   " Just add the comment starter before the current command -- you can remove
   " it with the Commentary mappings then.
   if a:activate
