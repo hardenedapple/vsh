@@ -67,6 +67,7 @@ setlocal formatoptions-=c
 " which means that pressing <CR> in insert mode when on that line inserts the
 " '#' on the next line (assuming the correct 'formatoptions' settings)
 setlocal comments=:vimshell\:\ >\ #,:vimshell\:\ >
+setlocal commentstring=vimshell:\ >\ #\ %s
 setlocal formatoptions+=r
 setlocal formatoptions+=o
 
