@@ -301,6 +301,32 @@ else
 
 endif
 
+function vsh#vsh#SaveOutput(activate)
+  " Comment out the command for this output.
+  " This means we won't accidentaly re-run the command here (because the
+  " corresponding command is a comment).
+  let l:cur_cli = vsh#vsh#SegmentStart()
+  if l:cur_cli == 0
+    return
+  endif
+
+  " XXX NOTE: Assuming default &commentstring format of    '<something> %s'
+  let cur_command = getline(l:cur_cli)
+  let commentstart = substitute(&commentstring, '%s', '', '')
+  " Just add the comment starter before the current command -- you can remove
+  " it with the Commentary mappings then.
+  if a:activate
+    if l:cur_command =~# l:commentstart . b:prompt
+      call setline(l:cur_cli, l:cur_command[len(l:commentstart):])
+    else
+      echo 'Output is not Saved'
+    endif
+  elseif l:cur_command =~# vsh#vsh#CommandMarker()
+    call setline(l:cur_cli, l:commentstart . l:cur_command)
+  else
+    echo 'Output is not Active'
+  endif
+endfunction
 
 function vsh#vsh#NewPrompt(skip_output, count)
   if a:skip_output
@@ -378,6 +404,12 @@ function vsh#vsh#SetupMappings()
   " the correct order, so it's still useful to a point.
   command -buffer -range Rerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:prompt . '/call vsh#vsh#ReplaceOutput()'
 
+  " Save current output by commenting the current command and adding a splitter
+  " after the output. Activate it by undoing that.
+  " Don't have a toggle because that would 
+  nnoremap <buffer> <silent> <localleader>s :<C-U>call vsh#vsh#SaveOutput(0)<CR>
+  nnoremap <buffer> <silent> <localleader>a :<C-U>call vsh#vsh#SaveOutput(1)<CR>
+
   " Text object for the current buffer
   "" Visual plugin mappings
   vnoremap <silent><expr> <Plug>(vshInnerCommand) vsh#vsh#SelectCommand(1)
@@ -390,7 +422,6 @@ function vsh#vsh#SetupMappings()
   onoremap <silent><expr> <Plug>(vshInnerCOMMAND) vsh#vsh#SelectOutput(0)
   onoremap <silent><expr> <Plug>(vshOuterCommand) vsh#vsh#SelectCommand(0)
   onoremap <silent><expr> <Plug>(vshOuterCOMMAND) vsh#vsh#SelectOutput(1)
-
 
   for [lhs, rhs] in s:operator_mappings
     if !hasmapto(rhs, 'v')
