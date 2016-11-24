@@ -18,7 +18,7 @@ endfunction
 function vsh#vsh#MotionMarker()
   " Should match a valid command without a comment, OR a command prompt without
   " any space after it.
-  return '\V\^' . vsh#vsh#SplitMarker() . '\(\s\*\[^#[:space:]]\|\$\)'
+  return '\V\^' . b:prompt . '\(\s\*\[^#[:space:]]\|\$\)'
 endfunction
 
 function vsh#vsh#CommandMarker()
