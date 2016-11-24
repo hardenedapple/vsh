@@ -122,12 +122,11 @@ function vsh#vsh#ParseVSHCommand(line)
   " Here we use the b:prompt variable as that's what the user asked us to use
   " for specifying commands.
   " Check we've been given a command line and not some junk
-  let promptstart = match(a:line, b:prompt)
-  if promptstart == -1
+  if a:line !~# '^' . b:prompt
     return -1
   endif
 
-  let l:command = a:line[promptstart + len(b:prompt):]
+  let l:command = a:line[len(b:prompt):]
   " Allow notes in the file -- make lines beginning with # a comment.
   " Can't just pass the # on to the bash command, as it gets expanded out in
   " the 'exe' command.
