@@ -186,3 +186,343 @@ Do (CommandSpan() Final line):
 Expect:
   vimshell: >[1, 2]
   hello there
+
+
+Given vsh (vsh buffer):
+  vimshell: >
+
+
+
+
+
+  vimshell: >
+
+Do (CommandSpan() inside output):
+  j:s/$/\=string(vsh#vsh#CommandSpan())\<CR>
+
+Expect:
+  vimshell: >
+  [1, 6]
+
+
+
+
+  vimshell: >
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                            Save Output function                             "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Given vsh (vsh buffer):
+  vimshell: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vimshell: > echo Hello
+
+
+Do (Save output on command line):
+  \six
+
+Expect:
+  xvimshell: > # vimshell: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vimshell: > echo Hello
+
+Do (Save output when in output):
+  j\six
+
+Expect:
+  vimshell: > # vimshell: > ls
+  xbin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vimshell: > echo Hello
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                           Unsave output function                            "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Given vsh (vsh buffer):
+  vimshell: > # vimshell: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vimshell: > echo Hello
+
+Do (Unsave output on command line):
+  \aix
+
+Expect:
+  xvimshell: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vimshell: > echo Hello
+
+Do (Unsave output when in output):
+  j\aix
+
+Expect:
+  vimshell: > ls
+  xbin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vimshell: > echo Hello
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                                 New Prompt                                  "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+
+Given vsh (vsh buffer):
+  vimshell: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vimshell: > echo Hello
+
+Do (Unsave output on command line):
+  \nx
+
+Expect:
+  vimshell: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vimshell: > x
+  vimshell: > echo Hello
+
+Do (Unsave output when in output):
+  \<C-n>\<C-n>\nx
+
+Expect:
+  vimshell: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vimshell: > echo Hello
+  vimshell: > x
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                               Select Command                                "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Given vsh (vsh buffer):
+  vimshell: >
+  vimshell: > 
+  vimshell: >    #echo Hello there
+  vimshell: > echo Hello there
+  Hello there
+  vimshell: >    echo Hello there
+
+Do (Does nothing before empty prompt):
+  cicx
+
+Expect:
+  imshell: >
+  vimshell: > 
+  vimshell: >    #echo Hello there
+  vimshell: > echo Hello there
+  Hello there
+  vimshell: >    echo Hello there
+
+Do (Works on empty prompts (Reasonably: not great)):
+  jcicx
+
+Expect:
+  vimshell: >
+  vimshell: >x
+  vimshell: >    #echo Hello there
+  vimshell: > echo Hello there
+  Hello there
+  vimshell: >    echo Hello there
+
+Do (Ignores comment prompts):
+  jjcicx
+
+Expect:
+  vimshell: >
+  vimshell: >x
+  vimshell: >    #echo Hello there
+  vimshell: > echo Hello there
+  Hello there
+  vimshell: >    echo Hello there
+
+
+# Real command
+Do (Selects inner command on real command):
+  jjjcicx
+
+Expect:
+  vimshell: >
+  vimshell: > 
+  vimshell: >    #echo Hello there
+  vimshell: > x
+  Hello there
+  vimshell: >    echo Hello there
+
+
+Do (Selects outer command on real command):
+  jjjcacx
+
+Expect:
+  vimshell: >
+  vimshell: > 
+  vimshell: >    #echo Hello there
+  vimshell: > x
+  Hello there
+  vimshell: >    echo Hello there
+
+
+# Select command when in output
+Do (Selects inner command when in output):
+  jjjjcicx
+
+Expect:
+  vimshell: >
+  vimshell: > 
+  vimshell: >    #echo Hello there
+  vimshell: > x
+  Hello there
+  vimshell: >    echo Hello there
+
+
+Do (Selects outer command when in output):
+  jjjjcacx
+
+Expect:
+  vimshell: >
+  vimshell: > 
+  vimshell: >    #echo Hello there
+  vimshell: > x
+  Hello there
+  vimshell: >    echo Hello there
+
+
+# Command with spaces
+Do (Selects inner command excluding spaces):
+  jjjjjcicx
+
+Expect:
+  vimshell: >
+  vimshell: > 
+  vimshell: >    #echo Hello there
+  vimshell: > echo Hello there
+  Hello there
+  vimshell: >    x
+
+Do (Selects outer command including spaces):
+  jjjjjcacx
+
+Expect:
+  vimshell: >
+  vimshell: > 
+  vimshell: >    #echo Hello there
+  vimshell: > echo Hello there
+  Hello there
+  vimshell: > x
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                             Output Text object                              "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Given vsh (vsh buffer):
+  vimshell: >
+  vimshell: >
+  One line output
+  vimshell: >
+  Multiple
+  line
+  output
+  vimshell: >
+  Output at the
+  end of the buffer
+
+Do (Change output when no output):
+  ciox
+
+Expect:
+  imshell: >
+  vimshell: >
+  One line output
+  vimshell: >
+  Multiple
+  line
+  output
+  vimshell: >
+  Output at the
+  end of the buffer
+
+Do (Change OUTPUT when no output):
+  caox
+
+Expect:
+  x
+  vimshell: >
+  One line output
+  vimshell: >
+  Multiple
+  line
+  output
+  vimshell: >
+  Output at the
+  end of the buffer
+
+Do (Change output when one line of output):
+  jciox
+
+Expect:
+  vimshell: >
+  vimshell: >
+  x
+  vimshell: >
+  Multiple
+  line
+  output
+  vimshell: >
+  Output at the
+  end of the buffer
+
+Do (Change OUTPUT when one line of output):
+  jcaox
+
+Expect:
+  vimshell: >
+  x
+  vimshell: >
+  Multiple
+  line
+  output
+  vimshell: >
+  Output at the
+  end of the buffer
+
+Do (Change output when multiple lines):
+  jjjciox
+
+Expect:
+  vimshell: >
+  vimshell: >
+  One line output
+  vimshell: >
+  x
+  vimshell: >
+  Output at the
+  end of the buffer
+
+Do (Change output when multiple lines):
+  jjjcaox
+
+Expect:
+  vimshell: >
+  vimshell: >
+  One line output
+  x
+  vimshell: >
+  Output at the
+  end of the buffer

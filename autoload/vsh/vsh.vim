@@ -233,6 +233,10 @@ else
   endfunction
 
  function vsh#vsh#CloseProcess()
+   " XXX When the neovim patch that closes pty jobs comes into the arch linux
+   " package, uncomment the line below and remove the vsh_close_subprocess()
+   " function.
+   " call jobclose(b:vsh_job)
    python3 vsh_close_subprocess(vim.eval("b:vsh_job"))
    unlet b:vsh_job
  endfunction
@@ -362,18 +366,28 @@ function vsh#vsh#SelectCommand(include_whitespace)
   return ":\<C-u>normal! ".l:promptline."gg0".l:promptend."lv$h\<CR>"
 endfunction
 
+" SelectCommand() uses the MotionMarker() prompt, while this works with the
+" SplitMarker() prompt because that is what I've defined to separate output
+" from other output.
 function vsh#vsh#SelectOutput(include_prompt)
   let span = vsh#vsh#CommandSpan()
   if l:span == []
-    return ":\<C-u>normal! \<C-\>\<C-n>\<Esc>"
+    if !a:include_prompt
+      return ":\<C-u>normal! \<C-\>\<C-n>\<Esc>"
+    else
+      let startline = line('.')
+      let endline = line('.')
+    endif
   else
     let startline = l:span[0]
     if !a:include_prompt
       let startline += 1
     endif
 
-    return ":\<C-u>normal! ".l:startline."ggV".l:span[1]."gg\<CR>"
+    let endline = l:span[1]
   endif
+
+  return ":\<C-u>normal! ".l:startline."ggV".l:endline."gg\<CR>"
 endfunction
 
 
