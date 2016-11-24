@@ -304,15 +304,7 @@ endif
 
 function vsh#vsh#NewPrompt(skip_output, count)
   if a:skip_output
-    call vsh#vsh#MoveToNextPrompt('n', a:count)
-    " If we were at the start of the buffer, don't want to ring the bell, so
-    " don't move up.
-    " If we reached the end of the buffer (i.e. we were originally at the last
-    " prompt) don't move up so we insert a new prompt at the end of the buffer.
-    let curline = line('.')
-    if curline != 1 && line('$') != l:curline
-      silent normal! k
-    endif
+    exe vsh#vsh#SegmentEnd() - 1
   endif
   put = b:prompt
   startinsert!
