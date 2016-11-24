@@ -22,12 +22,15 @@ endfunction
 function vsh#vsh#MotionMarker()
   " Should match a valid command without a comment, OR a command prompt without
   " any space after it.
-  return '\V\(\^\|' . s:commentstart() . '\)' . b:prompt . '\(\s\*\[^#[:space:]]\|\$\)'
+  " Allow s:commentstart() before the prompt -- so we can move over
+  return '\V\(\^\|' . s:commentstart() . '\)' . b:prompt . '\( \*\[^# ]\|\$\)'
 endfunction
 
 function vsh#vsh#CommandMarker()
   " Allow notes in the file -- make lines beginning with # a comment.
-  return '\V\^' . b:prompt . '\s\*\[^#[:space:]]'
+  " Allow a command of just a <TAB> -- bash interprets the tab command, so we
+  " should allow sending it.
+  return '\V\^' . b:prompt . ' \*\[^# ]'
 endfunction
 
 function vsh#vsh#SegmentStart()
@@ -55,7 +58,7 @@ function s:PromptEnd(promptline, count_whitespace, command_prompt)
   let promptend = len(l:prompt)
 
   if a:count_whitespace
-    while a:promptline[l:promptend] =~ '\s'
+    while a:promptline[l:promptend] =~ ' '
       let l:promptend += 1
     endwhile
   endif
