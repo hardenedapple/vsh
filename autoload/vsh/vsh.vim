@@ -181,6 +181,11 @@ function vsh#vsh#ReplaceOutput()
   call vsh#vsh#RunCommand(l:command_line, l:command)
 endfunction
 
+function vsh#vsh#ReplaceOutputNewPrompt()
+  call vsh#vsh#ReplaceOutput()
+  call vsh#vsh#NewPrompt(1)
+endfunction
+
 function vsh#vsh#SaveOutput(activate)
   " Comment out the command for this output.
   " This means we won't accidentaly re-run the command here (because the
@@ -208,7 +213,7 @@ function vsh#vsh#SaveOutput(activate)
   endif
 endfunction
 
-function vsh#vsh#NewPrompt(skip_output, count)
+function vsh#vsh#NewPrompt(skip_output)
   if a:skip_output
     exe vsh#vsh#SegmentEnd() - 1
   endif
@@ -417,7 +422,9 @@ function vsh#vsh#SetupMappings()
   vnoremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt('v', v:count1)<CR>
   vnoremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt('v', v:count1)<CR>
   nnoremap <buffer> <silent> <CR>  :call vsh#vsh#ReplaceOutput()<CR>
-  nnoremap <buffer> <silent> <localleader>n  :<C-U>call vsh#vsh#NewPrompt(1, v:count1)<CR>
+  nnoremap <buffer> <silent> <localleader>n  :<C-U>call vsh#vsh#NewPrompt(1)<CR>
+
+  inoremap <buffer> <silent> <M-CR> <Esc>:call vsh#vsh#ReplaceOutputNewPrompt()<CR>
 
   " TODO Add a text object that selects the current OutputRange() (and command
   " line if using the 'a').
