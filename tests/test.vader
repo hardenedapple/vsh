@@ -323,7 +323,7 @@ Do (Does nothing before empty prompt):
   cicx
 
 Expect:
-  imshell: >
+  xvimshell: >
   vimshell: > 
   vimshell: >    #echo Hello there
   vimshell: > echo Hello there
@@ -426,6 +426,17 @@ Expect:
   Hello there
   vimshell: > x
 
+Do (Works with the redo '.' command):
+  jjjdacjj.
+
+Expect:
+  vimshell: >
+  vimshell: > 
+  vimshell: >    #echo Hello there
+  vimshell: > 
+  Hello there
+  vimshell: > 
+
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                             Output Text object                              "
@@ -447,7 +458,7 @@ Do (Change output when no output):
   ciox
 
 Expect:
-  imshell: >
+  xvimshell: >
   vimshell: >
   One line output
   vimshell: >
@@ -527,6 +538,17 @@ Expect:
   Output at the
   end of the buffer
 
+
+Do (Works with the redo '.' command):
+  jjdioj.
+
+Expect:
+  vimshell: >
+  vimshell: >
+  vimshell: >
+  vimshell: >
+  Output at the
+  end of the buffer
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                             Runs basic commands                             "

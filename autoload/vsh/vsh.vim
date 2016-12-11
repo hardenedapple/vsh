@@ -221,6 +221,12 @@ function vsh#vsh#NewPrompt(skip_output)
   startinsert!
 endfunction
 
+
+" It appears that most text objects do *something* when there isn't really
+" anything to act on (e.g. 'iw' removes whatever whitespace you're on at the
+" moment.
+" For this reason we just don't move the cursor if there isn't a command above
+" our position in the buffer.
 function vsh#vsh#SelectCommand(include_whitespace)
   " Operate on either all the command line, or all text in the command line.
   let search_line = search(vsh#vsh#MotionMarker(), 'bncW', 0)
@@ -228,16 +234,12 @@ function vsh#vsh#SelectCommand(include_whitespace)
   let curprompt = getline(l:promptline)
 
   let promptend = s:PromptEnd(l:curprompt, a:include_whitespace, 0)
-  if l:promptend == -1
-    " Ring the bell to show that we can't select anything.
-    " I found the line below to ring the bell in the CountJump plugin.
-    return ":\<C-u>normal! \<C-\>\<C-n>\<Esc>"
+  if l:promptend != -1
+    " Note: Move to start of line, then move right instead of using '|' because
+    " PromptEnd gives the number of characters from the start that the command
+    " is, not the number of screen columns.
+    exe 'normal! '.l:promptline.'gg0'.l:promptend.'lv$h'
   endif
-
-  " Note: Move to start of line, then move right instead of using '|' because
-  " PromptEnd gives the number of characters from the start that the command
-  " is, not the number of screen columns.
-  return ":\<C-u>normal! ".l:promptline."gg0".l:promptend."lv$h\<CR>"
 endfunction
 
 " SelectCommand() uses the MotionMarker() prompt, while this works with the
@@ -247,7 +249,8 @@ function vsh#vsh#SelectOutput(include_prompt)
   let span = vsh#vsh#CommandSpan()
   if l:span == []
     if !a:include_prompt
-      return ":\<C-u>normal! \<C-\>\<C-n>\<Esc>"
+      " No output, and asked to select all output.
+      return
     else
       let startline = line('.')
       let endline = line('.')
@@ -261,7 +264,7 @@ function vsh#vsh#SelectOutput(include_prompt)
     let endline = l:span[1]
   endif
 
-  return ":\<C-u>normal! ".l:startline."ggV".l:endline."gg\<CR>"
+  exe 'normal! '.l:startline.'ggV'.l:endline.'gg'
 endfunction
 
 
@@ -451,16 +454,16 @@ function vsh#vsh#SetupMappings()
 
   " Text object for the current buffer
   "" Visual plugin mappings
-  vnoremap <silent><expr> <Plug>(vshInnerCommand) vsh#vsh#SelectCommand(1)
-  vnoremap <silent><expr> <Plug>(vshInnerCOMMAND) vsh#vsh#SelectOutput(0)
-  vnoremap <silent><expr> <Plug>(vshOuterCommand) vsh#vsh#SelectCommand(0)
-  vnoremap <silent><expr> <Plug>(vshOuterCOMMAND) vsh#vsh#SelectOutput(1)
+  vnoremap <silent> <Plug>(vshInnerCommand) :<C-u>call vsh#vsh#SelectCommand(1)<CR>
+  vnoremap <silent> <Plug>(vshInnerCOMMAND) :<C-u>call vsh#vsh#SelectOutput(0)<CR>
+  vnoremap <silent> <Plug>(vshOuterCommand) :<C-u>call vsh#vsh#SelectCommand(0)<CR>
+  vnoremap <silent> <Plug>(vshOuterCOMMAND) :<C-u>call vsh#vsh#SelectOutput(1)<CR>
 
   "" Operator plugin mappings
-  onoremap <silent><expr> <Plug>(vshInnerCommand) vsh#vsh#SelectCommand(1)
-  onoremap <silent><expr> <Plug>(vshInnerCOMMAND) vsh#vsh#SelectOutput(0)
-  onoremap <silent><expr> <Plug>(vshOuterCommand) vsh#vsh#SelectCommand(0)
-  onoremap <silent><expr> <Plug>(vshOuterCOMMAND) vsh#vsh#SelectOutput(1)
+  onoremap <silent> <Plug>(vshInnerCommand) :<C-u>call vsh#vsh#SelectCommand(1)<CR>
+  onoremap <silent> <Plug>(vshInnerCOMMAND) :<C-u>call vsh#vsh#SelectOutput(0)<CR>
+  onoremap <silent> <Plug>(vshOuterCommand) :<C-u>call vsh#vsh#SelectCommand(0)<CR>
+  onoremap <silent> <Plug>(vshOuterCOMMAND) :<C-u>call vsh#vsh#SelectOutput(1)<CR>
 
   for [lhs, rhs] in s:operator_mappings
     if !hasmapto(rhs, 'v')
