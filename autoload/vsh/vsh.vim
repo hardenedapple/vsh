@@ -98,10 +98,17 @@ function vsh#vsh#MoveToNextPrompt(mode, count)
     if search(l:prompt, 'eW') == 0
       normal G
       call s:MoveToPromptStart()
-      break
+      return
     endif
     let l:index += 1
   endwhile
+
+  " We have found a prompt, we want to be on the line just before this prompt.
+  if a:mode == 'o'
+    if line('.') != 1
+      -1
+    endif
+  endif
 endfunction
 
 function vsh#vsh#MoveToPrevPrompt(mode, count)
@@ -123,11 +130,16 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
   let index = 1
   while l:index < a:count
     if search(l:prompt, 'beW') == 0
-      break
+      return
     endif
     let l:index += 1
   endwhile
 
+  if a:mode == 'o'
+    if line('.') != line('$')
+      +1
+    endif
+  endif
 endfunction
 
 function vsh#vsh#ParseVSHCommand(line)
@@ -420,10 +432,13 @@ let s:operator_mappings = [
 
 function vsh#vsh#SetupMappings()
 
-  noremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt(mode(), v:count1)<CR>
-  noremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt(mode(), v:count1)<CR>
+  nnoremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt('n', v:count1)<CR>
+  nnoremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt('n', v:count1)<CR>
   vnoremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt('v', v:count1)<CR>
   vnoremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt('v', v:count1)<CR>
+  " Only ever use linewise operator motion.
+  onoremap <buffer> <silent> <C-n> V:<C-U>call vsh#vsh#MoveToNextPrompt('o', v:count1)<CR>
+  onoremap <buffer> <silent> <C-p> V:<C-U>call vsh#vsh#MoveToPrevPrompt('o', v:count1)<CR>
   nnoremap <buffer> <silent> <CR>  :call vsh#vsh#ReplaceOutput()<CR>
   nnoremap <buffer> <silent> <localleader>n  :<C-U>call vsh#vsh#NewPrompt(1)<CR>
 
@@ -448,7 +463,7 @@ function vsh#vsh#SetupMappings()
 
   " Save current output by commenting the current command and adding a splitter
   " after the output. Activate it by undoing that.
-  " Don't have a toggle because that would 
+  " Don't have a toggle as I like to know exactly what my commands will do.
   nnoremap <buffer> <silent> <localleader>s :<C-U>call vsh#vsh#SaveOutput(0)<CR>
   nnoremap <buffer> <silent> <localleader>a :<C-U>call vsh#vsh#SaveOutput(1)<CR>
 

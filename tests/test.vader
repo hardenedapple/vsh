@@ -105,6 +105,80 @@ Do (Don't skip tabs):
 Expect:
   vimshell: > x	ls
 
+# In Operator Pending mode we select *up to* the previous prompt
+Given vsh (vsh buffer):
+  vimshell: > ls
+  many
+  many
+  files
+  vimshell: > ls
+
+Do (Up to top line):
+  jjd\<C-p>
+
+Expect:
+  vimshell: > ls
+  files
+  vimshell: > ls
+
+Do (Down to bottom line):
+  jj$d\<C-n>
+
+Expect:
+  vimshell: > ls
+  many
+  vimshell: > ls
+
+Do (Down before first line):
+  d\<C-n>
+
+Expect:
+  many
+  many
+  files
+  vimshell: > ls
+
+Do (Down from first line):
+  $d\<C-n>
+
+Expect:
+  vimshell: > ls
+
+Do (Up from last line):
+  2\<C-n>$d\<C-p>
+
+Expect:
+  vimshell: > ls
+
+Given vsh (vsh buffer):
+  Bunch
+  of lines
+  at start
+  vimshell: > ls
+  many
+  many
+  files
+
+Do (Up nothing above):
+  jd\<C-p>
+
+Expect:
+  at start
+  vimshell: > ls
+  many
+  many
+  files
+
+Do (Down nothing below):
+  \<C-n>jjd\<C-n>
+
+Expect:
+  Bunch
+  of lines
+  at start
+  vimshell: > ls
+  many
+
 #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
 #                              Parsing Commands                               #
 #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
