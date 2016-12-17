@@ -122,7 +122,11 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
   " If there is no previous prompt, do nothing.
   let l:prompt = vsh#vsh#MotionMarker()
   if search(l:prompt, 'beW') == 0
-    exe 'normal! ' . origcol . '|'
+    if line('.') == 1
+      exe 'normal! ' . origcol . '|'
+    else
+      normal gg0
+    endif
     return
   endif
 

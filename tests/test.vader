@@ -36,13 +36,13 @@ Expect:
   vimshell: >    echo Hello there
 
 
-Do (Moving up with no previous prompt does nothing):
+Do (Moving up with no previous prompt goes to top):
   \<C-n>\<C-p>ix
 
 Expect:
-  vimshell: >
+  xvimshell: >
   vimshell: >    #echo Hello there
-  vimshell: >    xecho Hello there
+  vimshell: >    echo Hello there
 
 
 Given vsh (vsh buffer):
@@ -56,6 +56,12 @@ Expect:
   vimshell: > echo Hello there
   xHello there, this is output
 
+Do (Moving up on top prompt doesn't move cursor):
+  \<C-n>\<C-p>ix
+
+Expect:
+  vimshell: > xecho Hello there
+  Hello there, this is output
 
 Given vsh (vsh buffer):
   vimshell: > # vimshell: > ls
