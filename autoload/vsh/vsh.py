@@ -82,7 +82,9 @@ def vsh_insert_helper(data, vsh_buf):
     # XXX Improve text insertion performance for commands with a lot of output.
     if data:
         vsh_buf.append(data, insert_mark)
-    vim.command('{}mark d'.format(len(data) + insert_mark))
+    # This should fix issue #14 as soon as neovim issue #5713 is fixed
+    vim.command('call setpos( "\'d",[{}, {}, 0])'.format(
+        vsh_buf.number, len(data) + insert_mark))
 
 
 def vsh_insert_text(data, insert_buf):
