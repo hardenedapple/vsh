@@ -325,7 +325,8 @@ else
     0 mark d
 
     let start_script = s:plugin_path . '/vsh_shell_start'
-    let job_id = jobstart([start_script], extend({'buffer': bufnr('%')}, s:callbacks))
+    let job_id = jobstart([start_script, s:plugin_path, v:servername],
+          \ extend({'buffer': bufnr('%')}, s:callbacks))
     if l:job_id == 0
       echoerr "Too many jobs started, can't start another."
     elseif l:job_id == -1
