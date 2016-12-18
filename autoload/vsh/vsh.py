@@ -96,7 +96,7 @@ def vsh_insert_text(data, insert_buf):
     try:
         vsh_buf = vim.buffers[int(insert_buf)]
     except KeyError:
-        vim.command('echoerr "Vsh text recieved for invalid buffer"')
+        vim.command('echomsg "Vsh text recieved for invalid buffer"')
         return
 
     # Don't print out the starting prompt of the shell.
@@ -109,7 +109,7 @@ def vsh_insert_text(data, insert_buf):
 
     # # If we're ever given empty output I'll uncomment this so the pop()
     # # doesn't raise an exception.
-    # # I don't think it's possible, so I'll leave it uncommented for now.
+    # # I don't think it's possible, so I'll leave it commented for now.
     # if not data:
     #     return
 
