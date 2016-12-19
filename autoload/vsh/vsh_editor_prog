@@ -10,6 +10,10 @@ except ImportError:
 nvim_socket_path = os.getenv('NEOVIM_SOCKET_ADDR')
 nvim = neovim.attach('socket', path=nvim_socket_path)
 
+# TODO Create a vimscript function for this purpose instead of using :args.
+# Then create a vimscript function that tells this program editing has
+# finished.
+
 nvim.command('args {}'.format(' '.join(sys.argv[1:])))
 # Wait until get told to finish -- with ^D is "complete", with ^C is .
 try:

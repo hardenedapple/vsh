@@ -295,6 +295,9 @@ if !has('nvim') || !has('python3')
   endfunction
   function vsh#vsh#CloseProcess()
   endfunction
+  function vsh#vsh#TabComplete()
+    normal! <C-n>
+  endfunction
 
   function vsh#vsh#RunCommand(command_line, command)
     let l:command_range = vsh#vsh#OutputRange()
@@ -349,6 +352,26 @@ else
    unlet b:vsh_job
  endfunction
 
+ function vsh#vsh#TabComplete()
+   let command = vsh#vsh#ParseVSHCommand(getline('.'))
+   if l:command == -1
+     echoerr "Can't tab complete a non-command line"
+     return
+   endif
+   python3 vsh_clear_output(int(vim.eval("line('.')")))
+
+   " XXX Mark use
+   mark d
+   " Send text and tab, then remove text on this line with ^U so running this
+   " again doesn't cause a problem.
+   " XXX readline-ism
+   " Send M-? because this lists possible completions in bash and gdb.
+   let retval = jobsend(b:vsh_job, l:command . '?')
+   if retval == 0
+     echoerr 'Failed to tab complete output'
+   endif
+ endfunction
+
   function vsh#vsh#RunCommand(command_line, command)
     if !b:vsh_job
       echoerr 'No subprocess currently running!'
@@ -371,7 +394,6 @@ else
     let retval = jobsend(b:vsh_job, a:command . "\n")
     if retval == 0
       echoerr 'Failed to send command "' . a:command . '" to subprocess'
-      echo
     endif
   endfunction
 
@@ -446,19 +468,17 @@ function vsh#vsh#SetupMappings()
   onoremap <buffer> <silent> <C-p> V:<C-U>call vsh#vsh#MoveToPrevPrompt('o', v:count1)<CR>
   nnoremap <buffer> <silent> <CR>  :call vsh#vsh#ReplaceOutput()<CR>
   nnoremap <buffer> <silent> <localleader>n  :<C-U>call vsh#vsh#NewPrompt(1)<CR>
-
   inoremap <buffer> <silent> <M-CR> <Esc>:call vsh#vsh#ReplaceOutputNewPrompt()<CR>
 
-  " TODO Add a text object that selects the current OutputRange() (and command
-  " line if using the 'a').
   nnoremap <buffer> <localleader>o  :<C-U><C-r>=vsh#vsh#OutputRange()<CR>
-
-  " TODO Make shortcut to call vsh#vsh#ReplaceOutput() and then
-  " vsh#vsh#MoveToNextPrompt()
 
   " Send control characters to the underlying terminal -- it will turn these into
   " signals sent to the process in the forground.
   nnoremap <buffer> <silent> <localleader>c :<C-U>call vsh#vsh#SendControlChar()<CR>
+
+  " Get underlying terminal to tab-complete for us.
+  nnoremap <buffer> <silent> <localleader>t :<C-U>call vsh#vsh#TabComplete()<CR>
+  inoremap <buffer> <silent> <C-q> <Esc>:<C-u>call vsh#vsh#TabComplete()<CR>a
 
   " This command is much more well-behaved in the memory-less version.
   " We can't tell what output belongs to what command in the full-featured
