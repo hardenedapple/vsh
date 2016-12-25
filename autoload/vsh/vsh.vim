@@ -298,6 +298,8 @@ if !has('nvim') || !has('python3')
   function vsh#vsh#TabComplete()
     normal! <C-n>
   endfunction
+  function vsh#vsh#VshSend(buffer)
+  endfunction
 
   function vsh#vsh#RunCommand(command_line, command)
     let l:command_range = vsh#vsh#OutputRange()
@@ -397,6 +399,17 @@ else
     endif
   endfunction
 
+  function vsh#vsh#VshSend(buffer)
+    " TODO Allow buffer number as well as buffer name.
+    let jobnr = getbufvar(a:buffer, 'vsh_job')
+    if l:jobnr == ''
+      echoerr 'Buffer ' . a:buffer . ' has no vsh job running'
+      return
+    endif
+
+    call jobsend(l:jobnr, getline('.') . "\n")
+  endfunction
+
   function vsh#vsh#SubprocessClosed(job_id, data, event)
     " Callback is run in the users current buffer, not the buffer that
     " the job is started in
@@ -449,6 +462,13 @@ else
 
 endif
 
+function vsh#vsh#VshSendThis(type)
+  if a:type != 'line'
+    return
+  endif
+  execute "'[,']VshSend " . b:vsh_alt_buffer
+endfunction
+
 "" Default mappings
 let s:operator_mappings = [
       \  [ 'ic', '<Plug>(vshInnerCommand)' ],
@@ -485,6 +505,7 @@ function vsh#vsh#SetupMappings()
   " version, so output goes all over the place, but the commands do get run in
   " the correct order, so it's still useful to a point.
   command -buffer -range Rerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:prompt . '/call vsh#vsh#ReplaceOutput()'
+  vnoremap <buffer> <silent> <F3> :Rerun<CR>
 
   " Save current output by commenting the current command and adding a splitter
   " after the output. Activate it by undoing that.
@@ -528,3 +549,9 @@ function vsh#vsh#TeardownMappings()
     exe 'ounmap <buffer> ' lhs
   endfor
 endfunction
+
+" Global commands and mappings
+if !get(g:, 'vsh_loaded')
+  command -range -nargs=1 -complete=buffer VshSend :<line1>,<line2>call vsh#vsh#VshSend(<f-args>)
+  nnoremap <silent> <Leader>vs :let b:vsh_alt_buffer=bufname(v:count)<CR>:<C-U>set operatorfunc=vsh#vsh#VshSendThis<CR>g@
+endif
