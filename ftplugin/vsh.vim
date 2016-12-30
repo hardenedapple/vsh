@@ -68,6 +68,7 @@ setlocal formatoptions-=c
 " '#' on the next line (assuming the correct 'formatoptions' settings)
 setlocal comments=:vimshell\:\ >\ #,:vimshell\:\ >
 setlocal commentstring=vimshell:\ >\ #\ %s
+setlocal conceallevel=2
 setlocal formatoptions+=r
 setlocal formatoptions+=o
 

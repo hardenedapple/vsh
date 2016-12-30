@@ -550,6 +550,35 @@ function vsh#vsh#TeardownMappings()
   endfor
 endfunction
 
+" NOTE:
+"   This function is for the syntax script -- it creates syntax definitions for
+"   color escape sequences.
+" TODO Currently don't fully know the proper / most likely codes that would be
+" used. Just using those I know at the moment.
+" TODO Account for background/foreground/attributes ???
+"      Probably more pain than it's worth (until I come across a program that
+"      insists on using it even for $TERM = 'dumb').
+" TODO Can't have one color code overwriting another like bash does e.g.
+"       $start_red hello there $start_green this is a test $end_color
+"      I can currently have the 'this is a text' either in red or no color, I
+"      haven't managed to get it in green.
+function vsh#vsh#createColorGroups()
+  let colorControl = '"\[\(\d\+;\=\)\+m"' 
+  " Hide all bash control characters
+  execute 'syn match vshHide ' . colorControl . ' conceal'
+  let colornumbers = ['Black', 'DarkRed', 'DarkGreen', 'Yellow',
+        \ 'DarkBlue', 'DarkMagenta', 'DarkCyan']
+  let index = 0
+  let suffix = 'm" end=' . colorControl . ' contains=vshHide keepend'
+  while index < len(l:colornumbers)
+    let syn_num = 30 + index
+    let syn_name = 'vshColorMarkerfg' . index
+    execute 'syn region ' . syn_name . ' start="\[\(\d;\)\=' . syn_num . suffix
+    execute 'hi ' . syn_name . ' ctermfg=' . colornumbers[index]
+    let index += 1
+  endwhile
+endfunction
+
 " Global commands and mappings
 if !get(g:, 'vsh_loaded')
   command -range -nargs=1 -complete=buffer VshSend :<line1>,<line2>call vsh#vsh#VshSend(<f-args>)

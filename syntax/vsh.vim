@@ -8,6 +8,8 @@ syn region vshCommand start='vimshell: >' end='$' contains=CONTAINED oneline
 syn region	vshString		start=+"+ end=+"+ contained oneline
 syn region	vshString		start=+'+ end=+'+ contained oneline
 
-hi	def	link	vshPrompt	Include
+hi	def	link	vshPrompt	PreProc
 hi	def	link	vshCommand	Comment
 hi	def	link	vshString	String
+
+call vsh#vsh#createColorGroups()
