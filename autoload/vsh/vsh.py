@@ -46,10 +46,10 @@ def vsh_insert_helper(data, vsh_buf):
         # line number not a python buffer index.
         insert_mark = len(vsh_buf)
 
-    # Assume the insert position is not at the end of a command prompt, then we
-    # have already added some of the output from this command into the buffer.
+    # If the insert position is not at the end of a command prompt, assume
+    # we have already put some of the output from this command into the buffer.
     # In that case, we want to allow for flushing of output in the middle of a
-    # line by adding the next piece of text non-linewise.
+    # line by joining the next piece of text with the previous line.
     # If the last line included a trailing newline, then the last element in
     # data would have been '' so this still works.
     prompt = vim.eval('vsh#vsh#SplitMarker()')

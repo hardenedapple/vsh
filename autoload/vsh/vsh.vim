@@ -411,7 +411,7 @@ else
     call jobsend(l:jobnr, getline('.') . "\n")
   endfunction
 
-  function vsh#vsh#SubprocessClosed(job_id, data, event)
+  function vsh#vsh#SubprocessClosed(job_id, data, event) dict
     " Callback is run in the users current buffer, not the buffer that
     " the job is started in
     " XXX Can't run a python function here (which would be easier to ensure we
@@ -432,7 +432,7 @@ else
     endif
   endfunction
 
-  function vsh#vsh#InsertText(job_id, data, event)
+  function vsh#vsh#InsertText(job_id, data, event) dict
     " TODO Want to have undojoin here because it would stop the pollution of
     " the undolist by the split of of pty output into multiple chunks.
     " Unfortunately I'm getting an error about undojoin not allowed after an
