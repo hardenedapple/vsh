@@ -14,4 +14,5 @@ export MANPAGER='col -b'
 export EDITOR="$1/vsh_editor_prog"
 export NEOVIM_SOCKET_ADDR="$2"
 
+cd "$3"
 exec /usr/bin/bash
