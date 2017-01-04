@@ -391,6 +391,7 @@ else
     " with saving and restoring.
     " XXX Is there a vim function equivalent?
     python3 vsh_clear_output(int(vim.eval("line('.')")))
+    let b:vsh_insert_change_tick = b:changedtick
 
     " XXX Mark use
     mark d
@@ -433,14 +434,27 @@ else
   endfunction
 
   function vsh#vsh#InsertText(job_id, data, event) dict
-    " TODO Want to have undojoin here because it would stop the pollution of
-    " the undolist by the split of of pty output into multiple chunks.
-    " Unfortunately I'm getting an error about undojoin not allowed after an
-    " undo on the last line of output.
-    " I don't know where this previous :undo comes from -- I'll have a look at
-    " my other plugins to start with.
-    " undojoin | python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
-    python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
+    if get(b:, 'vsh_insert_change_tick', 'not a number') == b:changedtick
+      " TODO This is currently a hack -- I believe there is a bug in neovim.
+      " Currently, the curbuf->b_u_curhead structure is sometimes not getting
+      " reset on the change I made with vsh_insert_text().
+      " This means that the next :undojoin I call fails (because
+      " curbuf->b_u_curhead is supposed to indicate that the previous command
+      " was an undo).
+      " Interestingly, it appears that the state that :undojoin is supposed to
+      " leave the program in, is the same state that causes the error message,
+      " and it hence appears that just catching the error and running the same
+      " command that I wanted to run still joins those changes to the previous
+      " ones.
+      try
+        undojoin | python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
+      catch /undojoin is not allowed after undo/
+        python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
+      endtry
+    else
+      python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
+    end
+    let b:vsh_insert_change_tick = b:changedtick
   endfunction
 
   function vsh#vsh#SendControlChar()
