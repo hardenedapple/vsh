@@ -7,4 +7,10 @@ In neovim it is different to the :terminal command because it allows modifying
 the buffer, it works on a normal file (that you save between sessions and can
 then rerun all commands in), and you can run commands anywhere in the file.
 
-TODO -- give an example of use.
+TODO
+
+I will write help documentation and and example of how this plugin should be
+used once neovim issue #5713 has been fixed (pull request #5753).
+Until then, this plugin isn't really ready for others to use.
+Until then, there is an uncomfortable restriction that one stay in the vsh
+buffer while output is expected.
