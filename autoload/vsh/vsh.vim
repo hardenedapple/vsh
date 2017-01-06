@@ -283,7 +283,21 @@ function vsh#vsh#SelectOutput(include_prompt)
   exe 'normal! '.l:startline.'ggV'.l:endline.'gg'
 endfunction
 
+function vsh#vsh#BOLOverride()
+  if getline('.') =~# vsh#vsh#CommandMarker()
+    call s:MoveToPromptStart()
+  else
+    normal! ^
+  endif
+endfunction
 
+function vsh#vsh#InsertOverride()
+  let orig_count = v:count1
+  normal ^
+  " Use feedkeys so that 'i' inserts.
+  " We can't use :startinsert because otherwise we don't include the count.
+  call feedkeys(orig_count . 'i')
+endfunction
 
 " Job control vs serial stuff.
 if !has('nvim') || !has('python3')
@@ -527,6 +541,10 @@ function vsh#vsh#SetupMappings()
   " Don't have a toggle as I like to know exactly what my commands will do.
   nnoremap <buffer> <silent> <localleader>s :<C-U>call vsh#vsh#SaveOutput(0)<CR>
   nnoremap <buffer> <silent> <localleader>a :<C-U>call vsh#vsh#SaveOutput(1)<CR>
+
+  " Conveniance functions for beginning of command
+  nnoremap <buffer> <silent> ^ :<C-U>call vsh#vsh#BOLOverride()<CR>
+  nnoremap <buffer> <silent> I :<C-U>call vsh#vsh#InsertOverride()<CR>
 
   " Text object for the current buffer
   "" Visual plugin mappings
