@@ -45,10 +45,10 @@ let b:prompt = 'vimshell: > '
 "   uniquely identifying the buffer?
 
 
-let g:vsh_closing_job = 0
+let g:vsh_closing_jobs = {}
 if !get(b:, 'vsh_job', 0)
   call vsh#vsh#StartSubprocess()
-  autocmd BufUnload <buffer> let g:vsh_closing_job = getbufvar(expand('<afile>'), 'vsh_job', 0)
+  autocmd BufUnload <buffer> let g:vsh_closing_jobs[expand('<afile>')] = getbufvar(expand('<afile>'), 'vsh_job', 0)
   autocmd BufDelete <buffer> call vsh#vsh#ClosedBuffer()
 endif
 if !get(g:, 'vsh_autocmds_setup', 0)

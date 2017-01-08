@@ -484,8 +484,11 @@ else
   endfunction
 
   function vsh#vsh#ClosedBuffer()
-    if g:vsh_closing_job != 0
-      python3 vsh_close_subprocess(vim.eval("g:vsh_closing_job"))
+    let closing_file = expand('<afile>')
+    let closing_job = get(g:vsh_closing_jobs, closing_file, 0)
+    if closing_job != 0
+      python3 vsh_close_subprocess(vim.eval("closing_job"))
+      call remove(g:vsh_closing_jobs, closing_file)
     endif
   endfunction
 
