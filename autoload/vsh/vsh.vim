@@ -547,6 +547,7 @@ function vsh#vsh#SetupMappings()
 
   " Conveniance functions for beginning of command
   nnoremap <buffer> <silent> ^ :<C-U>call vsh#vsh#BOLOverride()<CR>
+  onoremap <buffer> <silent> ^ :<C-U>call vsh#vsh#BOLOverride()<CR>
   nnoremap <buffer> <silent> I :<C-U>call vsh#vsh#InsertOverride()<CR>
 
   " Text object for the current buffer
