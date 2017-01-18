@@ -631,6 +631,96 @@ Expect:
   end of the buffer
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                            Start Ranged Command                             "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Given vsh (vsh buffer):
+  vimshell: > echo Hello there
+  Hello there
+  vimshell: > echo Hello there
+  These are some lines
+  Hello there
+
+Do (Output range inserted properly):
+  \od\<CR>
+
+Expect:
+  vimshell: > echo Hello there
+  vimshell: > echo Hello there
+  These are some lines
+  Hello there
+
+Do (Output range calculated well at end of file):
+  jj\od\<CR>
+
+Expect:
+  vimshell: > echo Hello there
+  Hello there
+  vimshell: > echo Hello there
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                              BOL override keys                              "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+# # The function that "I" calls uses " " feedkeys(), and that interferes with
+# # Vader, hence don't use this.
+Given vsh (vsh buffer):
+  vimshell: > echo hello
+  vimshell: >   echo hello
+  vimshell: > # Not a command
+  Also not a command
+
+Do ('^' normal mode override):
+  ^iw\<esc>j^ix\<esc>j^iy\<esc>j^iz
+
+Expect:
+  vimshell: > wecho hello
+  vimshell: >   xecho hello
+  yvimshell: > # Not a command
+  zAlso not a command
+
+Do ('^' operator pending mode override);
+  $c^w\<esc>j$c^x\<esc>j$c^y\<esc>j$c^z
+
+Expect:
+  vimshell: > wo
+  vimshell: >   xo
+  yd
+  zd
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                           Adds prompt on newline                            "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Given vsh (vsh buffer):
+  vimshell: > echo Hello
+  other: > echo Hello
+
+Do (Inserts new prompts accordingly):
+  ox\<CR>y\<esc>joz
+
+Expect:
+  vimshell: > echo Hello
+  vimshell: > x
+  vimshell: > y
+  other: > echo Hello
+  z
+
+Execute (Change the prompt and new prompt is added accordingly):
+  call vsh#vsh#SetPrompt('other: >')
+  goto 1
+  execute "normal! ox\<esc>joy\<CR>z"
+
+Expect:
+  vimshell: > echo Hello
+  x
+  other: > echo Hello
+  other: > y
+  other: > z
+
+" I don't know why, but if this test isn't last then I get errors in Vader.
+" TODO Figure out why -- is it the sleep command?
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                             Runs basic commands                             "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Given vsh (vsh buffer):

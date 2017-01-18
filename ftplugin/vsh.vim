@@ -3,7 +3,10 @@ if exists("b:did_ftplugin")
 endif
 let b:did_ftplugin = 1
 
-let b:prompt = 'vimshell: > '
+" Can't just change the b:vsh_prompt variable, also have to change the syntax
+" definitions and the comments/commentstring definitions -- this is done in a
+" helper function.
+call vsh#vsh#SetPrompt(get(g:, 'vsh_default_prompt', 'vimshell: > '))
 
 " Get a process for this job, and set an autocmd so the process is closed when
 " unloaded.
@@ -22,6 +25,7 @@ let b:prompt = 'vimshell: > '
 " buffer is about to be removed or not.
 " I can use the BufUnload autocmd to store the vsh_job variable globally and
 " kill that in the BufDelete event.
+" We'll have to see whether there are unknown problems with this in the future.
 "
 "
 " Questions:
@@ -60,18 +64,10 @@ endif
 setlocal formatoptions-=t
 setlocal formatoptions-=c
 
-" Abuse the comment system to give syntax highlighting and automatic insertion
-" of the prompt when hitting <Enter>
-" NOTE -- order of the comment definition is important -- means lines with a
-" '#' are recognised as a comment of the first kind rather than the second,
-" which means that pressing <CR> in insert mode when on that line inserts the
-" '#' on the next line (assuming the correct 'formatoptions' settings)
-setlocal comments=:vimshell\:\ >\ #,:vimshell\:\ >
-setlocal commentstring=vimshell:\ >\ #\ %s
 setlocal conceallevel=2
 setlocal formatoptions+=r
 setlocal formatoptions+=o
 
 call vsh#vsh#SetupMappings()
 
-let b:undo_ftplugin = 'setlocal comments< formatoptions< | call vsh#vsh#TeardownMappings() | call vsh#vsh#CloseProcess() | unlet b:prompt'
+let b:undo_ftplugin = 'setlocal comments< formatoptions< | call vsh#vsh#TeardownMappings() | call vsh#vsh#CloseProcess() | unlet b:vsh_prompt'

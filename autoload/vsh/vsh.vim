@@ -1,10 +1,10 @@
-" The user specifies a b:prompt variable that marks a command and/or a comment.
+" The user specifies a b:vsh_prompt variable that marks a command and/or a comment.
 " This variable specifies what should be a command, what lines count as
 " non-output to replace, *and* how we move about the file.
-" These three functions form these strings from b:prompt
+" These three functions form these strings from b:vsh_prompt
 
 function vsh#vsh#SplitMarker()
-  " Ignore whitespace in the variable b:prompt
+  " Ignore whitespace in the variable b:vsh_prompt
   " Hardened with get() because it can get called in many different situations.
   " XXX We return '' if there is no local prompt variable.
   "     This means that the functions where search() is called search for '',
@@ -12,7 +12,7 @@ function vsh#vsh#SplitMarker()
   "     Stuff can hence can go anywhere.
   "     I think it's not worth changing anything to stop this, as a vsh buffer
   "     without a prompt variable is pretty useless.
-  return substitute(get(b:, 'prompt', ''), '\s\+$', '', '')
+  return substitute(get(b:, 'vsh_prompt', ''), '\s\+$', '', '')
 endfunction
 
 function s:commentstart()
@@ -23,14 +23,14 @@ function vsh#vsh#MotionMarker()
   " Should match a valid command without a comment, OR a command prompt without
   " any space after it.
   " Allow s:commentstart() before the prompt -- so we can move over
-  return '\V\(\^\|' . s:commentstart() . '\)' . b:prompt . '\( \*\[^# ]\|\$\)'
+  return '\V\(\^\|' . s:commentstart() . '\)' . b:vsh_prompt . '\( \*\[^# ]\|\$\)'
 endfunction
 
 function vsh#vsh#CommandMarker()
   " Allow notes in the file -- make lines beginning with # a comment.
   " Allow a command of just a <TAB> -- bash interprets the tab command, so we
   " should allow sending it.
-  return '\V\^' . b:prompt . ' \*\[^# ]'
+  return '\V\^' . b:vsh_prompt . ' \*\[^# ]'
 endfunction
 
 function vsh#vsh#SegmentStart()
@@ -50,7 +50,7 @@ function s:PromptEnd(promptline, count_whitespace, command_prompt)
   " Return the column position where the prompt on this current line ends.
   " With a:count_whitespace truthy skip whitespace characters after the prompt.
   " With a:count_whitespace falsey don't skip any whitespace prompt.
-  let l:prompt = a:command_prompt ? vsh#vsh#SplitMarker() : b:prompt
+  let l:prompt = a:command_prompt ? vsh#vsh#SplitMarker() : b:vsh_prompt
   if a:promptline !~# l:prompt
     return -1
   endif
@@ -67,7 +67,7 @@ function s:PromptEnd(promptline, count_whitespace, command_prompt)
 endfunction
 
 " Skipping whitespace with 'normal w' doesn't do much most of the time, but it
-" means that we don't need to include a trailing space in the b:prompt
+" means that we don't need to include a trailing space in the b:vsh_prompt
 " variable, the cursor position is a little nicer for changing a previous
 " command when using the two move funtions below, and a prompt without a
 " command or trailing whitespace isn't overwritten by the output of a command
@@ -147,13 +147,13 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
 endfunction
 
 function vsh#vsh#ParseVSHCommand(line)
-  " Here we use the b:prompt variable as that's what the user asked us to use
+  " Here we use the b:vsh_prompt variable as that's what the user asked us to use
   " for specifying commands.
   " Check we've been given a command line and not some junk
   if a:line !~# vsh#vsh#CommandMarker()
     return -1
   endif
-  return a:line[len(b:prompt):]
+  return a:line[len(b:vsh_prompt):]
 endfunction
 
 function vsh#vsh#CommandSpan()
@@ -217,7 +217,7 @@ function vsh#vsh#SaveOutput(activate)
   " Just add the comment starter before the current command -- you can remove
   " it with the Commentary mappings then.
   if a:activate
-    if l:cur_command =~# l:commentstart . b:prompt
+    if l:cur_command =~# l:commentstart . b:vsh_prompt
       call setline(l:cur_cli, l:cur_command[len(l:commentstart):])
     else
       echo 'Output is not Saved'
@@ -233,7 +233,7 @@ function vsh#vsh#NewPrompt(skip_output)
   if a:skip_output
     exe vsh#vsh#SegmentEnd() - 1
   endif
-  put = b:prompt
+  put = b:vsh_prompt
   startinsert!
 endfunction
 
@@ -528,7 +528,7 @@ function vsh#vsh#SetupMappings()
   " We can't tell what output belongs to what command in the full-featured
   " version, so output goes all over the place, but the commands do get run in
   " the correct order, so it's still useful to a point.
-  command -buffer -range Rerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:prompt . '/call vsh#vsh#ReplaceOutput()'
+  command -buffer -range Rerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:vsh_prompt . '/call vsh#vsh#ReplaceOutput()'
   vnoremap <silent> <Plug>(vshRerun) :Rerun<CR>
 
   " Save current output by commenting the current command and adding a splitter
@@ -587,7 +587,7 @@ function vsh#vsh#SetupMappings()
 
     " Conveniance functions for beginning of command
     nmap <buffer> ^ <Plug>(vshBOL)
-    omap <buffer> ^ <Plug>(vshBOL)
+    omap <buffer> ^ <Plug>(vshOBOL)
     nmap <buffer> I <Plug>(vshInsertBOL)
 
     xmap <buffer> ic <Plug>(vshInnerCommand)
@@ -642,7 +642,7 @@ endfunction
 "       $start_red hello there $start_green this is a test $end_color
 "      I can currently have the 'this is a text' either in red or no color, I
 "      haven't managed to get it in green.
-function vsh#vsh#createColorGroups()
+function s:create_color_groups()
   let colorControl = '"\[\(\d\+;\=\)\+m"' 
   " Hide all bash control characters
   execute 'syn match vshHide ' . colorControl . ' conceal'
@@ -657,6 +657,35 @@ function vsh#vsh#createColorGroups()
     execute 'hi ' . syn_name . ' ctermfg=' . colornumbers[index]
     let index += 1
   endwhile
+endfunction
+
+function s:setup_colors(prompt)
+  execute 'syn match vshPrompt "' . a:prompt . '" contained'
+  execute 'syn region vshCommand start="' . a:prompt . '" end="$" contains=CONTAINED oneline'
+  syn region	vshString		start=+"+ end=+"+ contained oneline
+  syn region	vshString		start=+'+ end=+'+ contained oneline
+  hi	def	link	vshPrompt	PreProc
+  hi	def	link	vshCommand	Comment
+  hi	def	link	vshString	String
+  call s:create_color_groups()
+endfunction
+
+function vsh#vsh#DefaultColors()
+  call s:setup_colors('vimshell: >')
+endfunction
+
+function vsh#vsh#SetPrompt(new_prompt)
+  let b:vsh_prompt = a:new_prompt
+  syntax clear
+  call s:setup_colors(vsh#vsh#SplitMarker())
+  " Abuse the comment system to give automatic insertion of the prompt when
+  " hitting <Enter>.
+  " NOTE -- order of the comment definition is important -- means lines with a
+  " '#' are recognised as a comment of the first kind rather than the second,
+  " which means that pressing <CR> in insert mode when on that line inserts the
+  " '#' on the next line (assuming the correct 'formatoptions' settings)
+  let &l:comments=':' . b:vsh_prompt . '#,:' . b:vsh_prompt
+  let &l:commentstring = b:vsh_prompt . '# %s'
 endfunction
 
 " Global commands and mappings
