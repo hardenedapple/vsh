@@ -3,16 +3,21 @@
 " non-output to replace, *and* how we move about the file.
 " These three functions form these strings from b:vsh_prompt
 
-function vsh#vsh#SplitMarker()
+function vsh#vsh#SplitMarker(bufnr)
+  let l:bufnr = a:bufnr ? a:bufnr : bufnr('%')
   " Ignore whitespace in the variable b:vsh_prompt
-  " Hardened with get() because it can get called in many different situations.
+  " Generalised with getbufvar() because it can get called from a different
+  " buffer (when used in a callback).
+  " 
   " XXX We return '' if there is no local prompt variable.
   "     This means that the functions where search() is called search for '',
   "     which uses the last used search pattern.
   "     Stuff can hence can go anywhere.
+  "     When inserting in vsh_insert_text, we always add a pointless extra
+  "     line, which isn't that bad.
   "     I think it's not worth changing anything to stop this, as a vsh buffer
   "     without a prompt variable is pretty useless.
-  return substitute(get(b:, 'vsh_prompt', ''), '\s\+$', '', '')
+  return substitute(getbufvar(l:bufnr, 'vsh_prompt', ''), '\s\+$', '', '')
 endfunction
 
 function s:commentstart()
@@ -35,14 +40,14 @@ endfunction
 
 function vsh#vsh#SegmentStart()
   " Handle being at the start of the file
-  let l:retval = search(vsh#vsh#SplitMarker(), 'bncW', 0)
+  let l:retval = search(vsh#vsh#SplitMarker(0), 'bncW', 0)
   return l:retval ? l:retval : 1
 endfunction
 
 function vsh#vsh#SegmentEnd()
   " Handle being at the end of the file
   let l:eof = line('$')
-  let l:retval = search(vsh#vsh#SplitMarker(), 'nW', l:eof)
+  let l:retval = search(vsh#vsh#SplitMarker(0), 'nW', l:eof)
   return l:retval ? l:retval : l:eof + 1
 endfunction
 
@@ -50,7 +55,7 @@ function s:PromptEnd(promptline, count_whitespace, command_prompt)
   " Return the column position where the prompt on this current line ends.
   " With a:count_whitespace truthy skip whitespace characters after the prompt.
   " With a:count_whitespace falsey don't skip any whitespace prompt.
-  let l:prompt = a:command_prompt ? vsh#vsh#SplitMarker() : b:vsh_prompt
+  let l:prompt = a:command_prompt ? vsh#vsh#SplitMarker(0) : b:vsh_prompt
   if a:promptline !~# l:prompt
     return -1
   endif
@@ -677,7 +682,7 @@ endfunction
 function vsh#vsh#SetPrompt(new_prompt)
   let b:vsh_prompt = a:new_prompt
   syntax clear
-  call s:setup_colors(vsh#vsh#SplitMarker())
+  call s:setup_colors(vsh#vsh#SplitMarker(0))
   " Abuse the comment system to give automatic insertion of the prompt when
   " hitting <Enter>.
   " NOTE -- order of the comment definition is important -- means lines with a
