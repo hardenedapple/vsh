@@ -14,9 +14,10 @@ nvim = neovim.attach('socket', path=nvim_socket_path)
 # Then create a vimscript function that tells this program editing has
 # finished.
 
-nvim.command('args {}'.format(' '.join(sys.argv[1:])))
+filenames = [os.path.abspath(arg) for arg in sys.argv[1:]]
+nvim.command('args {}'.format(' '.join(filenames)))
 # Wait until get told to finish -- with ^D is "complete", with ^C is .
 try:
-    input('Press C-d for "successful" edit, C-d otherwise')
+    input('Press C-d for "successful" edit, C-c otherwise')
 except EOFError:
     pass
