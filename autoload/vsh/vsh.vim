@@ -309,7 +309,7 @@ if !has('nvim') || !has('python3')
   endfunction
   function vsh#vsh#CloseProcess()
   endfunction
-  function vsh#vsh#TabComplete()
+  function vsh#vsh#ShowCompletions()
     normal! <C-n>
   endfunction
   function vsh#vsh#VshSend(buffer)
@@ -369,7 +369,7 @@ else
    unlet b:vsh_job
  endfunction
 
- function vsh#vsh#TabComplete()
+ function vsh#vsh#ShowCompletions()
    let command = vsh#vsh#ParseVSHCommand(getline('.'))
    if l:command == -1
      echoerr "Can't tab complete a non-command line"
@@ -501,54 +501,46 @@ function vsh#vsh#VshSendThis(type)
   execute "'[,']VshSend " . b:vsh_alt_buffer
 endfunction
 
-"" Default mappings
-let s:operator_mappings = [
-      \  [ 'ic', '<Plug>(vshInnerCommand)' ],
-      \  [ 'io', '<Plug>(vshInnerCOMMAND)' ],
-      \  [ 'ac', '<Plug>(vshOuterCommand)' ],
-      \  [ 'ao', '<Plug>(vshOuterCOMMAND)' ]
-      \]
-
 function vsh#vsh#SetupMappings()
-
-  nnoremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt('n', v:count1)<CR>
-  nnoremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt('n', v:count1)<CR>
-  vnoremap <buffer> <silent> <C-n> :<C-U>call vsh#vsh#MoveToNextPrompt('v', v:count1)<CR>
-  vnoremap <buffer> <silent> <C-p> :<C-U>call vsh#vsh#MoveToPrevPrompt('v', v:count1)<CR>
+  nnoremap <silent> <Plug>(vshNextPrompt) :<C-U>call vsh#vsh#MoveToNextPrompt('n', v:count1)<CR>
+  nnoremap <silent> <Plug>(vshPrevPrompt) :<C-U>call vsh#vsh#MoveToPrevPrompt('n', v:count1)<CR>
+  " TODO -- need different name?
+  vnoremap <silent> <Plug>(vshVNextPrompt) :<C-U>call vsh#vsh#MoveToNextPrompt('v', v:count1)<CR>
+  vnoremap <silent> <Plug>(vshVPrevPrompt) :<C-U>call vsh#vsh#MoveToPrevPrompt('v', v:count1)<CR>
   " Only ever use linewise operator motion.
-  onoremap <buffer> <silent> <C-n> V:<C-U>call vsh#vsh#MoveToNextPrompt('o', v:count1)<CR>
-  onoremap <buffer> <silent> <C-p> V:<C-U>call vsh#vsh#MoveToPrevPrompt('o', v:count1)<CR>
-  nnoremap <buffer> <silent> <CR>  :call vsh#vsh#ReplaceOutput()<CR>
-  nnoremap <buffer> <silent> <localleader>n  :<C-U>call vsh#vsh#NewPrompt(1)<CR>
-  inoremap <buffer> <silent> <M-CR> <Esc>:call vsh#vsh#ReplaceOutputNewPrompt()<CR>
+  onoremap <silent> <Plug>(vshONextPrompt) V:<C-U>call vsh#vsh#MoveToNextPrompt('o', v:count1)<CR>
+  onoremap <silent> <Plug>(vshOPrevPrompt) V:<C-U>call vsh#vsh#MoveToPrevPrompt('o', v:count1)<CR>
+  nnoremap <silent> <Plug>(vshReplaceOutput)  :call vsh#vsh#ReplaceOutput()<CR>
+  inoremap <silent> <Plug>(vshRunNewPrompt) <Esc>:call vsh#vsh#ReplaceOutputNewPrompt()<CR>
+  nnoremap <silent> <Plug>(vshNewPrompt)  :<C-U>call vsh#vsh#NewPrompt(1)<CR>
 
-  nnoremap <buffer> <localleader>o  :<C-U><C-r>=vsh#vsh#OutputRange()<CR>
+  nnoremap <Plug>(vshStartRangedCommand)  :<C-U><C-r>=vsh#vsh#OutputRange()<CR>
 
   " Send control characters to the underlying terminal -- it will turn these into
   " signals sent to the process in the forground.
-  nnoremap <buffer> <silent> <localleader>c :<C-U>call vsh#vsh#SendControlChar()<CR>
+  nnoremap <silent> <Plug>(vshSendControlChar) :<C-U>call vsh#vsh#SendControlChar()<CR>
 
   " Get underlying terminal to tab-complete for us.
-  nnoremap <buffer> <silent> <localleader>t :<C-U>call vsh#vsh#TabComplete()<CR>
-  inoremap <buffer> <silent> <C-q> <Esc>:<C-u>call vsh#vsh#TabComplete()<CR>a
+  nnoremap <silent> <Plug>(vshCompletions) :<C-U>call vsh#vsh#ShowCompletions()<CR>
+  inoremap <silent> <Plug>(vshICompletions) <Esc>:<C-u>call vsh#vsh#ShowCompletions()<CR>a
 
-  " This command is much more well-behaved in the memory-less version.
+  " This command isn't very well behaved.
   " We can't tell what output belongs to what command in the full-featured
   " version, so output goes all over the place, but the commands do get run in
   " the correct order, so it's still useful to a point.
   command -buffer -range Rerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:prompt . '/call vsh#vsh#ReplaceOutput()'
-  vnoremap <buffer> <silent> <F3> :Rerun<CR>
+  vnoremap <silent> <Plug>(vshRerun) :Rerun<CR>
 
   " Save current output by commenting the current command and adding a splitter
   " after the output. Activate it by undoing that.
   " Don't have a toggle as I like to know exactly what my commands will do.
-  nnoremap <buffer> <silent> <localleader>s :<C-U>call vsh#vsh#SaveOutput(0)<CR>
-  nnoremap <buffer> <silent> <localleader>a :<C-U>call vsh#vsh#SaveOutput(1)<CR>
+  nnoremap <silent> <Plug>(vshSaveCommand) :<C-U>call vsh#vsh#SaveOutput(0)<CR>
+  nnoremap <silent> <Plug>(vshActivateCommand) :<C-U>call vsh#vsh#SaveOutput(1)<CR>
 
   " Conveniance functions for beginning of command
-  nnoremap <buffer> <silent> ^ :<C-U>call vsh#vsh#BOLOverride()<CR>
-  onoremap <buffer> <silent> ^ :<C-U>call vsh#vsh#BOLOverride()<CR>
-  nnoremap <buffer> <silent> I :<C-U>call vsh#vsh#InsertOverride()<CR>
+  nnoremap <silent> <Plug>(vshBOL) :<C-U>call vsh#vsh#BOLOverride()<CR>
+  onoremap <silent> <Plug>(vshOBOL) :<C-U>call vsh#vsh#BOLOverride()<CR>
+  nnoremap <silent> <Plug>(vshInsertBOL) :<C-U>call vsh#vsh#InsertOverride()<CR>
 
   " Text object for the current buffer
   "" Visual plugin mappings
@@ -563,28 +555,79 @@ function vsh#vsh#SetupMappings()
   onoremap <silent> <Plug>(vshOuterCommand) :<C-u>call vsh#vsh#SelectCommand(0)<CR>
   onoremap <silent> <Plug>(vshOuterCOMMAND) :<C-u>call vsh#vsh#SelectOutput(1)<CR>
 
-  for [lhs, rhs] in s:operator_mappings
-    if !hasmapto(rhs, 'v')
-      exe 'xmap <buffer><unique>' lhs rhs
-    endif
-    if !hasmapto(rhs, 'o')
-      exe 'omap <buffer><unique>' lhs rhs
-    endif
-  endfor
+
+  if !has('g:vsh_no_default_mappings')
+    nmap <buffer> <C-n> <Plug>(vshNextPrompt)
+    nmap <buffer> <C-p> <Plug>(vshPrevPrompt)
+    vmap <buffer> <C-n> <Plug>(vshVNextPrompt)
+    vmap <buffer> <C-p> <Plug>(vshVPrevPrompt)
+    " Only ever use linewise operator motion.
+    omap <buffer> <C-n> <Plug>(vshONextPrompt)
+    omap <buffer> <C-p> <Plug>(vshOPrevPrompt)
+    nmap <buffer> <CR>  <Plug>(vshReplaceOutput)
+    imap <buffer> <M-CR> <Plug>(vshRunNewPrompt)
+    nmap <buffer> <localleader>n  <Plug>(vshNewPrompt)
+    nmap <buffer> <localleader>o  <Plug>(vshStartRangedCommand)
+
+    " Send control characters to the underlying terminal -- it will turn these into
+    " signals sent to the process in the forground.
+    nmap <buffer> <localleader>c <Plug>(vshSendControlChar)
+
+    " Get underlying terminal to tab-complete for us.
+    nmap <buffer> <localleader>t <Plug>(vshCompletions)
+    imap <buffer> <C-q> <Plug>(vshICompletions)
+
+    vmap <buffer> <F3> <Plug>(vshRerun)
+
+    " Save current output by commenting the current command and adding a splitter
+    " after the output. Activate it by undoing that.
+    " Don't have a toggle as I like to know exactly what my commands will do.
+    nmap <buffer> <localleader>s <Plug>(vshSaveCommand)
+    nmap <buffer> <localleader>a <Plug>(vshActivateCommand)
+
+    " Conveniance functions for beginning of command
+    nmap <buffer> ^ <Plug>(vshBOL)
+    omap <buffer> ^ <Plug>(vshBOL)
+    nmap <buffer> I <Plug>(vshInsertBOL)
+
+    xmap <buffer> ic <Plug>(vshInnerCommand)
+    omap <buffer> ic <Plug>(vshInnerCommand)
+    xmap <buffer> io <Plug>(vshInnerCOMMAND)
+    omap <buffer> io <Plug>(vshInnerCOMMAND)
+    xmap <buffer> ac <Plug>(vshOuterCommand)
+    omap <buffer> ac <Plug>(vshOuterCommand)
+    xmap <buffer> ao <Plug>(vshOuterCOMMAND)
+    omap <buffer> ao <Plug>(vshOuterCOMMAND)
+  endif
 endfunction
 
 function vsh#vsh#TeardownMappings()
-  unmap <buffer> <C-n>
-  unmap <buffer> <C-p>
-  nunmap <buffer> <CR>
-  nunmap <buffer> <localleader>n
-  nunmap <buffer> <localleader>o
-  nunmap <buffer> <localleader>c
   delcommand Rerun
-  for [lhs, rhs] in s:operator_mappings
-    exe 'xunmap <buffer> ' lhs
-    exe 'ounmap <buffer> ' lhs
-  endfor
+  if !has('g:vsh_no_default_mappings')
+    unmap <buffer> <C-n>
+    unmap <buffer> <C-p>
+    nunmap <buffer> <CR>
+    iunmap <buffer> <M-CR>
+    nunmap <buffer> <localleader>n
+    nunmap <buffer> <localleader>o
+    nunmap <buffer> <localleader>c
+    nunmap <buffer> <localleader>t
+    iunmap <buffer> <C-q>
+    vunmap <buffer> <F3>
+    nunmap <buffer> <localleader>s
+    nunmap <buffer> <localleader>a
+    nunmap <buffer> ^
+    ounmap <buffer> ^
+    nunmap <buffer> I
+    xunmap <buffer> ic
+    ounmap <buffer> ic
+    xunmap <buffer> io
+    ounmap <buffer> io
+    xunmap <buffer> ac
+    ounmap <buffer> ac
+    xunmap <buffer> ao
+    ounmap <buffer> ao
+  endif
 endfunction
 
 " NOTE:
@@ -619,5 +662,10 @@ endfunction
 " Global commands and mappings
 if !get(g:, 'vsh_loaded')
   command -range -nargs=1 -complete=buffer VshSend :<line1>,<line2>call vsh#vsh#VshSend(<f-args>)
-  nnoremap <silent> <Leader>vs :let b:vsh_alt_buffer=bufname(v:count)<CR>:<C-U>set operatorfunc=vsh#vsh#VshSendThis<CR>g@
+  nnoremap <silent> <Plug>VshSend :<C-u>let b:vsh_alt_buffer=bufname(v:count)<CR>:<C-U>set operatorfunc=vsh#vsh#VshSendThis<CR>g@
+  nnoremap <silent> <Plug>VshSendLine :<C-u>let b:vsh_alt_buffer=bufname(v:count)<CR>:<C-U>set operatorfunc=vsh#vsh#VshSendThis<CR><Bar>exe 'norm! g@_'<CR>
+  if !hasmapto('<Plug>VshSend') && maparg('<leader>vs', 'n') ==# '' && !has('g:vsh_no_default_mappings')
+    nmap <Leader>vs  <Plug>VshSend
+    nmap <Leader>vss  <Plug>VshSendLine
+  end
 endif
