@@ -507,7 +507,8 @@ function vsh#vsh#VshSendThis(type)
   execute "'[,']VshSend " . b:vsh_alt_buffer
 endfunction
 
-function vsh#vsh#SetupMappings()
+function s:define_global_mappings()
+  let g:vsh_autoload_did_mappings = 1
   nnoremap <silent> <Plug>(vshNextPrompt) :<C-U>call vsh#vsh#MoveToNextPrompt('n', v:count1)<CR>
   nnoremap <silent> <Plug>(vshPrevPrompt) :<C-U>call vsh#vsh#MoveToPrevPrompt('n', v:count1)<CR>
   " TODO -- need different name?
@@ -560,8 +561,12 @@ function vsh#vsh#SetupMappings()
   onoremap <silent> <Plug>(vshInnerCOMMAND) :<C-u>call vsh#vsh#SelectOutput(0)<CR>
   onoremap <silent> <Plug>(vshOuterCommand) :<C-u>call vsh#vsh#SelectCommand(0)<CR>
   onoremap <silent> <Plug>(vshOuterCOMMAND) :<C-u>call vsh#vsh#SelectOutput(1)<CR>
+endfunction
 
-
+function vsh#vsh#SetupMappings()
+  if !has('g:vsh_autoload_did_mappings')
+    call s:define_global_mappings()
+  endif
   if !has('g:vsh_no_default_mappings')
     nmap <buffer> <C-n> <Plug>(vshNextPrompt)
     nmap <buffer> <C-p> <Plug>(vshPrevPrompt)
