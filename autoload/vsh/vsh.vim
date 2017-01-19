@@ -359,7 +359,8 @@ else
 
     let start_script = s:plugin_path . '/vsh_shell_start'
     let cwd = expand('%:p:h')
-    let job_id = jobstart([start_script, s:plugin_path, v:servername, cwd],
+    let job_id = jobstart(
+          \ [start_script, s:plugin_path, v:servername, bufnr('%'), cwd],
           \ extend({'buffer': bufnr('%')}, s:callbacks))
     if l:job_id == 0
       echoerr "Too many jobs started, can't start another."
@@ -379,21 +380,30 @@ else
    unlet b:vsh_job
  endfunction
 
- function vsh#vsh#ShowCompletions()
+ function vsh#vsh#ShowCompletions(glob)
    let command = vsh#vsh#ParseVSHCommand(getline('.'))
    if l:command == -1
-     echoerr "Can't tab complete a non-command line"
+     echoerr "Can't show completions of a non-commandline"
      return
    endif
    python3 vsh_clear_output(int(vim.eval("line('.')")))
 
    " XXX Mark use
    call s:set_marks_at('here')
-   " Send text and tab, then remove text on this line with ^U so running this
-   " again doesn't cause a problem.
-   " XXX readline-ism
-   " Send M-? because this lists possible completions in bash and gdb.
-   let retval = jobsend(b:vsh_job, l:command . '?')
+   " Send text and special characters to request listing completions, then
+   " remove text on this line with ^U so running this again doesn't cause a
+   " problem.
+   " Our defaults are what are mentioned in the readline(3) and bash(1) man
+   " pages, but the b:vsh_completions_cmd variable should have been set at
+   " startup by parsing the output of `bind -q` in bash.
+   "
+   " The readline functions called are:
+   "    possible-completions
+   "    glob-list-expansions
+   "    unix-line-discard
+   let completions_cmds = get(b:, 'vsh_completions_cmd', ['?', 'g', ''])
+   let cmd_chars = completions_cmds[a:glob ? 1 : 0]
+   let retval = jobsend(b:vsh_job, l:command . cmd_chars . completions_cmds[2])
    if retval == 0
      echoerr 'Failed to tab complete output'
    endif
@@ -547,8 +557,10 @@ function s:define_global_mappings()
   nnoremap <silent> <Plug>(vshSendControlChar) :<C-U>call vsh#vsh#SendControlChar()<CR>
 
   " Get underlying terminal to tab-complete for us.
-  nnoremap <silent> <Plug>(vshCompletions) :<C-U>call vsh#vsh#ShowCompletions()<CR>
-  inoremap <silent> <Plug>(vshICompletions) <Esc>:<C-u>call vsh#vsh#ShowCompletions()<CR>a
+  nnoremap <silent> <Plug>(vshCompletions) :<C-U>call vsh#vsh#ShowCompletions(0)<CR>
+  inoremap <silent> <Plug>(vshICompletions) <Esc>:<C-u>call vsh#vsh#ShowCompletions(0)<CR>a
+  nnoremap <silent> <Plug>(vshGlobCompletions) :<C-U>call vsh#vsh#ShowCompletions(1)<CR>
+  inoremap <silent> <Plug>(vshIGlobCompletions) <Esc>:<C-u>call vsh#vsh#ShowCompletions(1)<CR>a
 
   " This command isn't very well behaved.
   " We can't tell what output belongs to what command in the full-featured
@@ -606,6 +618,8 @@ function vsh#vsh#SetupMappings()
     " Get underlying terminal to tab-complete for us.
     nmap <buffer> <localleader>t <Plug>(vshCompletions)
     imap <buffer> <C-q> <Plug>(vshICompletions)
+    nmap <buffer> <localleader>g <Plug>(vshGlobCompletions)
+    imap <buffer> <C-s> <Plug>(vshIGlobCompletions)
 
     vmap <buffer> <F3> <Plug>(vshRerun)
 
