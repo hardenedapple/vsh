@@ -38,20 +38,20 @@ function vsh#vsh#CommandMarker()
   return '\V\^' . b:vsh_prompt . ' \*\[^# ]'
 endfunction
 
-function vsh#vsh#SegmentStart()
+function s:segment_start()
   " Handle being at the start of the file
   let l:retval = search(vsh#vsh#SplitMarker(0), 'bncW', 0)
   return l:retval ? l:retval : 1
 endfunction
 
-function vsh#vsh#SegmentEnd()
+function s:segment_end()
   " Handle being at the end of the file
   let l:eof = line('$')
   let l:retval = search(vsh#vsh#SplitMarker(0), 'nW', l:eof)
   return l:retval ? l:retval : l:eof + 1
 endfunction
 
-function s:PromptEnd(promptline, count_whitespace, command_prompt)
+function s:prompt_end(promptline, count_whitespace, command_prompt)
   " Return the column position where the prompt on this current line ends.
   " With a:count_whitespace truthy skip whitespace characters after the prompt.
   " With a:count_whitespace falsey don't skip any whitespace prompt.
@@ -77,8 +77,8 @@ endfunction
 " command when using the two move funtions below, and a prompt without a
 " command or trailing whitespace isn't overwritten by the output of a command
 " above it.
-function s:MoveToPromptStart()
-  let promptend = s:PromptEnd(getline('.'), 1, 1)
+function s:move_to_prompt_start()
+  let promptend = s:prompt_end(getline('.'), 1, 1)
   if l:promptend != -1
     let l:promptend += 1
     exe "normal! ".l:promptend."|"
@@ -102,7 +102,7 @@ function vsh#vsh#MoveToNextPrompt(mode, count)
   while l:index < a:count
     if search(l:prompt, 'eW') == 0
       normal G
-      call s:MoveToPromptStart()
+      call s:move_to_prompt_start()
       return
     endif
     let l:index += 1
@@ -163,13 +163,13 @@ endfunction
 
 function vsh#vsh#CommandSpan()
   let l:eof = line('$')
-  let l:startline = vsh#vsh#SegmentStart()
+  let l:startline = s:segment_start()
   " If no current prompt, no range
   if l:startline == 0
     return []
   endif
 
-  let l:nextprompt = vsh#vsh#SegmentEnd()
+  let l:nextprompt = s:segment_end()
   let l:cur_output_len = l:nextprompt - l:startline
 
   " If we are at the last prompt in the file, range is from here to EOF.
@@ -194,7 +194,7 @@ function vsh#vsh#OutputRange()
 endfunction
 
 function vsh#vsh#ReplaceOutput()
-  let l:command_line = vsh#vsh#SegmentStart()
+  let l:command_line = s:segment_start()
   let l:command = vsh#vsh#ParseVSHCommand(getline(l:command_line))
   if l:command == -1
     return
@@ -211,7 +211,7 @@ function vsh#vsh#SaveOutput(activate)
   " Comment out the command for this output.
   " This means we won't accidentaly re-run the command here (because the
   " corresponding command is a comment).
-  let l:cur_cli = vsh#vsh#SegmentStart()
+  let l:cur_cli = s:segment_start()
   if l:cur_cli == 0
     return
   endif
@@ -238,7 +238,7 @@ endfunction
 
 function vsh#vsh#NewPrompt(skip_output)
   if a:skip_output
-    exe vsh#vsh#SegmentEnd() - 1
+    exe s:segment_end() - 1
   endif
   put = b:vsh_prompt
   startinsert!
@@ -256,10 +256,10 @@ function vsh#vsh#SelectCommand(include_whitespace)
   let promptline = l:search_line ? l:search_line : 1
   let curprompt = getline(l:promptline)
 
-  let promptend = s:PromptEnd(l:curprompt, a:include_whitespace, 0)
+  let promptend = s:prompt_end(l:curprompt, a:include_whitespace, 0)
   if l:promptend != -1
     " Note: Move to start of line, then move right instead of using '|' because
-    " PromptEnd gives the number of characters from the start that the command
+    " prompt_end gives the number of characters from the start that the command
     " is, not the number of screen columns.
     exe 'normal! '.l:promptline.'gg0'.l:promptend.'lv$h'
   endif
@@ -292,7 +292,7 @@ endfunction
 
 function vsh#vsh#BOLOverride()
   if getline('.') =~# vsh#vsh#CommandMarker()
-    call s:MoveToPromptStart()
+    call s:move_to_prompt_start()
   else
     normal! ^
   endif
@@ -331,7 +331,7 @@ if !has('nvim') || !has('python3')
     endif
 
     exe a:command_line
-    call s:MoveToPromptStart()
+    call s:move_to_prompt_start()
   endfunction
 else
   let s:plugin_path = escape(expand('<sfile>:p:h'), '\ ')
@@ -408,7 +408,7 @@ else
 
     if line('.') != a:command_line
       exe a:command_line
-      call s:MoveToPromptStart()
+      call s:move_to_prompt_start()
     endif
 
     " Use python so the cursor doesn't move and we don't have to faff around
