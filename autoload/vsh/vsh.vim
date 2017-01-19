@@ -414,6 +414,7 @@ else
 
     " XXX Mark use
     mark d
+    mark p
     let retval = jobsend(b:vsh_job, a:command . "\n")
     if retval == 0
       echoerr 'Failed to send command "' . a:command . '" to subprocess'

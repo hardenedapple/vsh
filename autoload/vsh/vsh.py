@@ -38,10 +38,39 @@ def vsh_outputlen(buf, curprompt):
     return count
 
 
+def vsh_recalculate_input_position(vsh_buf):
+    '''
+    Our mark of where to insert text has been lost, see if we can recalculate
+    it from our mark of which command was last executed. 
+
+    If that mark is also lost then we just give up.
+
+    '''
+    insert_mark, _ = vsh_buf.mark('p')
+    if insert_mark == 0:
+        return False
+    
+    position_to_insert = insert_mark + vsh_outputlen(vsh_buf, insert_mark)
+    # The previous mark being deleted means the last line of the last output
+    # was also deleted. Hence the current output should be on a different line
+    # to what's there at the moment.
+    vsh_buf.append('', position_to_insert)
+    vim.funcs.setpos("'d", [vsh_buf.number, position_to_insert + 1, 0])
+    return True
+
+
 def vsh_insert_helper(data, vsh_buf):
     # Default to inserting text at end of file if input mark doesn't exist.
     insert_mark, _ = vsh_buf.mark('d')
     if insert_mark == 0:
+        # Attempt to recalculate the input position from knowledge of which
+        # prompt was last executed -- this just gives us a little extra
+        # robustness against the user removing text with our marks in them.
+        if vsh_recalculate_input_position(vsh_buf):
+            return vsh_insert_helper(data, vsh_buf)
+
+        # Default to inserting text at end of file if neither of our reference
+        # marks exist.
         # Use the total length of the buffer because insert_mark is a Vim
         # line number not a python buffer index.
         insert_mark = len(vsh_buf)
@@ -65,9 +94,8 @@ def vsh_insert_helper(data, vsh_buf):
             raise
 
     # Text may be modified between the times that output is flushed.
-    # We have to hope that whatever line we mark is not removed between
-    # successive calls of this function otherwise output starts being appended
-    # to the file.
+    # We have to hope that our marks are not removed between successive calls
+    # of this function otherwise output starts being appended to the file.
     #
     # There are three options I see as useful in increasing order of likelyhood
     # that the line will be removed, they are:
@@ -79,12 +107,12 @@ def vsh_insert_helper(data, vsh_buf):
     # have to count the output lines each time more text is added, which I
     # have seen helps performance for commands with a lot of output.
     #
-    # XXX Improve text insertion performance for commands with a lot of output.
+    # As a backup, I also mark the current command prompt, so that I can
+    # recalculate the position of the last line if needs be.
     if data:
         vsh_buf.append(data, insert_mark)
     # This should fix issue #14 as soon as neovim issue #5713 is fixed
-    vim.command('call setpos( "\'d",[{}, {}, 0])'.format(
-        vsh_buf.number, len(data) + insert_mark))
+    vim.funcs.setpos("'d", [vsh_buf.number, len(data) + insert_mark, 0])
 
 
 def vsh_insert_text(data, insert_buf):
