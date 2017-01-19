@@ -343,12 +343,19 @@ else
         \ 'TERM': 'dumb'
         \ }
 
+  function s:set_marks_at(position)
+    let l:position = a:position == 'here' ? '' : a:position
+    execute l:position . ' mark ' . get(g:, 'vsh_insert_mark', 'd')
+    execute l:position . ' mark ' . get(g:, 'vsh_prompt_mark', 'p')
+  endfunction
+
   function vsh#vsh#StartSubprocess()
     if get(b:, 'vsh_job', 0)
       echoerr 'Already a subprocess running for this buffer'
       return
     endif
-    0 mark d
+    " XXX Mark use
+    call s:set_marks_at('0')
 
     let start_script = s:plugin_path . '/vsh_shell_start'
     let cwd = expand('%:p:h')
@@ -381,7 +388,7 @@ else
    python3 vsh_clear_output(int(vim.eval("line('.')")))
 
    " XXX Mark use
-   mark d
+   call s:set_marks_at('here')
    " Send text and tab, then remove text on this line with ^U so running this
    " again doesn't cause a problem.
    " XXX readline-ism
@@ -411,8 +418,7 @@ else
     let b:vsh_insert_change_tick = b:changedtick
 
     " XXX Mark use
-    mark d
-    mark p
+    call s:set_marks_at('here')
     let retval = jobsend(b:vsh_job, a:command . "\n")
     if retval == 0
       echoerr 'Failed to send command "' . a:command . '" to subprocess'
