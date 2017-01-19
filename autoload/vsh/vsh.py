@@ -159,28 +159,3 @@ def vsh_clear_output(curline):
     outputlen = vsh_outputlen(vim.current.buffer, curline)
     vim.current.buffer[curline:curline + outputlen] = []
 
-
-def vsh_close_subprocess(jobnr):
-    '''
-    Say "goodbye" to the vsh_job
-
-    I want to emulate what the terminal does as best as possible, which means
-    closing all file descriptors and sending a SIGHUP.
-    I think that jobclose() on a job started under a new pseudo terminal should
-    send SIGHUP to the foreground process group on that terminal, but it
-    doesn't -- I assume because the file descriptor is kept around somewhere.
-
-    Hence I have to manually send a SIGHUP to the foreground process group of
-    that pseudo terminal.
-    '''
-    # TODO
-    #   For now keep this free so that any exceptions raised are shown to the
-    #   user, later, once I know what exceptions may be raised, and why, I'll
-    #   see whether to try/except them or to avoid them some other way.
-    #
-    #   XXX In the future, won't need this -- neovim issue #5619 has been
-    #   fixed & merged.
-    pid = int(vim.eval('jobpid({})'.format(jobnr)))
-    pgid = os.getpgid(pid)
-    os.killpg(pgid, signal.SIGHUP)
-

@@ -216,7 +216,9 @@ function vsh#vsh#SaveOutput(activate)
     return
   endif
 
-  " XXX NOTE: Assuming default &commentstring format of    '<something> %s'
+  " NOTE: Assuming default &commentstring format of    '<something> %s'
+  " This should be fine because &commentstring should be defined by
+  " vsh#vsh#SetPrompt() below.
   let cur_command = getline(l:cur_cli)
   let commentstart = s:commentstart()
   " Just add the comment starter before the current command -- you can remove
@@ -366,11 +368,7 @@ else
   endfunction
 
  function vsh#vsh#CloseProcess()
-   " XXX When the neovim patch that closes pty jobs comes into the arch linux
-   " package, uncomment the line below and remove the vsh_close_subprocess()
-   " function.
-   " call jobclose(b:vsh_job)
-   python3 vsh_close_subprocess(vim.eval("b:vsh_job"))
+   call jobclose(b:vsh_job)
    unlet b:vsh_job
  endfunction
 
@@ -493,7 +491,7 @@ else
     let closing_file = expand('<afile>')
     let closing_job = get(g:vsh_closing_jobs, closing_file, 0)
     if closing_job != 0
-      python3 vsh_close_subprocess(vim.eval("closing_job"))
+      call jobclose(closing_job)
       call remove(g:vsh_closing_jobs, closing_file)
     endif
   endfunction
