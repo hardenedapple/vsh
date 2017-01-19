@@ -502,6 +502,21 @@ else
     endif
   endfunction
 
+  function vsh#vsh#EditFiles(filenames)
+    " NOTE: This isn't a very robust method of keeping the users argument list
+    " around -- call it twice and the original argument list has been lost --
+    " but it works nicely enough. If the user really wanted to keep their
+    " argument list around they can just make sure to restore it between uses
+    " of $EDITOR in a vsh buffer.
+    let g:vsh_prev_argid = argidx()
+    let g:vsh_prev_args = argv() + 1
+    execute 'args ' . join(a:filenames)
+  endfunction
+
+  function vsh#vsh#RestoreArgs()
+    execute 'args ' . join(g:vsh_prev_args)
+    execute 'argument ' . g:vsh_prev_argid
+  endfunction
 endif
 
 function vsh#vsh#VshSendThis(type)

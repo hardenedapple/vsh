@@ -10,12 +10,8 @@ except ImportError:
 nvim_socket_path = os.getenv('NEOVIM_SOCKET_ADDR')
 nvim = neovim.attach('socket', path=nvim_socket_path)
 
-# TODO Create a vimscript function for this purpose instead of using :args.
-# Then create a vimscript function that tells this program editing has
-# finished.
-
 filenames = [os.path.abspath(arg) for arg in sys.argv[1:]]
-nvim.command('args {}'.format(' '.join(filenames)))
+nvim.funcs.__getattr__('vsh#vsh#EditFiles')(filenames)
 # Wait until get told to finish -- with ^D is "complete", with ^C is .
 try:
     input('Press C-d for "successful" edit, C-c otherwise')
