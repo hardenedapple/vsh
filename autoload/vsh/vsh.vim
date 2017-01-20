@@ -368,7 +368,7 @@ else
     let start_script = s:plugin_path . '/vsh_shell_start'
     let cwd = expand('%:p:h')
     let job_id = jobstart(
-          \ [start_script, s:plugin_path, v:servername, bufnr('%'), cwd],
+          \ [start_script, s:plugin_path, v:servername, bufnr('%'), cwd, &shell],
           \ extend({'buffer': bufnr('%')}, s:callbacks))
     if l:job_id == 0
       echoerr "Too many jobs started, can't start another."
@@ -384,6 +384,7 @@ else
   endfunction
 
  function vsh#vsh#CloseProcess()
+   " jobclose() sends a SIGHUP to the bash process
    call jobclose(b:vsh_job)
    unlet b:vsh_job
  endfunction

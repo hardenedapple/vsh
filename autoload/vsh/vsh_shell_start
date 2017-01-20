@@ -24,4 +24,4 @@ glob_binding="$(bind -q glob-list-expansions 2>/dev/null)"
 discard_line="$(bind -q unix-line-discard 2>/dev/null)"
 # Just let any errors raise -- we'll see there stack in the buffer.
 "$1/vsh_tell_nvim_bindings.py" "$completions_binding" "$glob_binding" "$discard_line" "$3"
-exec /usr/bin/bash
+exec "$5"
