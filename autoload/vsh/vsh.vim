@@ -518,8 +518,8 @@ else
     " but it works nicely enough. If the user really wanted to keep their
     " argument list around they can just make sure to restore it between uses
     " of $EDITOR in a vsh buffer.
-    let g:vsh_prev_argid = argidx()
-    let g:vsh_prev_args = argv() + 1
+    let g:vsh_prev_argid = argidx() + 1
+    let g:vsh_prev_args = argv()
     execute 'args ' . join(a:filenames)
   endfunction
 
