@@ -358,6 +358,17 @@ else
   endfunction
 
   function vsh#vsh#StartSubprocess()
+    " Note: This has to be loaded first
+    " If the python3 provider hasn't yet been started, then starting it *after*
+    " starting the subprocess means that when we call jobclose(b:vsh_job) the
+    " bash process isn't sent a SIGHUP.
+    " This limits the effect of the problem that neovim PR #5986 is for.
+    " https://github.com/neovim/neovim/pull/5986
+    if !exists('g:vsh_py_loaded')
+      exe 'py3file ' . s:plugin_path . '/vsh.py'
+      let g:vsh_py_loaded = 1
+    endif
+
     if get(b:, 'vsh_job', 0)
       echoerr 'Already a subprocess running for this buffer'
       return
@@ -376,10 +387,6 @@ else
       echoerr 'Failed to find bash executable.'
     else
       let b:vsh_job = l:job_id
-    endif
-
-    if !exists('g:vsh_py_loaded')
-      exe 'py3file ' . s:plugin_path . '/vsh.py'
     endif
   endfunction
 
