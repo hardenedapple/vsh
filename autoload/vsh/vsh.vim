@@ -736,8 +736,10 @@ endfunction
 if !get(g:, 'vsh_loaded')
   command -range -nargs=1 -complete=buffer VshSend :<line1>,<line2>call vsh#vsh#VshSend(<f-args>)
   nnoremap <silent> <Plug>VshSend :<C-u>let b:vsh_alt_buffer=bufname(v:count)<CR>:<C-U>set operatorfunc=vsh#vsh#VshSendThis<CR>g@
-  nnoremap <silent> <Plug>VshSendLine :<C-u>let b:vsh_alt_buffer=bufname(v:count)<CR>:<C-U>set operatorfunc=vsh#vsh#VshSendThis<CR><Bar>exe 'norm! g@_'<CR>
+  nnoremap <silent> <Plug>VshSendLine :<C-u>let b:vsh_alt_buffer=bufname(v:count)<CR>:<C-U>set operatorfunc=vsh#vsh#VshSendThis <Bar> exe 'norm! g@_'<CR>
+  vnoremap <silent> <Plug>VshSendV :VshSend <C-r>=bufname(v:count)<CR><CR>
   if !hasmapto('<Plug>VshSend') && maparg('<leader>vs', 'n') ==# '' && !has('g:vsh_no_default_mappings')
+    vmap <Leader>vs <Plug>VshSendV
     nmap <Leader>vs  <Plug>VshSend
     nmap <Leader>vss  <Plug>VshSendLine
   end
