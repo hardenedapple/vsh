@@ -321,6 +321,12 @@ if !has('nvim') || !has('python3')
   endfunction
   function vsh#vsh#VshSend(buffer)
   endfunction
+  function vsh#vsh#WithPathSet(mapping)
+    execute 'normal! ' . a:mapping
+  endfunction
+  function vsh#vsh#InShellDir(mapping)
+    return a:mapping
+  endfunction
 
   function vsh#vsh#RunCommand(command_line, command)
     let l:command_range = vsh#vsh#OutputRange()
@@ -401,6 +407,8 @@ else
    "    possible-completions
    "    glob-list-expansions
    "    unix-line-discard
+   " NB: If your shell doesn't have readline, you could use something like
+   " ['', 'echo ', "\n"] to get at least the glob expansion.
    let completions_cmds = get(b:, 'vsh_completions_cmd', ['?', 'g', ''])
    let cmd_chars = completions_cmds[a:glob ? 1 : 0]
    let retval = jobsend(b:vsh_job, l:command . cmd_chars . completions_cmds[2])
@@ -410,7 +418,7 @@ else
  endfunction
 
   function vsh#vsh#RunCommand(command_line, command)
-    if !b:vsh_job
+    if !get(b:, 'vsh_job', 0)
       echoerr 'No subprocess currently running!'
       echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
       return
@@ -508,6 +516,47 @@ else
     endif
   endfunction
 
+  function vsh#vsh#WithPathSet(mapping)
+    " We want to execute something in the current working directory of the
+    " subprocess. Find what process the job we're running is currently in, cd
+    " to there, run the command, and cd back.
+    " TODO
+    "   How to determine between a window-local working directory, a tab-local
+    "   working directory, and a general working directory?
+    "   I need to know the difference so that I can restore neovim to its
+    "   previous state.
+    if !get(b:, 'vsh_job', 0)
+      echoerr 'No subprocess currently running!'
+      echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
+      return
+    endif
+    let subprocess_cwd = py3eval('vsh_find_cwd(' . b:vsh_job . ')')
+    if &l:path == ''
+      let reverse_path = ''
+      let orig_path = &path
+    else
+      let reverse_path = &l:path
+      let orig_path = &l:path
+    endif
+    let &l:path = subprocess_cwd . ',' . orig_path
+    execute 'normal! ' . a:mapping
+    let &l:path = reverse_path
+  endfunction
+
+  function vsh#vsh#InShellDir(mapping)
+    " Change buffer local directory to the current directory and return the
+    " mapping we were given.
+    " Unfortunately this permenantly leaves lcd in the directory we left it in,
+    " I don't know how to fix this.
+    if !get(b:, 'vsh_job', 0)
+      echoerr 'No subprocess currently running!'
+      echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
+      return
+    endif
+    execute 'lcd ' . py3eval('vsh_find_cwd(' . b:vsh_job . ')')
+    return a:mapping
+  endfunction
+
   function vsh#vsh#EditFiles(filenames)
     " NOTE: This isn't a very robust method of keeping the users argument list
     " around -- call it twice and the original argument list has been lost --
@@ -533,20 +582,22 @@ function vsh#vsh#VshSendThis(type)
 endfunction
 
 function s:define_global_mappings()
-  let g:vsh_autoload_did_mappings = 1
+  " Motion
   nnoremap <silent> <Plug>(vshNextPrompt) :<C-U>call vsh#vsh#MoveToNextPrompt('n', v:count1)<CR>
   nnoremap <silent> <Plug>(vshPrevPrompt) :<C-U>call vsh#vsh#MoveToPrevPrompt('n', v:count1)<CR>
-  " TODO -- need different name?
   vnoremap <silent> <Plug>(vshVNextPrompt) :<C-U>call vsh#vsh#MoveToNextPrompt('v', v:count1)<CR>
   vnoremap <silent> <Plug>(vshVPrevPrompt) :<C-U>call vsh#vsh#MoveToPrevPrompt('v', v:count1)<CR>
-  " Only ever use linewise operator motion.
+  " Only ever use linewise operator motion because that's what makes sense in
+  " this context.
   onoremap <silent> <Plug>(vshONextPrompt) V:<C-U>call vsh#vsh#MoveToNextPrompt('o', v:count1)<CR>
   onoremap <silent> <Plug>(vshOPrevPrompt) V:<C-U>call vsh#vsh#MoveToPrevPrompt('o', v:count1)<CR>
+
+  " Execution and new prompt
   nnoremap <silent> <Plug>(vshReplaceOutput)  :call vsh#vsh#ReplaceOutput()<CR>
   inoremap <silent> <Plug>(vshRunNewPrompt) <Esc>:call vsh#vsh#ReplaceOutputNewPrompt()<CR>
   nnoremap <silent> <Plug>(vshNewPrompt)  :<C-U>call vsh#vsh#NewPrompt(1)<CR>
-
-  nnoremap <Plug>(vshStartRangedCommand)  :<C-U><C-r>=vsh#vsh#OutputRange()<CR>
+  command -buffer -range Rerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:vsh_prompt . '/call vsh#vsh#ReplaceOutput()'
+  vnoremap <silent> <Plug>(vshRerun) :Rerun<CR>
 
   " Send control characters to the underlying terminal -- it will turn these into
   " signals sent to the process in the forground.
@@ -558,36 +609,34 @@ function s:define_global_mappings()
   nnoremap <silent> <Plug>(vshGlobCompletions) :<C-U>call vsh#vsh#ShowCompletions(1)<CR>
   inoremap <silent> <Plug>(vshIGlobCompletions) <Esc>:<C-u>call vsh#vsh#ShowCompletions(1)<CR>a
 
-  " This command isn't very well behaved.
-  " We can't tell what output belongs to what command in the full-featured
-  " version, so output goes all over the place, but the commands do get run in
-  " the correct order, so it's still useful to a point.
-  command -buffer -range Rerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:vsh_prompt . '/call vsh#vsh#ReplaceOutput()'
-  vnoremap <silent> <Plug>(vshRerun) :Rerun<CR>
-
   " Save current output by commenting the current command and adding a splitter
   " after the output. Activate it by undoing that.
   " Don't have a toggle as I like to know exactly what my commands will do.
   nnoremap <silent> <Plug>(vshSaveCommand) :<C-U>call vsh#vsh#SaveOutput(0)<CR>
   nnoremap <silent> <Plug>(vshActivateCommand) :<C-U>call vsh#vsh#SaveOutput(1)<CR>
+  nnoremap <Plug>(vshStartRangedCommand)  :<C-U><C-r>=vsh#vsh#OutputRange()<CR>
 
   " Conveniance functions for beginning of command
   nnoremap <silent> <Plug>(vshBOL) :<C-U>call vsh#vsh#BOLOverride()<CR>
   onoremap <silent> <Plug>(vshOBOL) :<C-U>call vsh#vsh#BOLOverride()<CR>
   nnoremap <silent> <Plug>(vshInsertBOL) :<C-U>call vsh#vsh#InsertOverride()<CR>
 
+  " Make gf, gF, and insert mode ^X^F work nicely.
+  nnoremap <Plug>(vshGotoFile) :<C-u>call vsh#vsh#WithPathSet('gf')<CR>
+  nnoremap <Plug>(vshGotoFILE) :<C-u>call vsh#vsh#WithPathSet('gF')<CR>
+  inoremap <expr> <Plug>(vshFileCompletion) vsh#vsh#InShellDir("\<C-x>\<C-f>")
+
   " Text object for the current buffer
-  "" Visual plugin mappings
   vnoremap <silent> <Plug>(vshInnerCommand) :<C-u>call vsh#vsh#SelectCommand(1)<CR>
   vnoremap <silent> <Plug>(vshInnerCOMMAND) :<C-u>call vsh#vsh#SelectOutput(0)<CR>
   vnoremap <silent> <Plug>(vshOuterCommand) :<C-u>call vsh#vsh#SelectCommand(0)<CR>
   vnoremap <silent> <Plug>(vshOuterCOMMAND) :<C-u>call vsh#vsh#SelectOutput(1)<CR>
-
-  "" Operator plugin mappings
+  " Operator mode
   onoremap <silent> <Plug>(vshInnerCommand) :<C-u>call vsh#vsh#SelectCommand(1)<CR>
   onoremap <silent> <Plug>(vshInnerCOMMAND) :<C-u>call vsh#vsh#SelectOutput(0)<CR>
   onoremap <silent> <Plug>(vshOuterCommand) :<C-u>call vsh#vsh#SelectCommand(0)<CR>
   onoremap <silent> <Plug>(vshOuterCOMMAND) :<C-u>call vsh#vsh#SelectOutput(1)<CR>
+  let g:vsh_autoload_did_mappings = 1
 endfunction
 
 function vsh#vsh#SetupMappings()
@@ -595,41 +644,39 @@ function vsh#vsh#SetupMappings()
     call s:define_global_mappings()
   endif
   if !has('g:vsh_no_default_mappings')
+    " Motion
     nmap <buffer> <C-n> <Plug>(vshNextPrompt)
     nmap <buffer> <C-p> <Plug>(vshPrevPrompt)
     vmap <buffer> <C-n> <Plug>(vshVNextPrompt)
     vmap <buffer> <C-p> <Plug>(vshVPrevPrompt)
-    " Only ever use linewise operator motion.
     omap <buffer> <C-n> <Plug>(vshONextPrompt)
     omap <buffer> <C-p> <Plug>(vshOPrevPrompt)
+
+    " Execution and new prompt
     nmap <buffer> <CR>  <Plug>(vshReplaceOutput)
     imap <buffer> <M-CR> <Plug>(vshRunNewPrompt)
     nmap <buffer> <localleader>n  <Plug>(vshNewPrompt)
-    nmap <buffer> <localleader>o  <Plug>(vshStartRangedCommand)
+    vmap <buffer> <F3> <Plug>(vshRerun)
 
-    " Send control characters to the underlying terminal -- it will turn these into
-    " signals sent to the process in the forground.
+    " Control characters
     nmap <buffer> <localleader>c <Plug>(vshSendControlChar)
 
-    " Get underlying terminal to tab-complete for us.
+    " Completions
     nmap <buffer> <localleader>t <Plug>(vshCompletions)
     imap <buffer> <C-q> <Plug>(vshICompletions)
     nmap <buffer> <localleader>g <Plug>(vshGlobCompletions)
     imap <buffer> <C-s> <Plug>(vshIGlobCompletions)
 
-    vmap <buffer> <F3> <Plug>(vshRerun)
-
-    " Save current output by commenting the current command and adding a splitter
-    " after the output. Activate it by undoing that.
-    " Don't have a toggle as I like to know exactly what my commands will do.
+    " Working with the vsh buffer text
     nmap <buffer> <localleader>s <Plug>(vshSaveCommand)
     nmap <buffer> <localleader>a <Plug>(vshActivateCommand)
-
-    " Conveniance functions for beginning of command
+    nmap <buffer> <localleader>o  <Plug>(vshStartRangedCommand)
     nmap <buffer> ^ <Plug>(vshBOL)
     omap <buffer> ^ <Plug>(vshOBOL)
     nmap <buffer> I <Plug>(vshInsertBOL)
-
+    nmap <buffer> gf <Plug>(vshGotoFile)
+    nmap <buffer> gF <Plug>(vshGotoFILE)
+    imap <buffer> <C-x><C-f> <Plug>(vshFileCompletion)
     xmap <buffer> ic <Plug>(vshInnerCommand)
     omap <buffer> ic <Plug>(vshInnerCommand)
     xmap <buffer> io <Plug>(vshInnerCOMMAND)

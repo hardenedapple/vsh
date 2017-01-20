@@ -162,3 +162,20 @@ def vsh_clear_output(curline):
     outputlen = vsh_outputlen(vim.current.buffer, curline)
     vim.current.buffer[curline:curline + outputlen] = []
 
+
+def vsh_find_cwd(jobnr):
+    '''
+    Find the cwd of the foreground process group in vsh_buf.
+
+    This is the process group most likely to be printing to stdout, and hence
+    most likely to have printed relative path names that the user wants to work
+    with.
+
+    '''
+    # See man proc(5) for what's happening here.
+    bash_pid = vim.funcs.jobpid(jobnr)
+    with open('/proc/{}/stat'.format(bash_pid), 'rb') as infile:
+        status_data = infile.read()
+    foreground_pid = status_data.split()[7].decode('utf-8')
+    return os.path.realpath('/proc/{}/cwd'.format(foreground_pid))
+
