@@ -718,6 +718,206 @@ Expect:
   other: > y
   other: > z
 
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                              vsh_clear_output                               "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Given vsh (vsh buffer):
+  vimshell: > false
+  vimshell: > echo Hello
+  Hello
+  vimshell: > echo Hello; echo there
+  Hello
+  there
+  vimshell: > echo Hello; echo there
+  Hello
+  there
+
+Execute (Remove non-existant output):
+  python3 vsh_clear_output(1)
+
+Expect:
+  vimshell: > false
+  vimshell: > echo Hello
+  Hello
+  vimshell: > echo Hello; echo there
+  Hello
+  there
+  vimshell: > echo Hello; echo there
+  Hello
+  there
+
+Execute (Remove single line output):
+  python3 vsh_clear_output(2)
+
+Expect:
+  vimshell: > false
+  vimshell: > echo Hello
+  vimshell: > echo Hello; echo there
+  Hello
+  there
+  vimshell: > echo Hello; echo there
+  Hello
+  there
+
+Execute (Remove multi-line output):
+  python3 vsh_clear_output(4)
+
+Expect:
+  vimshell: > false
+  vimshell: > echo Hello
+  Hello
+  vimshell: > echo Hello; echo there
+  vimshell: > echo Hello; echo there
+  Hello
+  there
+
+Execute (Remove output at end of file):
+  python3 vsh_clear_output(7)
+
+Expect:
+  vimshell: > false
+  vimshell: > echo Hello
+  Hello
+  vimshell: > echo Hello; echo there
+  Hello
+  there
+  vimshell: > echo Hello; echo there
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                               vsh_insert_text                               "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Given vsh (vsh buffer):
+  vimshell: > echo 'Hello world' # test insert when no output already there
+  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  Hello world
+
+  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  hello world
+
+Execute (First line of output when not initialised is skipped):
+  1 mark p
+  1 mark d
+  python3 vsh_insert_text(['Hello world'], vim.current.buffer.number)
+
+Expect:
+  vimshell: > echo 'Hello world' # test insert when no output already there
+  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  Hello world
+
+  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  hello world
+
+Execute (First insert of an output):
+  1 mark p
+  1 mark d
+  let b:vsh_initialised = 1
+  python3 vsh_insert_text(['Hello world'], vim.current.buffer.number)
+
+Expect:
+  vimshell: > echo 'Hello world' # test insert when no output already there
+  Hello world
+  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  Hello world
+
+  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  hello world
+
+
+Execute (Insert continuing an output):
+  2 mark p
+  4 mark d
+  let b:vsh_initialised = 1
+  python3 vsh_insert_text(['there there'], vim.current.buffer.number)
+
+Expect:
+  vimshell: > echo 'Hello world' # test insert when no output already there
+  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  Hello world
+  there there
+  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  hello world
+
+Execute (Insert at end of file):
+  5 mark p
+  $ mark d
+  let b:vsh_initialised = 1
+  python3 vsh_insert_text([' this is a test'], vim.current.buffer.number)
+
+Expect:
+  vimshell: > echo 'Hello world' # test insert when no output already there
+  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  Hello world
+
+  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  hello world this is a test
+
+Execute (Multiline output):
+  6 mark p
+  $ mark d
+  let b:vsh_initialised = 1
+  python3 vsh_insert_text(['', 'Hello world', 'this is a test'], vim.current.buffer.number)
+
+Expect:
+  vimshell: > echo 'Hello world' # test insert when no output already there
+  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  Hello world
+
+  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  hello world
+  Hello world
+  this is a test
+
+
+" Null bytes are encoded as newlines in the data given
+Execute (Output with embedded NULL bytes):
+  1 mark p
+  1 mark d
+  let b:vsh_initialised = 1
+  python3 vsh_insert_text(['Hello\nworld', 'this is a test'], vim.current.buffer.number)
+
+Expect:
+  vimshell: > echo 'Hello world' # test insert when no output already there
+  Hello world
+  this is a test
+  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  Hello world
+
+  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  hello world
+
+
+Execute (Insert when insert mark has been lost):
+  2 mark p
+  let b:vsh_initialised = 1
+  python3 vsh_insert_text(['there there'], vim.current.buffer.number)
+
+Expect:
+  vimshell: > echo 'Hello world' # test insert when no output already there
+  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  Hello world
+
+  there there
+  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  hello world
+
+
+Execute (Insert at end of buffer when no marks are around):
+  let b:vsh_initialised = 1
+  python3 vsh_insert_text(['', 'Hello world'], vim.current.buffer.number)
+
+Expect:
+  vimshell: > echo 'Hello world' # test insert when no output already there
+  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  Hello world
+
+  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  hello world
+  Hello world
+
+
 " I don't know why, but if this test isn't last then I get errors in Vader.
 " TODO Figure out why -- is it the sleep command?
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

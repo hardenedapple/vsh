@@ -13,10 +13,10 @@ function vsh#vsh#SplitMarker(bufnr)
   "     This means that the functions where search() is called search for '',
   "     which uses the last used search pattern.
   "     Stuff can hence can go anywhere.
-  "     When inserting in vsh_insert_text, we always add a pointless extra
-  "     line, which isn't that bad.
-  "     I think it's not worth changing anything to stop this, as a vsh buffer
-  "     without a prompt variable is pretty useless.
+  "     When inserting in vsh_insert_text, this would mean we always add a
+  "     pointless extra line.
+  "     Anyway, if there isn't a prompt in some vsh buffer it's reasonable to
+  "     expect some problems, and if they aren't major then that's good enough.
   return substitute(getbufvar(l:bufnr, 'vsh_prompt', ''), '\s\+$', '', '')
 endfunction
 
@@ -457,7 +457,7 @@ else
     endif
     if bufexists(self.buffer)
       call setbufvar(self.buffer, 'vsh_job', 0)
-      call setbufvar(self.buffer, 'initialised', 0)
+      call setbufvar(self.buffer, 'vsh_initialised', 0)
     else
       " XXX -- in 'release version' I'd remove this complaint as there's no
       " problem just not doing anything in this case.
@@ -469,17 +469,13 @@ else
 
   function vsh#vsh#InsertText(job_id, data, event) dict
     if get(b:, 'vsh_insert_change_tick', 'not a number') == b:changedtick
-      " TODO This is currently a hack -- I believe there is a bug in neovim.
-      " Currently, the curbuf->b_u_curhead structure is sometimes not getting
-      " reset on the change I made with vsh_insert_text().
-      " This means that the next :undojoin I call fails (because
-      " curbuf->b_u_curhead is supposed to indicate that the previous command
-      " was an undo).
-      " Interestingly, it appears that the state that :undojoin is supposed to
-      " leave the program in, is the same state that causes the error message,
-      " and it hence appears that just catching the error and running the same
-      " command that I wanted to run still joins those changes to the previous
-      " ones.
+      " TODO Workaround a bug in neovim -- ex_undojoin() should not set
+      " curbuf->b_u_curhead. Changing that is currently PR 5856 in neovim, but
+      " this workaround works fine, because when the problem is hit we don't
+      " actually have to call :undojoin anyway.
+      " (the bug is only hit if we are called twice or more consecutivly
+      " without u_sync() being called in between, u_sync() is what marks the
+      " start of an undo block).
       try
         undojoin | python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
       catch /undojoin is not allowed after undo/
@@ -646,31 +642,31 @@ function vsh#vsh#SetupMappings()
 endfunction
 
 function vsh#vsh#TeardownMappings()
-  delcommand Rerun
+  silent! delcommand Rerun
   if !has('g:vsh_no_default_mappings')
-    unmap <buffer> <C-n>
-    unmap <buffer> <C-p>
-    nunmap <buffer> <CR>
-    iunmap <buffer> <M-CR>
-    nunmap <buffer> <localleader>n
-    nunmap <buffer> <localleader>o
-    nunmap <buffer> <localleader>c
-    nunmap <buffer> <localleader>t
-    iunmap <buffer> <C-q>
-    vunmap <buffer> <F3>
-    nunmap <buffer> <localleader>s
-    nunmap <buffer> <localleader>a
-    nunmap <buffer> ^
-    ounmap <buffer> ^
-    nunmap <buffer> I
-    xunmap <buffer> ic
-    ounmap <buffer> ic
-    xunmap <buffer> io
-    ounmap <buffer> io
-    xunmap <buffer> ac
-    ounmap <buffer> ac
-    xunmap <buffer> ao
-    ounmap <buffer> ao
+    silent! unmap <buffer> <C-n>
+    silent! unmap <buffer> <C-p>
+    silent! nunmap <buffer> <CR>
+    silent! iunmap <buffer> <M-CR>
+    silent! nunmap <buffer> <localleader>n
+    silent! nunmap <buffer> <localleader>o
+    silent! nunmap <buffer> <localleader>c
+    silent! nunmap <buffer> <localleader>t
+    silent! iunmap <buffer> <C-q>
+    silent! vunmap <buffer> <F3>
+    silent! nunmap <buffer> <localleader>s
+    silent! nunmap <buffer> <localleader>a
+    silent! nunmap <buffer> ^
+    silent! ounmap <buffer> ^
+    silent! nunmap <buffer> I
+    silent! xunmap <buffer> ic
+    silent! ounmap <buffer> ic
+    silent! xunmap <buffer> io
+    silent! ounmap <buffer> io
+    silent! xunmap <buffer> ac
+    silent! ounmap <buffer> ac
+    silent! xunmap <buffer> ao
+    silent! ounmap <buffer> ao
   endif
 endfunction
 

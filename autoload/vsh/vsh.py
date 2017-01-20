@@ -56,7 +56,7 @@ def vsh_recalculate_input_position(vsh_buf, insert_mark):
     # was also deleted. Hence the current output should be on a different line
     # to what's there at the moment.
     vsh_buf.append('', insert_line)
-    vim.funcs.setpos(insert_mark, [vsh_buf.number, insert_line + 1, 0])
+    vim.funcs.setpos("'" + insert_mark, [vsh_buf.number, insert_line + 1, 0])
     return True
 
 
@@ -113,7 +113,8 @@ def vsh_insert_helper(data, vsh_buf):
     if data:
         vsh_buf.append(data, insert_line)
     # This should fix issue #14 as soon as neovim issue #5713 is fixed
-    vim.funcs.setpos("'d", [vsh_buf.number, len(data) + insert_line, 0])
+    vim.funcs.setpos("'" + insert_mark,
+                     [vsh_buf.number, len(data) + insert_line, 0])
 
 
 def vsh_insert_text(data, insert_buf):
@@ -129,8 +130,9 @@ def vsh_insert_text(data, insert_buf):
         return
 
     # Don't print out the starting prompt of the shell.
-    if 'initialised' not in vsh_buf.vars or not vsh_buf.vars['initialised']:
-        vsh_buf.vars['initialised'] = 1
+    if 'vsh_initialised' not in vsh_buf.vars or \
+            not vsh_buf.vars['vsh_initialised']:
+        vsh_buf.vars['vsh_initialised'] = 1
         # TODO Find a better way to check this is just the starting prompt of
         # the shell. This seems brittle.
         if len(data) == 1:
