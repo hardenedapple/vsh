@@ -327,6 +327,8 @@ if !has('nvim') || !has('python3')
   function vsh#vsh#InShellDir(mapping)
     return a:mapping
   endfunction
+  function vsh#vsh#SendPassword()
+  endfunction
 
   function vsh#vsh#RunCommand(command_line, command)
     let l:command_range = vsh#vsh#OutputRange()
@@ -572,6 +574,16 @@ else
     execute 'args ' . join(g:vsh_prev_args)
     execute 'argument ' . g:vsh_prev_argid
   endfunction
+
+  function vsh#vsh#SendPassword()
+    if !get(b:, 'vsh_job', 0)
+      echoerr 'No subprocess currently running!'
+      echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
+      return
+    endif
+    let password = inputsecret('Password: ')
+    call jobsend(b:vsh_job, password . "\n")
+  endfunction
 endif
 
 function vsh#vsh#VshSendThis(type)
@@ -596,8 +608,7 @@ function s:define_global_mappings()
   nnoremap <silent> <Plug>(vshReplaceOutput)  :call vsh#vsh#ReplaceOutput()<CR>
   inoremap <silent> <Plug>(vshRunNewPrompt) <Esc>:call vsh#vsh#ReplaceOutputNewPrompt()<CR>
   nnoremap <silent> <Plug>(vshNewPrompt)  :<C-U>call vsh#vsh#NewPrompt(1)<CR>
-  command -buffer -range Rerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:vsh_prompt . '/call vsh#vsh#ReplaceOutput()'
-  vnoremap <silent> <Plug>(vshRerun) :Rerun<CR>
+  vnoremap <silent> <Plug>(vshRerun) :Vrerun<CR>
 
   " Send control characters to the underlying terminal -- it will turn these into
   " signals sent to the process in the forground.
@@ -643,6 +654,8 @@ function vsh#vsh#SetupMappings()
   if !has('g:vsh_autoload_did_mappings')
     call s:define_global_mappings()
   endif
+  command -buffer -range Vrerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:vsh_prompt . '/call vsh#vsh#ReplaceOutput()'
+  command -buffer VshPass call vsh#vsh#SendPassword()
   if !has('g:vsh_no_default_mappings')
     " Motion
     nmap <buffer> <C-n> <Plug>(vshNextPrompt)
@@ -689,7 +702,8 @@ function vsh#vsh#SetupMappings()
 endfunction
 
 function vsh#vsh#TeardownMappings()
-  silent! delcommand Rerun
+  silent! delcommand Vrerun
+  silent! delcommand VshPass
   if !has('g:vsh_no_default_mappings')
     silent! unmap <buffer> <C-n>
     silent! unmap <buffer> <C-p>
