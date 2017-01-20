@@ -38,7 +38,7 @@ def vsh_outputlen(buf, curprompt):
     return count
 
 
-def vsh_recalculate_input_position(vsh_buf):
+def vsh_recalculate_input_position(vsh_buf, insert_mark):
     '''
     Our mark of where to insert text has been lost, see if we can recalculate
     it from our mark of which command was last executed. 
@@ -46,34 +46,36 @@ def vsh_recalculate_input_position(vsh_buf):
     If that mark is also lost then we just give up.
 
     '''
-    insert_mark, _ = vsh_buf.mark('p')
-    if insert_mark == 0:
+    prompt_mark = vim.vars.get('vsh_prompt_mark', 'p')
+    prompt_line, _ = vsh_buf.mark(prompt_mark)
+    if prompt_line == 0:
         return False
     
-    position_to_insert = insert_mark + vsh_outputlen(vsh_buf, insert_mark)
+    insert_line = prompt_line + vsh_outputlen(vsh_buf, prompt_line)
     # The previous mark being deleted means the last line of the last output
     # was also deleted. Hence the current output should be on a different line
     # to what's there at the moment.
-    vsh_buf.append('', position_to_insert)
-    vim.funcs.setpos("'d", [vsh_buf.number, position_to_insert + 1, 0])
+    vsh_buf.append('', insert_line)
+    vim.funcs.setpos(insert_mark, [vsh_buf.number, insert_line + 1, 0])
     return True
 
 
 def vsh_insert_helper(data, vsh_buf):
     # Default to inserting text at end of file if input mark doesn't exist.
-    insert_mark, _ = vsh_buf.mark('d')
-    if insert_mark == 0:
+    insert_mark = vim.vars.get('vsh_insert_mark', 'd')
+    insert_line, _ = vsh_buf.mark(insert_mark)
+    if insert_line == 0:
         # Attempt to recalculate the input position from knowledge of which
         # prompt was last executed -- this just gives us a little extra
         # robustness against the user removing text with our marks in them.
-        if vsh_recalculate_input_position(vsh_buf):
+        if vsh_recalculate_input_position(vsh_buf, insert_mark):
             return vsh_insert_helper(data, vsh_buf)
 
         # Default to inserting text at end of file if neither of our reference
         # marks exist.
-        # Use the total length of the buffer because insert_mark is a Vim
+        # Use the total length of the buffer because insert_line is a Vim
         # line number not a python buffer index.
-        insert_mark = len(vsh_buf)
+        insert_line = len(vsh_buf)
 
     # If the insert position is not at the end of a command prompt, assume
     # we have already put some of the output from this command into the buffer.
@@ -82,14 +84,13 @@ def vsh_insert_helper(data, vsh_buf):
     # If the last line included a trailing newline, then the last element in
     # data would have been '' so this still works.
     prompt = vim.eval('vsh#vsh#SplitMarker({})'.format(vsh_buf.number))
-    insert_line = vsh_buf[insert_mark - 1]
-    if not insert_line.startswith(prompt):
+    insert_line_text = vsh_buf[insert_line - 1]
+    if not insert_line_text.startswith(prompt):
         firstline = data.pop(0)
-        # Don't worry about performance from pop() to insert(), this shouldn't
-        # really happen.
         try:
-            vsh_buf[insert_mark - 1] = insert_line + firstline
+            vsh_buf[insert_line - 1] = insert_line_text + firstline
         except:
+            # Shouldn't happen
             data.insert(0, firstline)
             raise
 
@@ -110,9 +111,9 @@ def vsh_insert_helper(data, vsh_buf):
     # As a backup, I also mark the current command prompt, so that I can
     # recalculate the position of the last line if needs be.
     if data:
-        vsh_buf.append(data, insert_mark)
+        vsh_buf.append(data, insert_line)
     # This should fix issue #14 as soon as neovim issue #5713 is fixed
-    vim.funcs.setpos("'d", [vsh_buf.number, len(data) + insert_mark, 0])
+    vim.funcs.setpos("'d", [vsh_buf.number, len(data) + insert_line, 0])
 
 
 def vsh_insert_text(data, insert_buf):
