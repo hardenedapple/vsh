@@ -527,30 +527,19 @@ else
   endfunction
 
   function vsh#vsh#WithPathSet(mapping)
-    " We want to execute something in the current working directory of the
-    " subprocess. Find what process the job we're running is currently in, cd
-    " to there, run the command, and cd back.
-    " TODO
-    "   How to determine between a window-local working directory, a tab-local
-    "   working directory, and a general working directory?
-    "   I need to know the difference so that I can restore neovim to its
-    "   previous state.
     if !get(b:, 'vsh_job', 0)
       echoerr 'No subprocess currently running!'
       echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
       return
     endif
     let subprocess_cwd = py3eval('vsh_find_cwd(' . b:vsh_job . ')')
-    if &l:path == ''
-      let reverse_path = ''
-      let orig_path = &path
-    else
-      let reverse_path = &l:path
-      let orig_path = &l:path
-    endif
-    let &l:path = subprocess_cwd . ',' . orig_path
-    execute 'normal! ' . a:mapping
-    let &l:path = reverse_path
+    " Can't remove the extra item in the path because we've changed buffer. 
+    " Just take the default from the global value, and hope the user doesn't
+    " want some special path in a vsh buffer.
+    " Could add another buffer local variable to store what the user always
+    " wants included in 'path' in this buffer.
+    let &l:path = subprocess_cwd . ',' . &g:path
+    execute a:mapping
   endfunction
 
   function vsh#vsh#InShellDir(mapping)
@@ -641,8 +630,8 @@ function s:define_global_mappings()
   nnoremap <silent> <Plug>(vshInsertBOL) :<C-U>call vsh#vsh#InsertOverride()<CR>
 
   " Make gf, gF, and insert mode ^X^F work nicely.
-  nnoremap <Plug>(vshGotoFile) :<C-u>call vsh#vsh#WithPathSet('gf')<CR>
-  nnoremap <Plug>(vshGotoFILE) :<C-u>call vsh#vsh#WithPathSet('gF')<CR>
+  nnoremap <Plug>(vshGotoFile) :<C-u>call vsh#vsh#WithPathSet('normal! gf')<CR>
+  nnoremap <Plug>(vshGotoFILE) :<C-u>call vsh#vsh#WithPathSet('normal! gF')<CR>
   inoremap <expr> <Plug>(vshFileCompletion) vsh#vsh#InShellDir("\<C-x>\<C-f>")
 
   " Text object for the current buffer
