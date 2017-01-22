@@ -642,6 +642,7 @@ function s:define_global_mappings()
   inoremap <silent> <Plug>(vshIGlobCompletions) <Esc>:<C-u>call vsh#vsh#ShowCompletions(1)<CR>a
 
   " Using shells working directory
+  nnoremap <Plug>(vshGotoThing) :<C-u>call vsh#vsh#WithPathSet("normal \<Plug>NetrwBrowseX")<CR>
   nnoremap <Plug>(vshGotoFile) :<C-u>call vsh#vsh#WithPathSet('normal! gf')<CR>
   nnoremap <Plug>(vshGotoFILE) :<C-u>call vsh#vsh#WithPathSet('normal! gF')<CR>
   nnoremap <Plug>(vshSplitFile) :<C-u>call vsh#vsh#WithPathSet('wincmd f')<CR>
@@ -700,12 +701,13 @@ function vsh#vsh#SetupMappings()
     nmap <buffer> <localleader>c <Plug>(vshSendControlChar)
 
     " Completions
-    nmap <buffer> <localleader>t <Plug>(vshCompletions)
+    nmap <buffer> <localleader>l <Plug>(vshCompletions)
     imap <buffer> <C-q> <Plug>(vshICompletions)
     nmap <buffer> <localleader>g <Plug>(vshGlobCompletions)
     imap <buffer> <C-s> <Plug>(vshIGlobCompletions)
 
     " Using working directory.
+    nmap <buffer> gx <Plug>(vshGotoThing)
     nmap <buffer> gf <Plug>(vshGotoFile)
     nmap <buffer> gF <Plug>(vshGotoFILE)
     nmap <buffer> <C-w>f <Plug>(vshSplitFile)
@@ -750,19 +752,20 @@ function s:teardown_mappings()
     silent! nunmap <buffer> <localleader>c
 
     " Completions
-    silent! nunmap <buffer> <localleader>t
+    silent! nunmap <buffer> <localleader>l
     silent! iunmap <buffer> <C-q>
     silent! nunmap <buffer> <localleader>g
     silent! iunmap <buffer> <C-s>
 
     " Using working directory.
-    nmap <buffer> gf <Plug>(vshGotoFile)
-    nmap <buffer> gF <Plug>(vshGotoFILE)
-    nmap <buffer> <C-w> f <Plug>(vshSplitFile)
-    nmap <buffer> <C-w> F <Plug>(vshSplitFILE)
-    nmap <buffer> <C-w> gf <Plug>(vshTabSplitFile)
-    nmap <buffer> <C-w> gF <Plug>(vshTabSplitFILE)
-    imap <buffer> <C-x><C-f> <Plug>(vshFileCompletion)
+    silent! nunmap <buffer> gx
+    silent! nunmap <buffer> gf
+    silent! nunmap <buffer> gF
+    silent! nunmap <buffer> <C-w> f
+    silent! nunmap <buffer> <C-w> F
+    silent! nunmap <buffer> <C-w> gf
+    silent! nunmap <buffer> <C-w> gF
+    silent! iunmap <buffer> <C-x><C-f>
 
     " Working with the vsh buffer text
     silent! nunmap <buffer> <localleader>s
