@@ -24,14 +24,14 @@ function s:commentstart()
   return substitute(&commentstring, '%s', '', '')
 endfunction
 
-function vsh#vsh#MotionMarker()
+function s:motion_marker()
   " Should match a valid command without a comment, OR a command prompt without
   " any space after it.
   " Allow s:commentstart() before the prompt -- so we can move over
   return '\V\(\^\|' . s:commentstart() . '\)' . b:vsh_prompt . '\( \*\[^# ]\|\$\)'
 endfunction
 
-function vsh#vsh#CommandMarker()
+function s:command_marker()
   " Allow notes in the file -- make lines beginning with # a comment.
   " Allow a command of just a <TAB> -- bash interprets the tab command, so we
   " should allow sending it.
@@ -98,7 +98,7 @@ function vsh#vsh#MoveToNextPrompt(mode, count)
 
   " Multiple times if given a count
   let index = 0
-  let l:prompt = vsh#vsh#MotionMarker()
+  let l:prompt = s:motion_marker()
   while l:index < a:count
     if search(l:prompt, 'eW') == 0
       normal G
@@ -125,7 +125,7 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
   normal! 0
 
   " If there is no previous prompt, do nothing.
-  let l:prompt = vsh#vsh#MotionMarker()
+  let l:prompt = s:motion_marker()
   if search(l:prompt, 'beW') == 0
     if line('.') == 1
       exe 'normal! ' . origcol . '|'
@@ -151,17 +151,16 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
   endif
 endfunction
 
+" This would be internal, but I use it for testing.
 function vsh#vsh#ParseVSHCommand(line)
-  " Here we use the b:vsh_prompt variable as that's what the user asked us to use
-  " for specifying commands.
   " Check we've been given a command line and not some junk
-  if a:line !~# vsh#vsh#CommandMarker()
+  if a:line !~# s:command_marker()
     return -1
   endif
   return a:line[len(b:vsh_prompt):]
 endfunction
 
-function vsh#vsh#CommandSpan()
+function s:command_span()
   let l:eof = line('$')
   let l:startline = s:segment_start()
   " If no current prompt, no range
@@ -186,7 +185,7 @@ function vsh#vsh#CommandSpan()
 endfunction
 
 function vsh#vsh#OutputRange()
-  let span = vsh#vsh#CommandSpan()
+  let span = s:command_span()
   if l:span == []
     return ''
   else
@@ -229,7 +228,7 @@ function vsh#vsh#SaveOutput(activate)
     else
       echo 'Output is not Saved'
     endif
-  elseif l:cur_command =~# vsh#vsh#CommandMarker()
+  elseif l:cur_command =~# s:command_marker()
     call setline(l:cur_cli, l:commentstart . l:cur_command)
   else
     echo 'Output is not Active'
@@ -252,7 +251,7 @@ endfunction
 " our position in the buffer.
 function vsh#vsh#SelectCommand(include_whitespace)
   " Operate on either all the command line, or all text in the command line.
-  let search_line = search(vsh#vsh#MotionMarker(), 'bncW', 0)
+  let search_line = search(s:motion_marker(), 'bncW', 0)
   let promptline = l:search_line ? l:search_line : 1
   let curprompt = getline(l:promptline)
 
@@ -269,7 +268,7 @@ endfunction
 " SplitMarker() prompt because that is what I've defined to separate output
 " from other output.
 function vsh#vsh#SelectOutput(include_prompt)
-  let span = vsh#vsh#CommandSpan()
+  let span = s:command_span()
   if l:span == []
     if !a:include_prompt
       " No output, and asked to select all output.
@@ -291,7 +290,7 @@ function vsh#vsh#SelectOutput(include_prompt)
 endfunction
 
 function vsh#vsh#BOLOverride()
-  if getline('.') =~# vsh#vsh#CommandMarker()
+  if getline('.') =~# s:command_marker()
     call s:move_to_prompt_start()
   else
     normal! ^
@@ -314,20 +313,24 @@ if !has('nvim') || !has('python3')
   endfunction
   function vsh#vsh#ClosedBuffer()
   endfunction
-  function vsh#vsh#CloseProcess()
+  function s:close_process()
   endfunction
   function vsh#vsh#ShowCompletions()
     normal! <C-n>
   endfunction
   function vsh#vsh#VshSend(buffer)
   endfunction
-  function vsh#vsh#WithPathSet(mapping)
-    execute 'normal! ' . a:mapping
+  function vsh#vsh#WithPathSet(command)
+    execute a:command
   endfunction
-  function vsh#vsh#InShellDir(mapping)
-    return a:mapping
+  function vsh#vsh#FileCompletion()
+    return "\<C-x>\<C-f>"
   endfunction
   function vsh#vsh#SendPassword()
+  endfunction
+  function vsh#vsh#VshSend()
+  endfunction
+  function vsh#vsh#VshSendThis()
   endfunction
 
   function vsh#vsh#RunCommand(command_line, command)
@@ -343,19 +346,59 @@ if !has('nvim') || !has('python3')
   endfunction
 else
   let s:plugin_path = escape(expand('<sfile>:p:h'), '\ ')
-  let s:callbacks = {
-        \ 'on_stdout': function('vsh#vsh#InsertText'),
-        \ 'on_stderr': function('vsh#vsh#InsertText'),
-        \ 'on_exit': function('vsh#vsh#SubprocessClosed'),
-        \ 'pty': 1,
-        \ 'TERM': 'dumb'
-        \ }
+
+  function s:subprocess_closed(job_id, data, event) dict
+    " Callback is run in the users current buffer, not the buffer that
+    " the job is started in, so have to use getbufvar()/setbufvar().
+    if !bufexists(self.buffer)
+      return
+    endif
+
+    " So that b:undo_ftplugin works nicely, don't set variables if they don't
+    " exist in the buffer.
+    if getbufvar(self.buffer, 'vsh_job', 0)
+      call setbufvar(self.buffer, 'vsh_job', 0)
+    endif
+    if getbufvar(self.buffer, 'vsh_initialised', 0)
+      call setbufvar(self.buffer, 'vsh_initialised', 0)
+    endif
+  endfunction
+
+  function s:insert_text(job_id, data, event) dict
+    if get(b:, 'vsh_insert_change_tick', -1) == b:changedtick
+      " TODO Workaround a bug in neovim -- ex_undojoin() should not set
+      " curbuf->b_u_curhead. Changing that is currently PR 5856 in neovim, but
+      " this workaround works fine, because when the problem is hit we don't
+      " actually have to call :undojoin anyway.
+      " (the bug is only hit if we are called twice or more consecutivly
+      " without u_sync() being called in between, u_sync() is what marks the
+      " start of an undo block).
+      try
+        undojoin | python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
+      catch /undojoin is not allowed after undo/
+        python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
+      endtry
+    else
+      python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
+    end
+    unlockvar b:vsh_insert_change_tick
+    let b:vsh_insert_change_tick = b:changedtick
+    lockvar b:vsh_insert_change_tick
+  endfunction
 
   function s:set_marks_at(position)
     let l:position = a:position == 'here' ? '' : a:position
     execute l:position . ' mark ' . get(g:, 'vsh_insert_mark', 'd')
     execute l:position . ' mark ' . get(g:, 'vsh_prompt_mark', 'p')
   endfunction
+
+  let s:callbacks = {
+        \ 'on_stdout': function('s:insert_text'),
+        \ 'on_stderr': function('s:insert_text'),
+        \ 'on_exit': function('s:subprocess_closed'),
+        \ 'pty': 1,
+        \ 'TERM': 'dumb'
+        \ }
 
   function vsh#vsh#StartSubprocess()
     " Note: This has to be loaded first
@@ -386,15 +429,20 @@ else
     elseif l:job_id == -1
       echoerr 'Failed to find bash executable.'
     else
+      " Would like to lock this, but I need to be able to change it from
+      " another buffer (in ClosedBuffer() and SubprocessClosed()), and I can't
+      " unlock it from there.
       let b:vsh_job = l:job_id
     endif
   endfunction
 
- function vsh#vsh#CloseProcess()
-   " jobclose() sends a SIGHUP to the bash process
-   call jobclose(b:vsh_job)
-   unlet b:vsh_job
- endfunction
+  function s:close_process()
+    " jobclose() sends a SIGHUP to the bash process
+    if get(b:, 'vsh_job', 0)
+      call jobclose(b:vsh_job)
+      unlet b:vsh_job
+    endif
+  endfunction
 
  function vsh#vsh#ShowCompletions(glob)
    let command = vsh#vsh#ParseVSHCommand(getline('.'))
@@ -418,7 +466,7 @@ else
    "    glob-list-expansions
    "    unix-line-discard
    " NB: If your shell doesn't have readline, you could use something like
-   " ['', 'echo ', "\n"] to get at least the glob expansion.
+   " ['', "echo \n", ""] to get at least the glob expansion.
    let completions_cmds = get(b:, 'vsh_completions_cmd', ['?', 'g', ''])
    let cmd_chars = completions_cmds[a:glob ? 1 : 0]
    let retval = jobsend(b:vsh_job, l:command . cmd_chars . completions_cmds[2])
@@ -441,9 +489,10 @@ else
 
     " Use python so the cursor doesn't move and we don't have to faff around
     " with saving and restoring.
-    " XXX Is there a vim function equivalent?
     python3 vsh_clear_output(int(vim.eval("line('.')")))
+    unlockvar b:vsh_insert_change_tick
     let b:vsh_insert_change_tick = b:changedtick
+    lockvar b:vsh_insert_change_tick
 
     " XXX Mark use
     call s:set_marks_at('here')
@@ -464,45 +513,11 @@ else
     call jobsend(l:jobnr, getline('.') . "\n")
   endfunction
 
-  function vsh#vsh#SubprocessClosed(job_id, data, event) dict
-    " Callback is run in the users current buffer, not the buffer that
-    " the job is started in
-    " XXX Can't run a python function here (which would be easier to ensure we
-    " don't change user state) because on closing nvim this callback is called
-    " after the channel to the python interpreter has been closed.
-    if get(g:, 'vsh_vim_closing', 0)
+  function vsh#vsh#VshSendThis(type)
+    if a:type != 'line'
       return
     endif
-    if bufexists(self.buffer)
-      call setbufvar(self.buffer, 'vsh_job', 0)
-      call setbufvar(self.buffer, 'vsh_initialised', 0)
-    else
-      " XXX -- in 'release version' I'd remove this complaint as there's no
-      " problem just not doing anything in this case.
-      " At the moment I'm leaving it to get alerted about the order these
-      " things are called in.
-      echoerr 'No valid buffer to close with'
-    endif
-  endfunction
-
-  function vsh#vsh#InsertText(job_id, data, event) dict
-    if get(b:, 'vsh_insert_change_tick', 'not a number') == b:changedtick
-      " TODO Workaround a bug in neovim -- ex_undojoin() should not set
-      " curbuf->b_u_curhead. Changing that is currently PR 5856 in neovim, but
-      " this workaround works fine, because when the problem is hit we don't
-      " actually have to call :undojoin anyway.
-      " (the bug is only hit if we are called twice or more consecutivly
-      " without u_sync() being called in between, u_sync() is what marks the
-      " start of an undo block).
-      try
-        undojoin | python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
-      catch /undojoin is not allowed after undo/
-        python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
-      endtry
-    else
-      python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
-    end
-    let b:vsh_insert_change_tick = b:changedtick
+    execute "'[,']VshSend " . b:vsh_alt_buffer
   endfunction
 
   function vsh#vsh#SendControlChar()
@@ -526,34 +541,52 @@ else
     endif
   endfunction
 
-  function vsh#vsh#WithPathSet(mapping)
+  function vsh#vsh#WithPathSet(command)
     if !get(b:, 'vsh_job', 0)
       echoerr 'No subprocess currently running!'
       echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
       return
     endif
     let subprocess_cwd = py3eval('vsh_find_cwd(' . b:vsh_job . ')')
-    " Can't remove the extra item in the path because we've changed buffer. 
-    " Just take the default from the global value, and hope the user doesn't
-    " want some special path in a vsh buffer.
-    " Could add another buffer local variable to store what the user always
-    " wants included in 'path' in this buffer.
-    let &l:path = subprocess_cwd . ',' . &g:path
-    execute a:mapping
+    " Can't remove the extra item in the path once we've done because we've
+    " changed buffer. Use BufLeave to reset the path as soon as we leave this
+    " buffer (which will usually happen in the last `execute` command of this
+    " function).
+    if !&l:path
+      let orig_path = &g:path
+      let vsh_path_restore = ''
+    else
+      let orig_path = &l:path
+      let vsh_path_restore = &l:path
+    endif
+
+    let command_string = 'autocmd Bufleave * call setbufvar(' . bufnr('%') . ', "&path", "' . l:vsh_path_restore . '") | autocmd! VshRevertPath'
+    augroup VshRevertPath
+      autocmd!
+      execute command_string
+    augroup END
+
+    let &l:path = subprocess_cwd . ',' . orig_path
+    execute a:command
   endfunction
 
-  function vsh#vsh#InShellDir(mapping)
+  function vsh#vsh#FileCompletion()
     " Change buffer local directory to the current directory and return the
     " mapping we were given.
-    " Unfortunately this permenantly leaves lcd in the directory we left it in,
-    " I don't know how to fix this.
     if !get(b:, 'vsh_job', 0)
       echoerr 'No subprocess currently running!'
       echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
       return
     endif
-    execute 'lcd ' . py3eval('vsh_find_cwd(' . b:vsh_job . ')')
-    return a:mapping
+    let b:vsh_prev_wd = getcwd()
+    " Note: only neovim has :tcd
+    let b:vsh_cd_cmd = haslocaldir() ? 'lcd ' : haslocaldir(-1, 0) ? 'tcd ' : 'cd '
+    execute b:vsh_cd_cmd . py3eval('vsh_find_cwd(' . b:vsh_job . ')')
+    augroup VshRevertWD
+      autocmd!
+      autocmd CompleteDone <buffer> execute b:vsh_cd_cmd . b:vsh_prev_wd | unlet b:vsh_cd_cmd b:vsh_prev_wd | autocmd! VshRevertWD
+    augroup END
+    return "\<C-x>\<C-f>"
   endfunction
 
   function vsh#vsh#EditFiles(filenames)
@@ -564,7 +597,7 @@ else
     " of $EDITOR in a vsh buffer.
     let g:vsh_prev_argid = argidx() + 1
     let g:vsh_prev_args = argv()
-    execute 'args ' . join(a:filenames)
+    execute 'args ' . join(map(a:filenames, 'fnameescape(v:val)'))
   endfunction
 
   function vsh#vsh#RestoreArgs()
@@ -583,21 +616,13 @@ else
   endfunction
 endif
 
-function vsh#vsh#VshSendThis(type)
-  if a:type != 'line'
-    return
-  endif
-  execute "'[,']VshSend " . b:vsh_alt_buffer
-endfunction
-
 function s:define_global_mappings()
   " Motion
   nnoremap <silent> <Plug>(vshNextPrompt) :<C-U>call vsh#vsh#MoveToNextPrompt('n', v:count1)<CR>
   nnoremap <silent> <Plug>(vshPrevPrompt) :<C-U>call vsh#vsh#MoveToPrevPrompt('n', v:count1)<CR>
   vnoremap <silent> <Plug>(vshVNextPrompt) :<C-U>call vsh#vsh#MoveToNextPrompt('v', v:count1)<CR>
   vnoremap <silent> <Plug>(vshVPrevPrompt) :<C-U>call vsh#vsh#MoveToPrevPrompt('v', v:count1)<CR>
-  " Only ever use linewise operator motion because that's what makes sense in
-  " this context.
+  " Only makes sense to use linewise motion here.
   onoremap <silent> <Plug>(vshONextPrompt) V:<C-U>call vsh#vsh#MoveToNextPrompt('o', v:count1)<CR>
   onoremap <silent> <Plug>(vshOPrevPrompt) V:<C-U>call vsh#vsh#MoveToPrevPrompt('o', v:count1)<CR>
 
@@ -608,7 +633,7 @@ function s:define_global_mappings()
   vnoremap <silent> <Plug>(vshRerun) :Vrerun<CR>
 
   " Send control characters to the underlying terminal -- it will turn these into
-  " signals sent to the process in the forground.
+  " signals sent to the foreground process.
   nnoremap <silent> <Plug>(vshSendControlChar) :<C-U>call vsh#vsh#SendControlChar()<CR>
 
   " Get underlying terminal to tab-complete for us.
@@ -616,6 +641,15 @@ function s:define_global_mappings()
   inoremap <silent> <Plug>(vshICompletions) <Esc>:<C-u>call vsh#vsh#ShowCompletions(0)<CR>a
   nnoremap <silent> <Plug>(vshGlobCompletions) :<C-U>call vsh#vsh#ShowCompletions(1)<CR>
   inoremap <silent> <Plug>(vshIGlobCompletions) <Esc>:<C-u>call vsh#vsh#ShowCompletions(1)<CR>a
+
+  " Using shells working directory
+  nnoremap <Plug>(vshGotoFile) :<C-u>call vsh#vsh#WithPathSet('normal! gf')<CR>
+  nnoremap <Plug>(vshGotoFILE) :<C-u>call vsh#vsh#WithPathSet('normal! gF')<CR>
+  nnoremap <Plug>(vshSplitFile) :<C-u>call vsh#vsh#WithPathSet('wincmd f')<CR>
+  nnoremap <Plug>(vshSplitFILE) :<C-u>call vsh#vsh#WithPathSet('wincmd F')<CR>
+  nnoremap <Plug>(vshTabSplitFile) :<C-u>call vsh#vsh#WithPathSet('wincmd gf')<CR>
+  nnoremap <Plug>(vshTabSplitFILE) :<C-u>call vsh#vsh#WithPathSet('wincmd gF')<CR>
+  inoremap <expr> <Plug>(vshFileCompletion) vsh#vsh#FileCompletion()
 
   " Save current output by commenting the current command and adding a splitter
   " after the output. Activate it by undoing that.
@@ -626,13 +660,8 @@ function s:define_global_mappings()
 
   " Conveniance functions for beginning of command
   nnoremap <silent> <Plug>(vshBOL) :<C-U>call vsh#vsh#BOLOverride()<CR>
-  onoremap <silent> <Plug>(vshOBOL) :<C-U>call vsh#vsh#BOLOverride()<CR>
+  onoremap <silent> <Plug>(vshBOL) :<C-U>call vsh#vsh#BOLOverride()<CR>
   nnoremap <silent> <Plug>(vshInsertBOL) :<C-U>call vsh#vsh#InsertOverride()<CR>
-
-  " Make gf, gF, and insert mode ^X^F work nicely.
-  nnoremap <Plug>(vshGotoFile) :<C-u>call vsh#vsh#WithPathSet('normal! gf')<CR>
-  nnoremap <Plug>(vshGotoFILE) :<C-u>call vsh#vsh#WithPathSet('normal! gF')<CR>
-  inoremap <expr> <Plug>(vshFileCompletion) vsh#vsh#InShellDir("\<C-x>\<C-f>")
 
   " Text object for the current buffer
   vnoremap <silent> <Plug>(vshInnerCommand) :<C-u>call vsh#vsh#SelectCommand(1)<CR>
@@ -677,16 +706,22 @@ function vsh#vsh#SetupMappings()
     nmap <buffer> <localleader>g <Plug>(vshGlobCompletions)
     imap <buffer> <C-s> <Plug>(vshIGlobCompletions)
 
+    " Using working directory.
+    nmap <buffer> gf <Plug>(vshGotoFile)
+    nmap <buffer> gF <Plug>(vshGotoFILE)
+    nmap <buffer> <C-w>f <Plug>(vshSplitFile)
+    nmap <buffer> <C-w>F <Plug>(vshSplitFILE)
+    nmap <buffer> <C-w>gf <Plug>(vshTabSplitFile)
+    nmap <buffer> <C-w>gF <Plug>(vshTabSplitFILE)
+    imap <buffer> <C-x><C-f> <Plug>(vshFileCompletion)
+
     " Working with the vsh buffer text
     nmap <buffer> <localleader>s <Plug>(vshSaveCommand)
     nmap <buffer> <localleader>a <Plug>(vshActivateCommand)
     nmap <buffer> <localleader>o  <Plug>(vshStartRangedCommand)
     nmap <buffer> ^ <Plug>(vshBOL)
-    omap <buffer> ^ <Plug>(vshOBOL)
+    omap <buffer> ^ <Plug>(vshBOL)
     nmap <buffer> I <Plug>(vshInsertBOL)
-    nmap <buffer> gf <Plug>(vshGotoFile)
-    nmap <buffer> gF <Plug>(vshGotoFILE)
-    imap <buffer> <C-x><C-f> <Plug>(vshFileCompletion)
     xmap <buffer> ic <Plug>(vshInnerCommand)
     omap <buffer> ic <Plug>(vshInnerCommand)
     xmap <buffer> io <Plug>(vshInnerCOMMAND)
@@ -698,22 +733,42 @@ function vsh#vsh#SetupMappings()
   endif
 endfunction
 
-function vsh#vsh#TeardownMappings()
+function s:teardown_mappings()
   silent! delcommand Vrerun
   silent! delcommand VshPass
   if !has('g:vsh_no_default_mappings')
+    " Motion
     silent! unmap <buffer> <C-n>
     silent! unmap <buffer> <C-p>
+
+    " Execution and new prompt
     silent! nunmap <buffer> <CR>
     silent! iunmap <buffer> <M-CR>
     silent! nunmap <buffer> <localleader>n
-    silent! nunmap <buffer> <localleader>o
+    silent! vunmap <buffer> <F3>
+
+    " Control characters
     silent! nunmap <buffer> <localleader>c
+
+    " Completions
     silent! nunmap <buffer> <localleader>t
     silent! iunmap <buffer> <C-q>
-    silent! vunmap <buffer> <F3>
+    silent! nunmap <buffer> <localleader>g
+    silent! iunmap <buffer> <C-s>
+
+    " Using working directory.
+    nmap <buffer> gf <Plug>(vshGotoFile)
+    nmap <buffer> gF <Plug>(vshGotoFILE)
+    nmap <buffer> <C-w> f <Plug>(vshSplitFile)
+    nmap <buffer> <C-w> F <Plug>(vshSplitFILE)
+    nmap <buffer> <C-w> gf <Plug>(vshTabSplitFile)
+    nmap <buffer> <C-w> gF <Plug>(vshTabSplitFILE)
+    imap <buffer> <C-x><C-f> <Plug>(vshFileCompletion)
+
+    " Working with the vsh buffer text
     silent! nunmap <buffer> <localleader>s
     silent! nunmap <buffer> <localleader>a
+    silent! nunmap <buffer> <localleader>o
     silent! nunmap <buffer> ^
     silent! ounmap <buffer> ^
     silent! nunmap <buffer> I
@@ -732,7 +787,7 @@ endfunction
 "   This function is for the syntax script -- it creates syntax definitions for
 "   color escape sequences.
 " TODO Currently don't fully know the proper / most likely codes that would be
-" used. Just using those I know at the moment.
+"      used. Just using those I know at the moment.
 " TODO Account for background/foreground/attributes ???
 "      Probably more pain than it's worth (until I come across a program that
 "      insists on using it even for $TERM = 'dumb').
@@ -773,7 +828,9 @@ function vsh#vsh#DefaultColors()
 endfunction
 
 function vsh#vsh#SetPrompt(new_prompt)
+  unlockvar b:vsh_prompt
   let b:vsh_prompt = a:new_prompt
+  lockvar b:vsh_prompt
   syntax clear
   call s:setup_colors(vsh#vsh#SplitMarker(0))
   " Abuse the comment system to give automatic insertion of the prompt when
@@ -798,3 +855,17 @@ if !get(g:, 'vsh_loaded')
     nmap <Leader>vss  <Plug>VshSendLine
   end
 endif
+
+function s:remove_buffer_variables()
+  for variable in ['vsh_job', 'vsh_prompt', 'vsh_completions_cmd',
+        \ 'vsh_insert_change_tick', 'vsh_insert_mark', 'vsh_prompt_mark',
+        \ 'vsh_initialised']
+    execute 'silent! unlet b:' . variable
+  endfor
+endfunction
+
+function vsh#vsh#Undoftplugin()
+  call s:teardown_mappings()
+  call s:close_process()
+  call s:remove_buffer_variables()
+endfunction

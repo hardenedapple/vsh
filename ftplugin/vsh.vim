@@ -55,10 +55,6 @@ if !get(b:, 'vsh_job', 0)
   autocmd BufUnload <buffer> let g:vsh_closing_jobs[expand('<afile>')] = getbufvar(expand('<afile>'), 'vsh_job', 0)
   autocmd BufDelete <buffer> call vsh#vsh#ClosedBuffer()
 endif
-if !get(g:, 'vsh_autocmds_setup', 0)
-  autocmd VimLeavePre * let g:vsh_vim_closing = 1
-  let g:vsh_autocmds_setup = 1
-endif
 
 " Don't insert newlines when writing a long command
 setlocal formatoptions-=t
@@ -70,4 +66,4 @@ setlocal formatoptions+=o
 
 call vsh#vsh#SetupMappings()
 
-let b:undo_ftplugin = 'setlocal comments< formatoptions< | call vsh#vsh#TeardownMappings() | call vsh#vsh#CloseProcess() | unlet b:vsh_prompt'
+let b:undo_ftplugin = 'setlocal comments< formatoptions< | call vsh#vsh#Undoftplugin()'

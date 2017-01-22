@@ -228,7 +228,7 @@ Expect:
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"                                Command Span                                 "
+"                                Output Range                                 "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Given vsh (vsh buffer):
   vimshell: >
@@ -242,29 +242,29 @@ Given vsh (vsh buffer):
   vimshell: >
 
 
-Do (CommandSpan() works nicely):
-  :g/vimshell/s/$/\=string(vsh#vsh#CommandSpan())\<CR>
+Do (OutputRange() works nicely):
+  :g/vimshell/s/$/\=vsh#vsh#OutputRange()\<CR>
 
 Expect:
-  vimshell: >[]
-  vimshell: >[2, 3]
+  vimshell: >
+  vimshell: >3,3
 
-  vimshell: >[4, 8]
-
-
+  vimshell: >5,8
 
 
-  vimshell: >[]
+
+
+  vimshell: >
 
 Given vsh (vsh buffer):
   vimshell: >
   hello there
 
-Do (CommandSpan() Final line):
-  :s/$/\=string(vsh#vsh#CommandSpan())\<CR>
+Do (OutputRange() Final line):
+  :s/$/\=vsh#vsh#OutputRange()\<CR>
 
 Expect:
-  vimshell: >[1, 2]
+  vimshell: >2,2
   hello there
 
 
@@ -277,12 +277,12 @@ Given vsh (vsh buffer):
 
   vimshell: >
 
-Do (CommandSpan() inside output):
-  j:s/$/\=string(vsh#vsh#CommandSpan())\<CR>
+Do (OutputRange() inside output):
+  j:s/$/\=vsh#vsh#OutputRange()\<CR>
 
 Expect:
   vimshell: >
-  [1, 6]
+  2,6
 
 
 
@@ -927,7 +927,7 @@ Given vsh (vsh buffer):
   vimshell: > echo Hello
 
 Execute (Run this command):
-  Rerun
+  Vrerun
   " Sleep for a little while to give the pty time to respond
   " Remove the prompt printed by the pty if in nvim
   if has('nvim')
