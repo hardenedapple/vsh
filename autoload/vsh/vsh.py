@@ -14,7 +14,7 @@ def vsh_outputlen(buf, curprompt):
     if len(buf) <= curprompt:
         return 0
 
-    prompt = vim.eval('vsh#vsh#SplitMarker({})'.format(buf.number))
+    prompt = vim.eval('vsh#vsh#SplitMarker({})'.format(buf.number))[1:]
     if not prompt:
         return 0
 
@@ -83,7 +83,7 @@ def vsh_insert_helper(data, vsh_buf):
     # line by joining the next piece of text with the previous line.
     # If the last line included a trailing newline, then the last element in
     # data would have been '' so this still works.
-    prompt = vim.eval('vsh#vsh#SplitMarker({})'.format(vsh_buf.number))
+    prompt = vim.eval('vsh#vsh#SplitMarker({})'.format(vsh_buf.number))[1:]
     insert_line_text = vsh_buf[insert_line - 1]
     if not insert_line_text.startswith(prompt):
         firstline = data.pop(0)

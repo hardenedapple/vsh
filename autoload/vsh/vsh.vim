@@ -9,15 +9,14 @@ function vsh#vsh#SplitMarker(bufnr)
   " Generalised with getbufvar() because it can get called from a different
   " buffer (when used in a callback).
   " 
-  " XXX We return '' if there is no local prompt variable.
-  "     This means that the functions where search() is called search for '',
-  "     which uses the last used search pattern.
-  "     Stuff can hence can go anywhere.
+  " XXX We return '^' if there is no local prompt variable.
+  "     This means that the functions where search() is called search for '^',
+  "     which matches all lines.
   "     When inserting in vsh_insert_text, this would mean we always add a
   "     pointless extra line.
   "     Anyway, if there isn't a prompt in some vsh buffer it's reasonable to
   "     expect some problems, and if they aren't major then that's good enough.
-  return substitute(getbufvar(l:bufnr, 'vsh_prompt', ''), '\s\+$', '', '')
+  return '^' . substitute(getbufvar(l:bufnr, 'vsh_prompt', ''), '\s\+$', '', '')
 endfunction
 
 function s:commentstart()
@@ -28,7 +27,7 @@ function s:motion_marker()
   " Should match a valid command without a comment, OR a command prompt without
   " any space after it.
   " Allow s:commentstart() before the prompt -- so we can move over
-  return '\V\(\^\|' . s:commentstart() . '\)' . b:vsh_prompt . '\( \*\[^# ]\|\$\)'
+  return '\V\(\^\|\^' . s:commentstart() . '\)' . b:vsh_prompt . '\( \*\[^# ]\|\$\)'
 endfunction
 
 function s:command_marker()
