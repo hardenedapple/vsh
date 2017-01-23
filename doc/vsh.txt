@@ -62,6 +62,17 @@ commands in the |vsh| buffer. There are text objects for a command and an
 output, and a conveniance mapping to put the range of an output into the vim
 command prompt ready to run an |:ex| command. See |vsh-editing| for more info.
 
+There are two main difference between |vsh| and things like VimShell and
+Conque:
+https://github.com/Shougo/vimshell.vim
+http://www.vim.org/scripts/script.php?script_id=2771 .
+First, |vsh| is aimed around working with file-backed sessions that are saved
+and reused, to be updated as required while working.
+Second, |vsh| aims to allow re-running commands in place, so that
+modifications to a command can easily be re-run without leaving a trace of the
+initial command around.
+
+
 ==============================================================================
 Running~
                         *vsh-running*
