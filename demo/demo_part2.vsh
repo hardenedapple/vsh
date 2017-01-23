@@ -508,13 +508,13 @@ vshcmd: > # You can edit files a few ways, $EDITOR is set up so that things
 vshcmd: > # like `git commit` work, though you have to tell the file when
 vshcmd: > # you're done.
 vshcmd: > cd -
-/home/matthew/.vim/bundle/vsh/demo
+/home/hardenedapple/.vim/bundle/vsh/demo
 demo [14:19:51] $ 
 vshcmd: > $EDITOR demo.txt
 demo [14:20:12] $ 
 Press C-d for "successful" edit, C-c otherwise
 vshcmd: > echo $EDITOR
-/home/matthew/.vim/bundle/vsh/autoload/vsh/vsh_editor_prog
+/home/hardenedapple/.vim/bundle/vsh/autoload/vsh/vsh_editor_prog
 demo [14:20:15] $ 
 vshcmd: > # You can even do remote editing!!!
 vshcmd: > # ...
@@ -530,7 +530,7 @@ vshcmd: > # <localleader>d
 vshcmd: > # <localleader>a
 vshcmd: > # <CR>
 vshcmd: > pwd
-/home/matthew/.vim/bundle/vsh/demo
+/home/hardenedapple/.vim/bundle/vsh/demo
 demo [14:20:33] $ 
 vshcmd: > cat demo.txt
 hello world

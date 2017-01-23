@@ -8,13 +8,13 @@ vshcmd: > # You can treat this as a somewhat limited terminal emulator,
 vshcmd: > # inserting text at a prompt, executing it with <A-Enter>, and
 vshcmd: > # repeating on the new prompt that is inserted.
 vshcmd: > pwd
-/home/matthew
+/home/hardenedapple
 ~ [14:01:56] $ 
 vshcmd: > cd
 ~ [14:01:54] $ 
 vshcmd: > !p
 pwd
-/home/matthew
+/home/hardenedapple
 ~ [14:01:55] $ 
 vshcmd: > # In normal mode you can move down a prompt with '<C-n>' and up a
 vshcmd: > # prompt with '<C-p>'.
@@ -49,7 +49,7 @@ vshcmd: > # The more powerful applications come from the fact this is in a
 vshcmd: > # vim buffer.
 vshcmd: > # We can use vimL expressions to evaluate things -- e.g. act on
 vshcmd: > # buffers we have open with things like <C-r>=expand('%:p:h')
-vshcmd: > cd /home/matthew/.vim/bundle/vsh/demo
+vshcmd: > cd /home/hardenedapple/.vim/bundle/vsh/demo
 demo [14:02:37] $ 
 vshcmd: > # We can grep other vsh files, and use their commands interactively,
 vshcmd: > # so storing a few clever lines in a file can act as a special
