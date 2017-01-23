@@ -52,8 +52,10 @@ call vsh#vsh#SetPrompt(get(g:, 'vsh_default_prompt', 'vshcmd: > '))
 let g:vsh_closing_jobs = {}
 if !get(b:, 'vsh_job', 0)
   call vsh#vsh#StartSubprocess()
-  autocmd BufUnload <buffer> let g:vsh_closing_jobs[expand('<afile>')] = getbufvar(expand('<afile>'), 'vsh_job', 0)
-  autocmd BufDelete <buffer> call vsh#vsh#ClosedBuffer()
+  augroup VshBufferClose
+    autocmd BufUnload <buffer> let g:vsh_closing_jobs[expand('<afile>')] = getbufvar(expand('<afile>'), 'vsh_job', 0)
+    autocmd BufDelete <buffer> call vsh#vsh#ClosedBuffer()
+  augroup END
 endif
 
 " Don't insert newlines when writing a long command

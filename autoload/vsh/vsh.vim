@@ -869,6 +869,7 @@ function s:remove_buffer_variables()
         \ 'vsh_initialised']
     execute 'silent! unlet b:' . variable
   endfor
+  autocmd! VshBufferClose BufUnload,BufDelete <buffer>
 endfunction
 
 function vsh#vsh#Undoftplugin()
