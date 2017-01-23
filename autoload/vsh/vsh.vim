@@ -520,6 +520,11 @@ else
   endfunction
 
   function vsh#vsh#SendControlChar()
+    if !get(b:, 'vsh_job', 0)
+      echoerr 'No subprocess currently running!'
+      echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
+      return
+    endif
     let orig_char = toupper(nr2char(getchar()))
     let char_code = char2nr(l:orig_char)
     let l:cntrl_char = l:char_code - char2nr('@')
