@@ -177,5 +177,10 @@ def vsh_find_cwd(jobnr):
     with open('/proc/{}/stat'.format(bash_pid), 'rb') as infile:
         status_data = infile.read()
     foreground_pid = status_data.split()[7].decode('utf-8')
-    return os.path.realpath('/proc/{}/cwd'.format(foreground_pid))
+    try:
+        return os.path.realpath('/proc/{}/cwd'.format(foreground_pid))
+    except PermissionError:
+        # Probably done su/sudo -- can't do anything here, fall back to
+        # original bash process.
+        return os.path.realpath('/proc/{}/cwd'.format(bash_pid))
 
