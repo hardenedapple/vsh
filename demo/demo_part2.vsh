@@ -1,432 +1,14 @@
-vshcmd: > # We can retroactively and interactively munge the output of
-vshcmd: > # commands (and hence not have interesting information scroll off
-vshcmd: > # the screen).
-vshcmd: > # There is a text object to represent the output of a command, so
-vshcmd: > # 'dio' would delete output, but also a shortcut to enter the range
-vshcmd: > # in the command line, so '<localleader>od<CR>' would do the same.
-vshcmd: > # cat doc/vsh.txt
-vshcmd: > # /text object\c/
-vshcmd: > # <localleader>og/shell/p<CR>
+vshcmd: > # We can munge the output of commands after they have been run with
+vshcmd: > # all the power of vim.
+vshcmd: > # i.e. you realise after printing something out that you should have
+vshcmd: > # piped it through grep.
+vshcmd: > # Along with the text objects described above, there is a shortcut to
+vshcmd: > # enter the range in the command line, so '<localleader>od<CR>' would
+vshcmd: > # do the same as 'dio'.
+vshcmd: > # cat ../autoload/vsh/vsh_shell_start
+vshcmd: > # <localleader>ov/export/d<CR>
 vshcmd: > # dio
-vshcmd: > cat ../doc/vsh.txt
-*vsh.txt*  Modifiable text pseudo terminal. *vsh* *Vsh*
-
-Version; 1.0
-Author:  Matthew Malcomson <hardenedapple@gmail.com>
-License: MIT license {{{
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
-}}}
-
-Contents~
-                        *vsh-contents*
-Overview                |vsh-overview|
-Running commands        |vsh-running|
-Customisation           |vsh-customisation|
-Mappings                |vsh-mappings|
-
-==============================================================================
-Overview~
-
-                        *vsh-overview*
-|Vsh| is a neovim plugin that behaves similarly to a terminal emulator, but
-allows easy editing, searching, and modifying output by using a neovim buffer
-on a simple text file as the middleman for input and output.
-
-The benefits of |vsh| over the |:terminal| command are in retroactively
-modifying or removing output, easily rerunning commands with slight
-variations, and keeping a dynamic record of your shell session for easy
-reproducibility.
-
-It is important to stress that a |vsh| buffer is a simple text file. Any and
-all standard vim commands are available in this buffer.
-
-|Vsh| treats lines beginning with a prompt as commands, prompts with a
-' #' after them are treated as comments. The default prompt is "vshcmd: > ".
-For more information, see |vsh-prompt|.
-
-Lines not beginning with a prompt are treated as output. Running a command
-will replace the old output between the command and the next prompt with the
-new output. See |vsh-running| for more info.
-
-Commands may be run in any order, but there is an active, stateful bash
-session that commands are sent to, so they may behave differently each time
-they are run.
-
-Text editing commands are provided for ease of working with output and
-commands in the |vsh| buffer. There are text objects for a command and an
-output, and a conveniance mapping to put the range of an output into the vim
-command prompt ready to run an |:ex| command. See |vsh-editing| for more info.
-
-==============================================================================
-Running~
-                        *vsh-running*
-
-On opening a vsh buffer, |vsh| starts a process of your current 'shell' in a
-new pseudo terminal. This shell is started in the same directory as the |vsh|
-file was opened, and in the same manner as your normal shell apart from
-setting the following environment variables. $PAGER is set to be empty,
-$MANPAGER is set to "col -b" to remove special control characters, $EDITOR is
-set to a |vsh| provided python script (see |vsh-editor|), and $TERM is set to
-"dumb".
-
-Running a command removes all lines between the cursor and the next prompt,
-then sends the text after the prompt to the underlying shell process along
-with a newline character. What the shell decides to do with this text is up to
-it, but in their normal state most run this as a command and print the output.
-|Vsh| inserts any output from the shell back into the |vsh| buffer after the
-line whose command was last run. This is done asynchronously, so you can
-continue to edit the vsh buffer while output is being inserted.
-If you need to interrupt a command with a control character, you can use the
-|vsh#vsh#SendControlChar()| function, (bound to <localleader>c by default).
-This reads a character from the keyboard, and sends the C-[x] equivalent to
-the underlying process, so that <localleader>cc will send ^C.
-NOTE: If you run another command while the previous is still producing output
-then the output of the first command will be placed after the prompt of the
-second command. This is because there is no reliable way to tell when a
-command has finished (especially when accounting for a subcommand taking
-input).
-NOTE: If you remove all previously inserted text, and the command line that
-inserted that text, then remaining output will be inserted at the end of the
-buffer.
-NOTE: The position to put text into the buffer is remembered with a mark. This
-has some consequences. See |vsh-marks|
-
-                        *vsh-motion*
-Mappings are provided on CTRL-N and CTRL-P by default to move to the next and
-previous command line.
-
-                        *vsh-prompt*
-A |vsh| buffer has no special markings in it for the plugin to store
-information (so that anyone without this plugin to view the file and
-understand what's going on). The only way that |vsh| determines which lines
-are commands and which lines are output is by checking the start of the line
-for the |vsh| prompt. The default |vsh| prompt is "vshcmd: > " but can be
-changed on a per buffer basis with |vsh#vsh#SetPrompt()|. See
-|vsh-customisation| for details.
-
-This method of distinguishing prompts has some consequences, most notably if
-the output of a command includes a line starting with the prompt then that
-line will be treated as a command. Hence you can store a "useful commands"
-file, and "grep" it to search for tricks you once found. >
-
-        vshcmd: > grep 'neat trick' ~/.vim/vsh_files/useful_commands
-        vshcmd: > echo 'Hello world' # Such a a neat trick!!
-<
-These commands can then be run next.
-
-If you know the output of a command will include a prompt, but you don't want
-to treat it as a command, you can use the trick below. >
-
-        vshcmd: > cat other_file.vsh | sed 's/^/ /'
-         vshcmd: > echo 'Hellow orld' # Can never quite remember this
-<
-Vsh will not treat the line as a command.
-NOTE: Unfortunately there is a bug where vim still treats these lines as
-comments, and hence the prompt will still be automatically inserted when
-adding a newline when the cursor is on these lines.
-
-
-                        *vsh-completion*
-Because many shells and REPL's provide completion abilities using the readline
-library, |Vsh| provides special allowance to send readline control characters
-to the underlying shell. When typing a command in insert mode, pressing CTRL-Q
-removes previous output and sends characters intended to call the realine
-function "possible-completions". This should list the possibile completions
-under the current prompt so that one can use vim's normal completion keys to
-choose one. Similarly, CTRL-S runs the bash readline function
-"glob-list-expansions". These commands can also be run in normal mode with
-<localleader>l and <localleader>g respectively.
-
-                        *vsh-shell*
-|Vsh| uses the 'shell' option to decide what shell to start. Most of the
-features should work with any shell (it's just sending whatever you type to
-that shell with a newline appended). When using a shell other than bash, the
-features most likely to break are the completion keys. These use a bash
-feature to find out what bindings readline is using, and hence any special
-setup in your shell startup file will affect this.
-NOTE: This program has only been tested extensively with the bash shell so
-other shells are much more likely to have problems.
-In particular, the C-shell detects that it is running in a dumb terminal
-($TERM=dumb) and disables line editing, which the |vsh| completion keys rely
-on.
-
-                    *vsh-file-open* *vsh-'path'*
-|Vsh| provides helper mappings that allow quick navigation to files printed
-by the shell process. Pressing `gf` on a filename will run the normal `gf`
-command with the local 'path' set to the working directory of the process
-currently in the foreground of the terminal we are communicating with. This
-means that it should work with programs like python that have changed
-directory. >
-    vshcmd: > python
-    Python 3.6.0 (default, Jan 16 2017, 12:12:55)
-    [GCC 6.3.1 20170109] on linux
-    Type "help", "copyright", "credits" or "license" for more information.
-    >>>
-    vshcmd: > import os; os.chdir(os.path.expanduser('~/.vim/bundle/vsh'))
-    >>>
-    vshcmd: > os.listdir('.')
-    ['ftdetect', '.git', 'test.vsh', 'autoload', 'TODO.txt', 'README.md', 'tests', 'syntax', 'doc', 'demo', 'ftplugin']
-    >>>
-<
-Pressing `gf` on `README.md` will open that file.
-
-Similarly, |vsh| provides an insert-mode mapping for CTRL-XCTRL-F that runs the
-completion in the directory that the current foreground process is in.
-NOTE: These have only been tested on Linux ... I don't think it'll work on
-mac or BSD (patches welcome :-) -- look in vsh_find_cwd()).
-
-                *vsh-save* *vsh-activate* *vsh-deactivate*
-When working in a |vsh| buffer pressing <CR> anywhere in the output of a
-command will rerun that command. This can be annoying if you have written
-notes across that output while you work. You should be able to undo the rerun
-with `u` but in order to skip the bother you can deactivate the current
-command with <localleader>s. This simply inserts a command at the start of the
-command which means |vsh| won't run it on <CR>. The output can be reactivated
-with <localleader>a.
-
-            *vsh-text-objects* *vsh-command-object* *vsh-output-object*
-                            *vsh-output-range*
-In order to easily select the output of a command, or the command itself |vsh|
-provides text objects bound to `ic` `ac` `ao` and `io` by default. The first
-two operate on an inner-command and outer-command respectively, which is the
-text after the prompt on the line that would be executed were <CR> pressed
-where the cursor is now. The difference between `ac` and `ic` is that `ac`
-includes any whitespace between the prompt and text on that line.
-The second two operate on an inner-output and outer-output, which is the text
-between two prompts. `ao` includes the command prompt that likely created that
-output.
-A special mapping on <localleader>o is provided to start a command with the
-range that refers to the current output of a command pre-inserted in the
-command line. This is slightly quicker to run filter commands with |:g|.
-
-                    *vsh-run-multiple*
-Sometimes it's convenient to send many lines at once to the underlying shell.
-This can be achieved by using the command |vsh-:Vrerun| with a range.
-This command sends all command lines in the given range to the underlying
-process, and inserts output after the last command in that range. There is a
-visual mode convenience mapping on <F3> to run this over the current visual
-selection.
-
-                     *vsh-send* *vsh-send-other* *vsh-send-buffer*
-You can send text to the underlying terminal from another buffer with
-|vsh-:VshSend|. This command takes a range and requires a buffer name as an
-argument, it sends the text in that range to the process in the specified
-buffer. An operator is provided under the default mapping of `<leader>vs` that
-sends the text acted upon to the buffer whose number was provided as the
-count. i.e. `3<leader>vsip` sends the text of the current paragraph to the
-process in buffer number 3.
-
-
-==============================================================================
-
-Customisation~
-                        *vsh-customisation*
-
-        *g:vsh_insert_mark* *g:vsh_prompt_mark* *vsh-marks*
-
-An implementation detail of |vsh| is that it uses user-modifiable marks to
-remember where to put text read from the underlying process. If these marks
-are lost, then |vsh| can't tell where to put text and simply puts it at the
-end of the buffer. These marks are 'p and 'd by default, but can be changed
-by setting the |g:vsh_insert_mark| and |g;vsh_prompt_mark| variables in your
-vimrc.
-
-
-          *g:vsh_default_prompt* *vsh#vsh#SetPrompt()* *b:vsh_prompt*
-The current prompt is stored in the |b:vsh_prompt| variable. This variable is
-locked with |:lockvar|, it must remain in sync with the |syntax| highlighting
-and local 'commentstring', and 'comments' settings for the proper working of
-this plugin. It may be changed on a per buffer basis with
-|vsh#vsh#SetPrompt()|, to change the default you can set
-|g:vsh_default_prompt| in your vimrc.
-
-==============================================================================
-Tips and Tricks~
-
-If you often want to run many lines at once (but don't want to save this as a
-shell script) you can put markers around them and use |vsh-:Vrerun| to send
-them all at once. >
-    vshcmd: > cd ../ # Here, run .,/ENDBLOCK/Vrerun
-    vshcmd: > ls
-    vshcmd: > cd -   # ENDBLOCK
-<
-This can be even more useful with the following function and binding >
-    let g:command_prefix = 'vimcmd: '
-    function s:ParseCommand(line)
-      let come_here_prefix = substitute(g:command_prefix, ':', ';', '')
-      let come_and_stay_prefix = substitute(g:command_prefix, ':', '!', '')
-
-      let l:command_start = match(a:line, g:command_prefix)
-      if l:command_start != -1
-        return [0, a:line[l:command_start + len(g:command_prefix):]]
-      end
-
-      let l:command_start = match(a:line, come_here_prefix)
-      if l:command_start != -1
-        return [1, a:line[l:command_start + len(g:command_prefix):]]
-      end
-
-      let l:command_start = match(a:line, come_and_stay_prefix)
-      if l:command_start != -1
-        return [2, a:line[l:command_start + len(g:command_prefix):]]
-      end
-
-      return [0, '']
-    endfunction
-
-    function RunCommand(val)
-      let orig_vcount = 0
-      if v:count == 0 || a:val
-        let line = getline('.')
-      else
-        let orig_vcount = v:count
-        let line = getline(orig_vcount)
-      endif
-
-      let commandLine = s:ParseCommand(l:line)
-      if l:commandLine[1] == ''
-        echom 'Cannot parse line ' . l:line . ' for command, require prefix -- "' . g:command_prefix . '"'
-      end
-
-      if l:commandLine[0] > 0 && orig_vcount
-        exe orig_vcount
-      end
-
-      execute l:commandLine[1]
-
-      if l:commandLine[0] > 1 && !a:val
-        exe "''"
-      end
-    endfunction
-
-    nnoremap <silent> <F2> :<C-u>call RunCommand(0)<CR>
-<
-So that in a buffer with >
-    vshcmd: > cd ../ # vimcmd! .,/ENDBLOCK/Vrerun
-    vshcmd: > ls
-    vshcmd: > cd -   # ENDBLOCK
-< you can just press <F2> on the first line to run the block of commands.
-
-==============================================================================
-Mappings~
-                            *vsh-mappings*
-
-                *vsh-<buffer>-mappings*
-
-                              *vsh-<Enter>* *vsh-<Return>* *vsh-<CR>*
-<CR>                    Delete previous output and run current command. The
-                        current command is determined by where the cursor is.
-                        It is the next command above the cursor position. Hence
-                        the action of <CR> if the cursor is anywhere marked [x]
-                        below would be the same. >
-
-            [x]vshcmd: > pw[x]d
-            /home/hardenedapple
-            ~ [14:0[x]1:56] $
-
-<
-
-                                *vsh-next-command* *vsh-CTRL-N*
-CTRL-N           Move to the next command line.
-
-                                *vsh-prev-command* *vsh-CTRL-P*
-CTRL-P           Move to the previous command line.
-
-                                *vsh-i_M-CR* *vsh-exec-and-newprompt*
-<M-CR>        Run the current command, create a new prompt under the current
-                command, and leave the cursor in insert mode at the end of
-                that new prompt.
-
-                                *vsh-<localleader>n* *vsh-newprompt*
-<localleader>n  Create a new prompt under the output of the current command
-                and leave the cursor in insert mode at the end of that new
-                prompt.
-
-                        *vsh-v_<F3>* *vsh-rerun-mapping* *vsh-:Vrerun*
-:[range]Vrerun  Remove all output in the range, send all command
-                lines to the underlying shell, and insert output after the
-                last command.
-<F3>            Visual mode mapping to do the above on the visual selection.
-
-
-                            *vsh-<localleader>c* *vsh-control-char*
-                          *vsh-send-control-char* *vsh-send-control*
-<localleader>c  Read a single character from the user, and send the control
-                modified version of that character to the underlying pseudo
-                terminal. i.e. to send a ^C, type <localleader>cc
-
-                        *vsh-possible-completions* *vsh-complete*
-                        *vsh-completions* *vsh-<localleader>l*
-                        *vsh-i_CTRL-Q*
-<localleader>l  Request the current foreground process list possible
-CTRL-Q          completions of the next word into the current buffer.
-                NOTE May be fragile to different 'shell' settings than bash.
-                     Should work in python, gdb, and other prompts too.
-
-                        *vsh-glob-expansions* *vsh-glob*
-                        *vsh-<localleader>g* *vsh-i_CTRL-S*
-<localleader>g  Request the current foreground process list the glob
-CTRL-S          expansions of the current word.
-                NOTE Is known to be fragile to different 'shell' settings.
-                As a workaround for troublesome shells, might want to have >
-                    let b:vsh_completions_cmd[1] = " echo \n"
-<               in your `ftplugin/vsh.vim` file.
-
-                        *vsh-gx* *vsh-gf* *vsh-gF* *vsh-CTRL-W_gf*
-                        *vsh-CTRL-W_gF* *vsh-CTRL-W_f* *vsh-CTRL-W_F*
-gf, gF                Same as default vim bindings for these keys, but run
-CTRL-W f CTRL-W F     accounting for the directory the current foreground
-CTRL-W gf CTRL-W gF   process is in. See |vsh-file-open| for more information.
-
-							*vsh-i_CTRL-X_CTRL-F*
-CTRL-X CTRL-F       Run file completion |compl-filename| in the working
-                    directory of the current foreground process.
-
-                    *vsh-<localleader>a* *vsh-<localleader>s*
-<localleader>s  Save current output by commenting out related command line.
-<localleader>a  Activate current output by uncommenting related command line.
-
-                    *vsh-^* *vsh-I*
-I               Insert at the start of the current command line.
-^               Move to the start of the current command line.
-                (i.e. just after the prompt)
-
-                *vsh-ic* *vsh-ac* *vsh-io* *vsh-ao*
-ic          Act on the text of a command excluding extra whitespace between
-            the prompt and this text.
-ac          Act on the text of a command including extra whitespace between
-            the prompt and this text.
-io          Act on the output of a command excluding the command line itself.
-ao          Act on the output of a command including the command line itself.
-
-
-                        *vsh-global-mappings*
-
-:[range]VshSend {bufname}   *vsh-:VshSend*
-        Send the lines in [range] to the process associated with buffer
-        {bufname}.
-<leader>vs             *vsh-<leader>vs*
-        Send the lines in the motion acted upon to the process associated with
-        buffer number [count].
-
- vim:tw=78:et:ft=help:norl:
-demo [09:10:58] $ 
+vshcmd: > cat ../autoload/vsh/vsh_shell_start
 vshcmd: > # Because this is directly connected to a pseudo terminal, we can
 vshcmd: > # query bash for completions by sending the readline binding for
 vshcmd: > # 'possible-completions' (by default this is done with the vim
@@ -438,110 +20,547 @@ vshcmd: > # '<C-n>' and '<C-p>'
 vshcmd: > 
 vshcmd: > # You can easily run other programs like gdb
 vshcmd: > cd ~/share/repos/neovim
-neovim [14:08:14] $ 
+neovim [14:11:11] $ 
 vshcmd: > gdb build/bin/nvim
 Reading symbols from build/bin/nvim...done.
 (gdb) 
 vshcmd: > # Though sometimes you need some config differences
-vshcmd: > # (I have this in my gdb config predicated on when $TERM='dumb' so
-vshcmd: > # I have this setting already).
+vshcmd: > # (I have this in my gdb config predicated on $TERM='dumb' so this
+vshcmd: > # happens automatically).
 vshcmd: > set pagination off
 (gdb) 
 vshcmd: > # Being able to search through input is handy here too.
 vshcmd: > # Seeing as it's just text in a vim buffer, you can even filter the
 vshcmd: > # output through a shell command or with a vim command,
-vshcmd: > # /zero_fmark_additional_data<CR>
 vshcmd: > # <localleader>o! grep call<CR>
 vshcmd: > # u
 vshcmd: > # <localleader>o v/cmp/d<CR>
 vshcmd: > disassemble u_savecommon
+Dump of assembler code for function u_savecommon:
+   0x000000000064c63e <+0>:	push   %rbp
+   0x000000000064c63f <+1>:	mov    %rsp,%rbp
+   0x000000000064c642 <+4>:	push   %rbx
+   0x000000000064c643 <+5>:	sub    $0x78,%rsp
+   0x000000000064c647 <+9>:	mov    %rdi,-0x68(%rbp)
+   0x000000000064c64b <+13>:	mov    %rsi,-0x70(%rbp)
+   0x000000000064c64f <+17>:	mov    %rdx,-0x78(%rbp)
+   0x000000000064c653 <+21>:	mov    %ecx,-0x7c(%rbp)
+   0x000000000064c656 <+24>:	mov    %fs:0x28,%rax
+   0x000000000064c65f <+33>:	mov    %rax,-0x18(%rbp)
+   0x000000000064c663 <+37>:	xor    %eax,%eax
+   0x000000000064c665 <+39>:	cmpl   $0x0,-0x7c(%rbp)
+   0x000000000064c669 <+43>:	jne    0x64c6bc <u_savecommon+126>
+   0x000000000064c66b <+45>:	callq  0x64c4f0 <undo_allowed>   # You can write notes in the debugging output.
+   0x000000000064c670 <+50>:	xor    $0x1,%eax
+   0x000000000064c673 <+53>:	test   %al,%al
+   0x000000000064c675 <+55>:	je     0x64c681 <u_savecommon+67>
+   0x000000000064c677 <+57>:	mov    $0x0,%eax
+   0x000000000064c67c <+62>:	jmpq   0x64ceec <u_savecommon+2222>
+   0x000000000064c681 <+67>:	mov    $0x0,%edi
+   0x000000000064c686 <+72>:	callq  0x55c715 <change_warning>
+   0x000000000064c68b <+77>:	mov    0x34b46e(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c692 <+84>:	mov    0x8(%rax),%rax
+   0x000000000064c696 <+88>:	add    $0x1,%rax
+   0x000000000064c69a <+92>:	cmp    -0x70(%rbp),%rax
+   0x000000000064c69e <+96>:	jge    0x64c6bc <u_savecommon+126>
+   0x000000000064c6a0 <+98>:	mov    $0x713ba0,%edi
+   0x000000000064c6a5 <+103>:	callq  0x42e8e0 <gettext@plt>
+   0x000000000064c6aa <+108>:	mov    %rax,%rdi
+   0x000000000064c6ad <+111>:	callq  0x550718 <emsg>
+   0x000000000064c6b2 <+116>:	mov    $0x0,%eax
+   0x000000000064c6b7 <+121>:	jmpq   0x64ceec <u_savecommon+2222>
+   0x000000000064c6bc <+126>:	mov    -0x70(%rbp),%rax
+   0x000000000064c6c0 <+130>:	sub    -0x68(%rbp),%rax
+   0x000000000064c6c4 <+134>:	sub    $0x1,%rax
+   0x000000000064c6c8 <+138>:	mov    %rax,-0x20(%rbp)
+   0x000000000064c6cc <+142>:	mov    0x34b42d(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c6d3 <+149>:	movzbl 0x1e04(%rax),%eax
+   0x000000000064c6da <+156>:	test   %al,%al
+   0x000000000064c6dc <+158>:	je     0x64cb42 <u_savecommon+1284>
+   0x000000000064c6e2 <+164>:	mov    0x34b417(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c6e9 <+171>:	movb   $0x1,0x156c(%rax)
+   0x000000000064c6f0 <+178>:	callq  0x64c57e <get_undolevel>
+   0x000000000064c6f5 <+183>:	test   %rax,%rax
+   0x000000000064c6f8 <+186>:	js     0x64c70a <u_savecommon+204>
+   0x000000000064c6fa <+188>:	mov    $0x4a8,%edi
+   0x000000000064c6ff <+193>:	callq  0x54bdd4 <xmalloc>
+   0x000000000064c704 <+198>:	mov    %rax,-0x40(%rbp)             # Or more easily follow what's happening to an individual register.
+   0x000000000064c708 <+202>:	jmp    0x64c712 <u_savecommon+212>
+   0x000000000064c70a <+204>:	movq   $0x0,-0x40(%rbp)
+   0x000000000064c712 <+212>:	mov    0x34b3e7(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c719 <+219>:	mov    0x1df8(%rax),%rax
+   0x000000000064c720 <+226>:	mov    %rax,-0x58(%rbp)
+   0x000000000064c724 <+230>:	mov    -0x58(%rbp),%rax
+   0x000000000064c728 <+234>:	test   %rax,%rax
+   0x000000000064c72b <+237>:	je     0x64c7f1 <u_savecommon+435>
+   0x000000000064c731 <+243>:	mov    0x34b3c8(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c738 <+250>:	mov    -0x58(%rbp),%rdx
+   0x000000000064c73c <+254>:	mov    (%rdx),%rdx
+   0x000000000064c73f <+257>:	mov    %rdx,0x1df0(%rax)
+   0x000000000064c746 <+264>:	mov    0x34b3b3(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c74d <+271>:	movq   $0x0,0x1df8(%rax)
+   0x000000000064c758 <+282>:	jmpq   0x64c7f1 <u_savecommon+435>
+   0x000000000064c75d <+287>:	mov    0x34b39c(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c764 <+294>:	mov    0x1de8(%rax),%rax
+   0x000000000064c76b <+301>:	mov    %rax,-0x28(%rbp)
+   0x000000000064c76f <+305>:	mov    -0x58(%rbp),%rax
+   0x000000000064c773 <+309>:	cmp    %rax,-0x28(%rbp)
+   0x000000000064c777 <+313>:	jne    0x64c795 <u_savecommon+343>
+   0x000000000064c779 <+315>:	mov    0x34b380(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c780 <+322>:	lea    -0x58(%rbp),%rdx
+   0x000000000064c784 <+326>:	mov    -0x28(%rbp),%rcx
+   0x000000000064c788 <+330>:	mov    %rcx,%rsi
+   0x000000000064c78b <+333>:	mov    %rax,%rdi
+   0x000000000064c78e <+336>:	callq  0x6522f8 <u_freebranch>
+   0x000000000064c793 <+341>:	jmp    0x64c7f1 <u_savecommon+435>
+   0x000000000064c795 <+343>:	mov    -0x28(%rbp),%rax
+   0x000000000064c799 <+347>:	mov    0x10(%rax),%rax
+   0x000000000064c79d <+351>:	test   %rax,%rax
+   0x000000000064c7a0 <+354>:	jne    0x64c7ca <u_savecommon+396>
+   0x000000000064c7a2 <+356>:	mov    0x34b357(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c7a9 <+363>:	lea    -0x58(%rbp),%rdx
+   0x000000000064c7ad <+367>:	mov    -0x28(%rbp),%rcx
+   0x000000000064c7b1 <+371>:	mov    %rcx,%rsi
+   0x000000000064c7b4 <+374>:	mov    %rax,%rdi
+   0x000000000064c7b7 <+377>:	callq  0x652201 <u_freeheader>
+   0x000000000064c7bc <+382>:	jmp    0x64c7f1 <u_savecommon+435>
+   0x000000000064c7be <+384>:	mov    -0x28(%rbp),%rax
+   0x000000000064c7c2 <+388>:	mov    0x10(%rax),%rax
+   0x000000000064c7c6 <+392>:	mov    %rax,-0x28(%rbp)
+   0x000000000064c7ca <+396>:	mov    -0x28(%rbp),%rax
+   0x000000000064c7ce <+400>:	mov    0x10(%rax),%rax
+   0x000000000064c7d2 <+404>:	test   %rax,%rax
+   0x000000000064c7d5 <+407>:	jne    0x64c7be <u_savecommon+384>
+   0x000000000064c7d7 <+409>:	mov    0x34b322(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c7de <+416>:	lea    -0x58(%rbp),%rdx
+   0x000000000064c7e2 <+420>:	mov    -0x28(%rbp),%rcx
+   0x000000000064c7e6 <+424>:	mov    %rcx,%rsi
+   0x000000000064c7e9 <+427>:	mov    %rax,%rdi
+   0x000000000064c7ec <+430>:	callq  0x6522f8 <u_freebranch>
+   0x000000000064c7f1 <+435>:	mov    0x34b308(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c7f8 <+442>:	mov    0x1e00(%rax),%eax
+   0x000000000064c7fe <+448>:	movslq %eax,%rbx
+   0x000000000064c801 <+451>:	callq  0x64c57e <get_undolevel>
+   0x000000000064c806 <+456>:	cmp    %rax,%rbx
+   0x000000000064c809 <+459>:	jle    0x64c822 <u_savecommon+484>
+   0x000000000064c80b <+461>:	mov    0x34b2ee(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c812 <+468>:	mov    0x1de8(%rax),%rax
+   0x000000000064c819 <+475>:	test   %rax,%rax
+   0x000000000064c81c <+478>:	jne    0x64c75d <u_savecommon+287>
+   0x000000000064c822 <+484>:	cmpq   $0x0,-0x40(%rbp)
+   0x000000000064c827 <+489>:	jne    0x64c865 <u_savecommon+551>
+   0x000000000064c829 <+491>:	mov    -0x58(%rbp),%rax
+   0x000000000064c82d <+495>:	test   %rax,%rax
+   0x000000000064c830 <+498>:	je     0x64c84d <u_savecommon+527>
+   0x000000000064c832 <+500>:	mov    -0x58(%rbp),%rcx
+   0x000000000064c836 <+504>:	mov    0x34b2c3(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c83d <+511>:	mov    $0x0,%edx
+   0x000000000064c842 <+516>:	mov    %rcx,%rsi
+   0x000000000064c845 <+519>:	mov    %rax,%rdi
+   0x000000000064c848 <+522>:	callq  0x6522f8 <u_freebranch>
+   0x000000000064c84d <+527>:	mov    0x34b2ac(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c854 <+534>:	movb   $0x0,0x1e04(%rax)
+   0x000000000064c85b <+541>:	mov    $0x1,%eax
+   0x000000000064c860 <+546>:	jmpq   0x64ceec <u_savecommon+2222>
+   0x000000000064c865 <+551>:	mov    -0x40(%rbp),%rax
+   0x000000000064c869 <+555>:	movq   $0x0,0x8(%rax)
+   0x000000000064c871 <+563>:	mov    0x34b288(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c878 <+570>:	mov    0x1df0(%rax),%rdx
+   0x000000000064c87f <+577>:	mov    -0x40(%rbp),%rax
+   0x000000000064c883 <+581>:	mov    %rdx,(%rax)
+   0x000000000064c886 <+584>:	mov    -0x58(%rbp),%rdx
+   0x000000000064c88a <+588>:	mov    -0x40(%rbp),%rax
+   0x000000000064c88e <+592>:	mov    %rdx,0x10(%rax)
+   0x000000000064c892 <+596>:	mov    -0x58(%rbp),%rax
+   0x000000000064c896 <+600>:	test   %rax,%rax
+   0x000000000064c899 <+603>:	je     0x64c8ff <u_savecommon+705>
+   0x000000000064c89b <+605>:	mov    -0x58(%rbp),%rax
+   0x000000000064c89f <+609>:	mov    0x18(%rax),%rdx
+   0x000000000064c8a3 <+613>:	mov    -0x40(%rbp),%rax
+   0x000000000064c8a7 <+617>:	mov    %rdx,0x18(%rax)
+   0x000000000064c8ab <+621>:	mov    -0x40(%rbp),%rax
+   0x000000000064c8af <+625>:	mov    0x18(%rax),%rax
+   0x000000000064c8b3 <+629>:	test   %rax,%rax
+   0x000000000064c8b6 <+632>:	je     0x64c8c8 <u_savecommon+650>
+   0x000000000064c8b8 <+634>:	mov    -0x40(%rbp),%rax
+   0x000000000064c8bc <+638>:	mov    0x18(%rax),%rax
+   0x000000000064c8c0 <+642>:	mov    -0x40(%rbp),%rdx
+   0x000000000064c8c4 <+646>:	mov    %rdx,0x10(%rax)
+   0x000000000064c8c8 <+650>:	mov    -0x58(%rbp),%rax
+   0x000000000064c8cc <+654>:	mov    -0x40(%rbp),%rdx
+   0x000000000064c8d0 <+658>:	mov    %rdx,0x18(%rax)
+   0x000000000064c8d4 <+662>:	mov    0x34b225(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c8db <+669>:	mov    0x1de8(%rax),%rdx
+   0x000000000064c8e2 <+676>:	mov    -0x58(%rbp),%rax
+   0x000000000064c8e6 <+680>:	cmp    %rax,%rdx
+   0x000000000064c8e9 <+683>:	jne    0x64c90b <u_savecommon+717>
+   0x000000000064c8eb <+685>:	mov    0x34b20e(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c8f2 <+692>:	mov    -0x40(%rbp),%rdx
+   0x000000000064c8f6 <+696>:	mov    %rdx,0x1de8(%rax)
+   0x000000000064c8fd <+703>:	jmp    0x64c90b <u_savecommon+717>
+   0x000000000064c8ff <+705>:	mov    -0x40(%rbp),%rax
+   0x000000000064c903 <+709>:	movq   $0x0,0x18(%rax)
+   0x000000000064c90b <+717>:	mov    0x34b1ee(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c912 <+724>:	mov    0x1df0(%rax),%rax
+   0x000000000064c919 <+731>:	test   %rax,%rax
+   0x000000000064c91c <+734>:	je     0x64c934 <u_savecommon+758>
+   0x000000000064c91e <+736>:	mov    0x34b1db(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c925 <+743>:	mov    0x1df0(%rax),%rax
+   0x000000000064c92c <+750>:	mov    -0x40(%rbp),%rdx
+   0x000000000064c930 <+754>:	mov    %rdx,0x8(%rax)
+   0x000000000064c934 <+758>:	mov    0x34b1c5(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c93b <+765>:	mov    0x1e08(%rax),%rdx
+   0x000000000064c942 <+772>:	add    $0x1,%rdx
+   0x000000000064c946 <+776>:	mov    %rdx,0x1e08(%rax)
+   0x000000000064c94d <+783>:	mov    0x1e08(%rax),%rdx
+   0x000000000064c954 <+790>:	mov    -0x40(%rbp),%rax
+   0x000000000064c958 <+794>:	mov    %rdx,0x20(%rax)
+   0x000000000064c95c <+798>:	mov    0x34b19d(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c963 <+805>:	mov    -0x40(%rbp),%rdx
+   0x000000000064c967 <+809>:	mov    0x20(%rdx),%rdx
+   0x000000000064c96b <+813>:	mov    %rdx,0x1e18(%rax)
+   0x000000000064c972 <+820>:	mov    $0x0,%edi
+   0x000000000064c977 <+825>:	callq  0x42f4d0 <time@plt>
+   0x000000000064c97c <+830>:	mov    %rax,%rdx
+   0x000000000064c97f <+833>:	mov    -0x40(%rbp),%rax
+   0x000000000064c983 <+837>:	mov    %rdx,0x498(%rax)
+   0x000000000064c98a <+844>:	mov    -0x40(%rbp),%rax
+   0x000000000064c98e <+848>:	movq   $0x0,0x4a0(%rax)
+   0x000000000064c999 <+859>:	mov    0x34b160(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064c9a0 <+866>:	mov    -0x40(%rbp),%rdx
+   0x000000000064c9a4 <+870>:	mov    0x498(%rdx),%rdx
+   0x000000000064c9ab <+877>:	add    $0x1,%rdx
+   0x000000000064c9af <+881>:	mov    %rdx,0x1e20(%rax)
+   0x000000000064c9b6 <+888>:	mov    -0x40(%rbp),%rax
+   0x000000000064c9ba <+892>:	movl   $0x0,0x28(%rax)
+   0x000000000064c9c1 <+899>:	mov    -0x40(%rbp),%rax
+   0x000000000064c9c5 <+903>:	movq   $0x0,0x30(%rax)
+   0x000000000064c9cd <+911>:	mov    -0x40(%rbp),%rax
+   0x000000000064c9d1 <+915>:	movq   $0x0,0x38(%rax)
+   0x000000000064c9d9 <+923>:	mov    0x354b10(%rip),%rax        # 0x9a14f0 <curwin>
+   0x000000000064c9e0 <+930>:	mov    -0x40(%rbp),%rcx
+   0x000000000064c9e4 <+934>:	mov    0x40(%rax),%rdx
+   0x000000000064c9e8 <+938>:	mov    0x38(%rax),%rax
+   0x000000000064c9ec <+942>:	mov    %rax,0x40(%rcx)
+   0x000000000064c9f0 <+946>:	mov    %rdx,0x48(%rcx)
+   0x000000000064c9f4 <+950>:	callq  0x628c42 <virtual_active>
+   0x000000000064c9f9 <+955>:	test   %eax,%eax
+   0x000000000064c9fb <+957>:	je     0x64ca1d <u_savecommon+991>
+   0x000000000064c9fd <+959>:	mov    0x354aec(%rip),%rax        # 0x9a14f0 <curwin>
+   0x000000000064ca04 <+966>:	mov    0x44(%rax),%eax
+   0x000000000064ca07 <+969>:	test   %eax,%eax
+   0x000000000064ca09 <+971>:	jle    0x64ca1d <u_savecommon+991>
+   0x000000000064ca0b <+973>:	callq  0x45af20 <getviscol>
+   0x000000000064ca10 <+978>:	movslq %eax,%rdx
+   0x000000000064ca13 <+981>:	mov    -0x40(%rbp),%rax
+   0x000000000064ca17 <+985>:	mov    %rdx,0x50(%rax)
+   0x000000000064ca1b <+989>:	jmp    0x64ca29 <u_savecommon+1003>
+   0x000000000064ca1d <+991>:	mov    -0x40(%rbp),%rax
+   0x000000000064ca21 <+995>:	movq   $0xffffffffffffffff,0x50(%rax)
+   0x000000000064ca29 <+1003>:	mov    0x34b0d0(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064ca30 <+1010>:	mov    0xc0(%rax),%eax
+   0x000000000064ca36 <+1016>:	test   %eax,%eax
+   0x000000000064ca38 <+1018>:	setne  %al
+   0x000000000064ca3b <+1021>:	movzbl %al,%edx
+   0x000000000064ca3e <+1024>:	mov    0x34b0bb(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064ca45 <+1031>:	mov    0x18(%rax),%eax
+   0x000000000064ca48 <+1034>:	and    $0x1,%eax
+   0x000000000064ca4b <+1037>:	test   %eax,%eax
+   0x000000000064ca4d <+1039>:	je     0x64ca56 <u_savecommon+1048>
+   0x000000000064ca4f <+1041>:	mov    $0x2,%eax
+   0x000000000064ca54 <+1046>:	jmp    0x64ca5b <u_savecommon+1053>
+   0x000000000064ca56 <+1048>:	mov    $0x0,%eax
+   0x000000000064ca5b <+1053>:	add    %eax,%edx
+   0x000000000064ca5d <+1055>:	mov    -0x40(%rbp),%rax
+   0x000000000064ca61 <+1059>:	mov    %edx,0x58(%rax)
+   0x000000000064ca64 <+1062>:	mov    0x34b095(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064ca6b <+1069>:	add    $0x110,%rax
+   0x000000000064ca71 <+1075>:	mov    %rax,%rdi
+   0x000000000064ca74 <+1078>:	callq  0x64c5cd <zero_fmark_additional_data>
+   0x000000000064ca79 <+1083>:	mov    0x34b080(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064ca80 <+1090>:	lea    0x110(%rax),%rcx
+   0x000000000064ca87 <+1097>:	mov    -0x40(%rbp),%rax
+   0x000000000064ca8b <+1101>:	add    $0x60,%rax
+   0x000000000064ca8f <+1105>:	mov    $0x410,%edx
+   0x000000000064ca94 <+1110>:	mov    %rcx,%rsi
+   0x000000000064ca97 <+1113>:	mov    %rax,%rdi
+   0x000000000064ca9a <+1116>:	callq  0x42ee90 <memmove@plt>
+   0x000000000064ca9f <+1121>:	mov    0x34b05a(%rip),%rdx        # 0x997b00 <curbuf>
+   0x000000000064caa6 <+1128>:	mov    -0x40(%rbp),%rax
+   0x000000000064caaa <+1132>:	mov    0x520(%rdx),%rcx
+   0x000000000064cab1 <+1139>:	mov    %rcx,0x470(%rax)
+   0x000000000064cab8 <+1146>:	mov    0x528(%rdx),%rcx
+   0x000000000064cabf <+1153>:	mov    %rcx,0x478(%rax)
+   0x000000000064cac6 <+1160>:	mov    0x530(%rdx),%rcx
+   0x000000000064cacd <+1167>:	mov    %rcx,0x480(%rax)
+   0x000000000064cad4 <+1174>:	mov    0x538(%rdx),%rcx
+   0x000000000064cadb <+1181>:	mov    %rcx,0x488(%rax)
+   0x000000000064cae2 <+1188>:	mov    0x540(%rdx),%rdx
+   0x000000000064cae9 <+1195>:	mov    %rdx,0x490(%rax)
+   0x000000000064caf0 <+1202>:	mov    0x34b009(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064caf7 <+1209>:	mov    -0x40(%rbp),%rdx
+   0x000000000064cafb <+1213>:	mov    %rdx,0x1df0(%rax)
+   0x000000000064cb02 <+1220>:	mov    0x34aff7(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cb09 <+1227>:	mov    0x1de8(%rax),%rax
+   0x000000000064cb10 <+1234>:	test   %rax,%rax
+   0x000000000064cb13 <+1237>:	jne    0x64cb27 <u_savecommon+1257>
+   0x000000000064cb15 <+1239>:	mov    0x34afe4(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cb1c <+1246>:	mov    -0x40(%rbp),%rdx
+   0x000000000064cb20 <+1250>:	mov    %rdx,0x1de8(%rax)
+   0x000000000064cb27 <+1257>:	mov    0x34afd2(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cb2e <+1264>:	mov    0x1e00(%rax),%edx
+   0x000000000064cb34 <+1270>:	add    $0x1,%edx
+   0x000000000064cb37 <+1273>:	mov    %edx,0x1e00(%rax)
+   0x000000000064cb3d <+1279>:	jmpq   0x64cd57 <u_savecommon+1817>
+   0x000000000064cb42 <+1284>:	callq  0x64c57e <get_undolevel>
+   0x000000000064cb47 <+1289>:	test   %rax,%rax
+   0x000000000064cb4a <+1292>:	jns    0x64cb56 <u_savecommon+1304>
+   0x000000000064cb4c <+1294>:	mov    $0x1,%eax
+   0x000000000064cb51 <+1299>:	jmpq   0x64ceec <u_savecommon+2222>
+   0x000000000064cb56 <+1304>:	cmpq   $0x1,-0x20(%rbp)
+   0x000000000064cb5b <+1309>:	jne    0x64cd52 <u_savecommon+1812>
+   0x000000000064cb61 <+1315>:	callq  0x6520b2 <u_get_headentry>
+   0x000000000064cb66 <+1320>:	mov    %rax,-0x38(%rbp)
+   0x000000000064cb6a <+1324>:	movq   $0x0,-0x30(%rbp)
+   0x000000000064cb72 <+1332>:	movq   $0x0,-0x48(%rbp)
+   0x000000000064cb7a <+1340>:	jmpq   0x64cd44 <u_savecommon+1798>
+   0x000000000064cb7f <+1345>:	cmpq   $0x0,-0x38(%rbp)
+   0x000000000064cb84 <+1350>:	je     0x64cd51 <u_savecommon+1811>
+   0x000000000064cb8a <+1356>:	mov    0x34af6f(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cb91 <+1363>:	mov    0x1df0(%rax),%rax
+   0x000000000064cb98 <+1370>:	mov    0x38(%rax),%rax
+   0x000000000064cb9c <+1374>:	cmp    -0x38(%rbp),%rax
+   0x000000000064cba0 <+1378>:	je     0x64cbea <u_savecommon+1452>
+   0x000000000064cba2 <+1380>:	mov    -0x38(%rbp),%rax
+   0x000000000064cba6 <+1384>:	mov    0x8(%rax),%rdx
+   0x000000000064cbaa <+1388>:	mov    -0x38(%rbp),%rax
+   0x000000000064cbae <+1392>:	mov    0x28(%rax),%rax
+   0x000000000064cbb2 <+1396>:	add    %rdx,%rax
+   0x000000000064cbb5 <+1399>:	lea    0x1(%rax),%rdx
+   0x000000000064cbb9 <+1403>:	mov    -0x38(%rbp),%rax
+   0x000000000064cbbd <+1407>:	mov    0x10(%rax),%rax
+   0x000000000064cbc1 <+1411>:	test   %rax,%rax
+   0x000000000064cbc4 <+1414>:	jne    0x64cbd7 <u_savecommon+1433>
+   0x000000000064cbc6 <+1416>:	mov    0x34af33(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cbcd <+1423>:	mov    0x8(%rax),%rax
+   0x000000000064cbd1 <+1427>:	add    $0x1,%rax
+   0x000000000064cbd5 <+1431>:	jmp    0x64cbdf <u_savecommon+1441>
+   0x000000000064cbd7 <+1433>:	mov    -0x38(%rbp),%rax
+   0x000000000064cbdb <+1437>:	mov    0x10(%rax),%rax
+   0x000000000064cbdf <+1441>:	cmp    %rax,%rdx
+   0x000000000064cbe2 <+1444>:	jne    0x64cd52 <u_savecommon+1812>
+   0x000000000064cbe8 <+1450>:	jmp    0x64cc06 <u_savecommon+1480>
+   0x000000000064cbea <+1452>:	mov    -0x38(%rbp),%rax
+   0x000000000064cbee <+1456>:	mov    0x18(%rax),%rdx
+   0x000000000064cbf2 <+1460>:	mov    0x34af07(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cbf9 <+1467>:	mov    0x8(%rax),%rax
+   0x000000000064cbfd <+1471>:	cmp    %rax,%rdx
+   0x000000000064cc00 <+1474>:	jne    0x64cd52 <u_savecommon+1812>
+   0x000000000064cc06 <+1480>:	mov    -0x38(%rbp),%rax
+   0x000000000064cc0a <+1484>:	mov    0x28(%rax),%rax
+   0x000000000064cc0e <+1488>:	cmp    $0x1,%rax
+   0x000000000064cc12 <+1492>:	jle    0x64cc4a <u_savecommon+1548>
+   0x000000000064cc14 <+1494>:	mov    -0x38(%rbp),%rax
+   0x000000000064cc18 <+1498>:	mov    0x8(%rax),%rax
+   0x000000000064cc1c <+1502>:	cmp    -0x68(%rbp),%rax
+   0x000000000064cc20 <+1506>:	jg     0x64cc4a <u_savecommon+1548>
+   0x000000000064cc22 <+1508>:	mov    -0x68(%rbp),%rax
+   0x000000000064cc26 <+1512>:	lea    0x2(%rax),%rcx
+   0x000000000064cc2a <+1516>:	mov    -0x38(%rbp),%rax
+   0x000000000064cc2e <+1520>:	mov    0x8(%rax),%rdx
+   0x000000000064cc32 <+1524>:	mov    -0x38(%rbp),%rax
+   0x000000000064cc36 <+1528>:	mov    0x28(%rax),%rax
+   0x000000000064cc3a <+1532>:	add    %rdx,%rax
+   0x000000000064cc3d <+1535>:	add    $0x1,%rax
+   0x000000000064cc41 <+1539>:	cmp    %rax,%rcx
+   0x000000000064cc44 <+1542>:	jle    0x64cd52 <u_savecommon+1812>
+   0x000000000064cc4a <+1548>:	mov    -0x38(%rbp),%rax
+   0x000000000064cc4e <+1552>:	mov    0x28(%rax),%rax
+   0x000000000064cc52 <+1556>:	cmp    $0x1,%rax
+   0x000000000064cc56 <+1560>:	jne    0x64cd2c <u_savecommon+1774>
+   0x000000000064cc5c <+1566>:	mov    -0x38(%rbp),%rax
+   0x000000000064cc60 <+1570>:	mov    0x8(%rax),%rax
+   0x000000000064cc64 <+1574>:	cmp    -0x68(%rbp),%rax
+   0x000000000064cc68 <+1578>:	jne    0x64cd2c <u_savecommon+1774>
+   0x000000000064cc6e <+1584>:	cmpq   $0x0,-0x48(%rbp)
+   0x000000000064cc73 <+1589>:	jle    0x64ccc5 <u_savecommon+1671>
+   0x000000000064cc75 <+1591>:	callq  0x65210d <u_getbot>
+   0x000000000064cc7a <+1596>:	mov    0x34ae7f(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cc81 <+1603>:	movb   $0x0,0x1e04(%rax)
+   0x000000000064cc88 <+1610>:	mov    -0x38(%rbp),%rax
+   0x000000000064cc8c <+1614>:	mov    (%rax),%rdx
+   0x000000000064cc8f <+1617>:	mov    -0x30(%rbp),%rax
+   0x000000000064cc93 <+1621>:	mov    %rdx,(%rax)
+   0x000000000064cc96 <+1624>:	mov    0x34ae63(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cc9d <+1631>:	mov    0x1df0(%rax),%rax
+   0x000000000064cca4 <+1638>:	mov    0x30(%rax),%rdx
+   0x000000000064cca8 <+1642>:	mov    -0x38(%rbp),%rax
+   0x000000000064ccac <+1646>:	mov    %rdx,(%rax)
+   0x000000000064ccaf <+1649>:	mov    0x34ae4a(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064ccb6 <+1656>:	mov    0x1df0(%rax),%rax
+   0x000000000064ccbd <+1663>:	mov    -0x38(%rbp),%rdx
+   0x000000000064ccc1 <+1667>:	mov    %rdx,0x30(%rax)
+   0x000000000064ccc5 <+1671>:	cmpq   $0x0,-0x78(%rbp)
+   0x000000000064ccca <+1676>:	je     0x64ccda <u_savecommon+1692>
+   0x000000000064cccc <+1678>:	mov    -0x38(%rbp),%rax
+   0x000000000064ccd0 <+1682>:	mov    -0x78(%rbp),%rdx
+   0x000000000064ccd4 <+1686>:	mov    %rdx,0x10(%rax)
+   0x000000000064ccd8 <+1690>:	jmp    0x64cd22 <u_savecommon+1764>
+   0x000000000064ccda <+1692>:	mov    0x34ae1f(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cce1 <+1699>:	mov    0x8(%rax),%rax
+   0x000000000064cce5 <+1703>:	cmp    -0x70(%rbp),%rax
+   0x000000000064cce9 <+1707>:	jge    0x64ccf9 <u_savecommon+1723>
+   0x000000000064cceb <+1709>:	mov    -0x38(%rbp),%rax
+   0x000000000064ccef <+1713>:	movq   $0x0,0x10(%rax)
+   0x000000000064ccf7 <+1721>:	jmp    0x64cd22 <u_savecommon+1764>
+   0x000000000064ccf9 <+1723>:	mov    0x34ae00(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cd00 <+1730>:	mov    0x8(%rax),%rdx
+   0x000000000064cd04 <+1734>:	mov    -0x38(%rbp),%rax
+   0x000000000064cd08 <+1738>:	mov    %rdx,0x18(%rax)
+   0x000000000064cd0c <+1742>:	mov    0x34aded(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cd13 <+1749>:	mov    0x1df0(%rax),%rax
+   0x000000000064cd1a <+1756>:	mov    -0x38(%rbp),%rdx
+   0x000000000064cd1e <+1760>:	mov    %rdx,0x38(%rax)
+   0x000000000064cd22 <+1764>:	mov    $0x1,%eax
+   0x000000000064cd27 <+1769>:	jmpq   0x64ceec <u_savecommon+2222>
+   0x000000000064cd2c <+1774>:	mov    -0x38(%rbp),%rax
+   0x000000000064cd30 <+1778>:	mov    %rax,-0x30(%rbp)
+   0x000000000064cd34 <+1782>:	mov    -0x38(%rbp),%rax
+   0x000000000064cd38 <+1786>:	mov    (%rax),%rax
+   0x000000000064cd3b <+1789>:	mov    %rax,-0x38(%rbp)
+   0x000000000064cd3f <+1793>:	addq   $0x1,-0x48(%rbp)
+   0x000000000064cd44 <+1798>:	cmpq   $0x9,-0x48(%rbp)
+   0x000000000064cd49 <+1803>:	jle    0x64cb7f <u_savecommon+1345>
+   0x000000000064cd4f <+1809>:	jmp    0x64cd52 <u_savecommon+1812>
+   0x000000000064cd51 <+1811>:	nop
+   0x000000000064cd52 <+1812>:	callq  0x65210d <u_getbot>
+   0x000000000064cd57 <+1817>:	mov    $0x30,%edi
+   0x000000000064cd5c <+1822>:	callq  0x54bdd4 <xmalloc>
+   0x000000000064cd61 <+1827>:	mov    %rax,-0x38(%rbp)
+   0x000000000064cd65 <+1831>:	mov    -0x38(%rbp),%rax
+   0x000000000064cd69 <+1835>:	mov    $0x30,%edx
+   0x000000000064cd6e <+1840>:	mov    $0x0,%esi
+   0x000000000064cd73 <+1845>:	mov    %rax,%rdi
+   0x000000000064cd76 <+1848>:	callq  0x42e600 <memset@plt>
+   0x000000000064cd7b <+1853>:	mov    -0x38(%rbp),%rax
+   0x000000000064cd7f <+1857>:	mov    -0x20(%rbp),%rdx
+   0x000000000064cd83 <+1861>:	mov    %rdx,0x28(%rax)
+   0x000000000064cd87 <+1865>:	mov    -0x38(%rbp),%rax
+   0x000000000064cd8b <+1869>:	mov    -0x68(%rbp),%rdx
+   0x000000000064cd8f <+1873>:	mov    %rdx,0x8(%rax)
+   0x000000000064cd93 <+1877>:	cmpq   $0x0,-0x78(%rbp)
+   0x000000000064cd98 <+1882>:	je     0x64cda8 <u_savecommon+1898>
+   0x000000000064cd9a <+1884>:	mov    -0x38(%rbp),%rax
+   0x000000000064cd9e <+1888>:	mov    -0x78(%rbp),%rdx
+   0x000000000064cda2 <+1892>:	mov    %rdx,0x10(%rax)
+   0x000000000064cda6 <+1896>:	jmp    0x64cdf0 <u_savecommon+1970>
+   0x000000000064cda8 <+1898>:	mov    0x34ad51(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cdaf <+1905>:	mov    0x8(%rax),%rax
+   0x000000000064cdb3 <+1909>:	cmp    -0x70(%rbp),%rax
+   0x000000000064cdb7 <+1913>:	jge    0x64cdc7 <u_savecommon+1929>
+   0x000000000064cdb9 <+1915>:	mov    -0x38(%rbp),%rax
+   0x000000000064cdbd <+1919>:	movq   $0x0,0x10(%rax)
+   0x000000000064cdc5 <+1927>:	jmp    0x64cdf0 <u_savecommon+1970>
+   0x000000000064cdc7 <+1929>:	mov    0x34ad32(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cdce <+1936>:	mov    0x8(%rax),%rdx
+   0x000000000064cdd2 <+1940>:	mov    -0x38(%rbp),%rax
+   0x000000000064cdd6 <+1944>:	mov    %rdx,0x18(%rax)
+   0x000000000064cdda <+1948>:	mov    0x34ad1f(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cde1 <+1955>:	mov    0x1df0(%rax),%rax
+   0x000000000064cde8 <+1962>:	mov    -0x38(%rbp),%rdx
+   0x000000000064cdec <+1966>:	mov    %rdx,0x38(%rax)
+   0x000000000064cdf0 <+1970>:	cmpq   $0x0,-0x20(%rbp)
+   0x000000000064cdf5 <+1975>:	jle    0x64ce94 <u_savecommon+2134>
+   0x000000000064cdfb <+1981>:	mov    -0x20(%rbp),%rax
+   0x000000000064cdff <+1985>:	shl    $0x3,%rax
+   0x000000000064ce03 <+1989>:	mov    %rax,%rdi
+   0x000000000064ce06 <+1992>:	callq  0x54bdd4 <xmalloc>
+   0x000000000064ce0b <+1997>:	mov    %rax,%rdx
+   0x000000000064ce0e <+2000>:	mov    -0x38(%rbp),%rax
+   0x000000000064ce12 <+2004>:	mov    %rdx,0x20(%rax)
+   0x000000000064ce16 <+2008>:	movq   $0x0,-0x48(%rbp)
+   0x000000000064ce1e <+2016>:	mov    -0x68(%rbp),%rax
+   0x000000000064ce22 <+2020>:	add    $0x1,%rax
+   0x000000000064ce26 <+2024>:	mov    %rax,-0x50(%rbp)
+   0x000000000064ce2a <+2028>:	jmp    0x64ce88 <u_savecommon+2122>
+   0x000000000064ce2c <+2030>:	callq  0x55d4a7 <fast_breakcheck>
+   0x000000000064ce31 <+2035>:	mov    0x34ae51(%rip),%eax        # 0x997c88 <got_int>
+   0x000000000064ce37 <+2041>:	test   %eax,%eax
+   0x000000000064ce39 <+2043>:	je     0x64ce58 <u_savecommon+2074>
+   0x000000000064ce3b <+2045>:	mov    -0x48(%rbp),%rdx
+   0x000000000064ce3f <+2049>:	mov    -0x38(%rbp),%rax
+   0x000000000064ce43 <+2053>:	mov    %rdx,%rsi
+   0x000000000064ce46 <+2056>:	mov    %rax,%rdi
+   0x000000000064ce49 <+2059>:	callq  0x6524ad <u_freeentry>
+   0x000000000064ce4e <+2064>:	mov    $0x0,%eax
+   0x000000000064ce53 <+2069>:	jmpq   0x64ceec <u_savecommon+2222>
+   0x000000000064ce58 <+2074>:	mov    -0x38(%rbp),%rax
+   0x000000000064ce5c <+2078>:	mov    0x20(%rax),%rax
+   0x000000000064ce60 <+2082>:	mov    -0x48(%rbp),%rdx
+   0x000000000064ce64 <+2086>:	shl    $0x3,%rdx
+   0x000000000064ce68 <+2090>:	lea    (%rax,%rdx,1),%rbx
+   0x000000000064ce6c <+2094>:	mov    -0x50(%rbp),%rax
+   0x000000000064ce70 <+2098>:	lea    0x1(%rax),%rdx
+   0x000000000064ce74 <+2102>:	mov    %rdx,-0x50(%rbp)
+   0x000000000064ce78 <+2106>:	mov    %rax,%rdi
+   0x000000000064ce7b <+2109>:	callq  0x6528af <u_save_line>
+   0x000000000064ce80 <+2114>:	mov    %rax,(%rbx)
+   0x000000000064ce83 <+2117>:	addq   $0x1,-0x48(%rbp)
+   0x000000000064ce88 <+2122>:	mov    -0x48(%rbp),%rax
+   0x000000000064ce8c <+2126>:	cmp    -0x20(%rbp),%rax
+   0x000000000064ce90 <+2130>:	jl     0x64ce2c <u_savecommon+2030>
+   0x000000000064ce92 <+2132>:	jmp    0x64cea0 <u_savecommon+2146>
+   0x000000000064ce94 <+2134>:	mov    -0x38(%rbp),%rax
+   0x000000000064ce98 <+2138>:	movq   $0x0,0x20(%rax)
+   0x000000000064cea0 <+2146>:	mov    0x34ac59(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cea7 <+2153>:	mov    0x1df0(%rax),%rax
+   0x000000000064ceae <+2160>:	mov    0x30(%rax),%rdx
+   0x000000000064ceb2 <+2164>:	mov    -0x38(%rbp),%rax
+   0x000000000064ceb6 <+2168>:	mov    %rdx,(%rax)
+   0x000000000064ceb9 <+2171>:	mov    0x34ac40(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064cec0 <+2178>:	mov    0x1df0(%rax),%rax
+   0x000000000064cec7 <+2185>:	mov    -0x38(%rbp),%rdx
+   0x000000000064cecb <+2189>:	mov    %rdx,0x30(%rax)
+   0x000000000064cecf <+2193>:	mov    0x34ac2a(%rip),%rax        # 0x997b00 <curbuf>
+   0x000000000064ced6 <+2200>:	movb   $0x0,0x1e04(%rax)
+   0x000000000064cedd <+2207>:	movl   $0x0,0x350121(%rip)        # 0x99d008 <undo_undoes>
+   0x000000000064cee7 <+2217>:	mov    $0x1,%eax
+   0x000000000064ceec <+2222>:	mov    -0x18(%rbp),%rbx
+   0x000000000064cef0 <+2226>:	xor    %fs:0x28,%rbx
+   0x000000000064cef9 <+2235>:	je     0x64cf00 <u_savecommon+2242>
+   0x000000000064cefb <+2237>:	callq  0x42eff0 <__stack_chk_fail@plt>
+   0x000000000064cf00 <+2242>:	add    $0x78,%rsp
+   0x000000000064cf04 <+2246>:	pop    %rbx
+   0x000000000064cf05 <+2247>:	pop    %rbp
+   0x000000000064cf06 <+2248>:	retq   
+End of assembler dump.
+(gdb) 
 vshcmd: > # I quite often accidentaly end up with way too much text in gdb
 vshcmd: > # when looking around a command, and I end up losing the
 vshcmd: > # information I found above.
-vshcmd: > # You can simply re-edit the same command prompt until you get the
-vshcmd: > # info you wanted.
+vshcmd: > # Vsh is useful in that manner because the normal way of using it
+vshcmd: > # means that you replace the output of a command until you find what
+vshcmd: > # you want.
 vshcmd: > # apropos variable
 vshcmd: > # help info variable
 vshcmd: > # u
 vshcmd: > # help set variable
 vshcmd: > # u
-vshcmd: > # dio
 vshcmd: > apropos variable
-vshcmd: > # The control keys ( C-c C-d C-z etc can be sent by default with
-vshcmd: > # the keybinding '<localleader>c', press what type of control key
-vshcmd: > # you want to send after that.
-quit
-neovim [09:53:56] $ ^C
-neovim [09:54:00] $ ^C
-neovim [09:54:02] $ 
-vshcmd: > # Vsh is also handy to use with interpreters, as you don't have to
-vshcmd: > # copy and paste things all over the place.
-vshcmd: > # There is a global command ':VshSend' that takes a range and a
-vshcmd: > # buffer name (the buffer name of this file is: demo.vsh (or
-vshcmd: > # something extra including the directories) [<C-r>=bufname('%')] ).
-vshcmd: > # VshSend sends the lines specified in its range to the terminal
-vshcmd: > # attached to the buffer given.
-vshcmd: > python
-Python 3.6.0 (default, Jan 16 2017, 12:12:55) 
-[GCC 6.3.1 20170109] on linux
-Type "help", "copyright", "credits" or "license" for more information.
->>> 
-... ... >>> 
-vshcmd: > # Here, open demo.py
-vshcmd: > # then send the definition of test_function() over.
-vshcmd: > test_function()
-Hello world
->>> 
-vshcmd: > # Vim's editing capabilities come in handy here to
-vshcmd: > # dir(sys)
-vshcmd: > # gqq
-vshcmd: > # ?arg<CR>
-vshcmd: > dir(sys)
-['__displayhook__', '__doc__', '__excepthook__', '__interactivehook__', '__loader__', '__name__', '__package__', '__spec__', '__stderr__', '__stdin__', '__stdout__', '_clear_type_cache', '_current_frames', '_debugmallocstats', '_getframe', '_home', '_mercurial', '_xoptions', 'abiflags', 'api_version', 'argv', 'base_exec_prefix', 'base_prefix', 'builtin_module_names', 'byteorder', 'call_tracing', 'callstats', 'copyright', 'displayhook', 'dont_write_bytecode', 'exc_info', 'excepthook', 'exec_prefix', 'executable', 'exit', 'flags', 'float_info', 'float_repr_style', 'get_asyncgen_hooks', 'get_coroutine_wrapper', 'getallocatedblocks', 'getcheckinterval', 'getdefaultencoding', 'getdlopenflags', 'getfilesystemencodeerrors', 'getfilesystemencoding', 'getprofile', 'getrecursionlimit', 'getrefcount', 'getsizeof', 'getswitchinterval', 'gettrace', 'hash_info', 'hexversion', 'implementation', 'int_info', 'intern', 'is_finalizing', 'last_traceback', 'last_type', 'last_value', 'maxsize', 'maxunicode', 'meta_path', 'modules', 'path', 'path_hooks', 'path_importer_cache', 'platform', 'prefix', 'ps1', 'ps2', 'set_asyncgen_hooks', 'set_coroutine_wrapper', 'setcheckinterval', 'setdlopenflags', 'setprofile', 'setrecursionlimit', 'setswitchinterval', 'settrace', 'stderr', 'stdin', 'stdout', 'thread_info', 'version', 'version_info', 'warnoptions']
->>> 
-vshcmd: > # You can save interesting output with '<localleader>s', and
-vshcmd: > # activate it again with '<localleader>a'.
-vshcmd: > exit()
-neovim [14:19:41] $ 
-vshcmd: > 
-vshcmd: > # You can edit files a few ways, $EDITOR is set up so that things
-vshcmd: > # like `git commit` work, though you have to tell the file when
-vshcmd: > # you're done.
-vshcmd: > cd -
-/home/hardenedapple/.vim/bundle/vsh/demo
-demo [14:19:51] $ 
-vshcmd: > $EDITOR demo.txt
-demo [14:20:12] $ 
-Press C-d for "successful" edit, C-c otherwise
-vshcmd: > echo $EDITOR
-/home/hardenedapple/.vim/bundle/vsh/autoload/vsh/vsh_editor_prog
-demo [14:20:15] $ 
-vshcmd: > # You can even do remote editing!!!
-vshcmd: > # ...
-vshcmd: > # ...
-vshcmd: > # well ...
-vshcmd: > # sort-of
-vshcmd: > # cat demo.txt
-vshcmd: > # -- modify the text there
-vshcmd: > # <localleader>s
-vshcmd: > # cat > demo.txt
-vshcmd: > # VshSend
-vshcmd: > # <localleader>d
-vshcmd: > # <localleader>a
-vshcmd: > # <CR>
-vshcmd: > pwd
-/home/hardenedapple/.vim/bundle/vsh/demo
-demo [14:20:33] $ 
-vshcmd: > cat demo.txt
-hello world
-test file
-demo [14:21:59] $ 
-Hello
-demo [14:30:04] $ 
-demo [14:26:14] $ 
-demo [14:26:14] $ 
-Hello
-
-vshcmd: > printf "Thank you for trying vsh please leave feedback, whether \033[0;32mgood\033[0m or \033[0;31mbad\033[0m\n"
-Thank you for trying vsh please leave feedback, whether [0;32mgood[0m or [0;31mbad[0m
-demo [14:38:08] $ 
+Evaluate expression EXP and assign result to variable VAR, using assignment
+syntax appropriate for the current language (VAR = EXP or VAR := EXP for
+example).  VAR may be a debugger "convenience" variable (names starting
+with $), a register (a few standard names starting with $), or an actual
+variable in the program being debugged.  EXP is any valid expression.
+This may usually be abbreviated to simply "set".
+(gdb) quit
+neovim [14:18:05] $ ^C
+neovim [14:18:06] $ ^C
+neovim [14:18:07] $ 
+vshcmd: > # The control keys (C-c C-d C-z etc) can be sent with the keybinding
+vshcmd: > # '<localleader>c', press what type of control key you want to send
+vshcmd: > # after that.
+vshcmd: > fg
+sleep 10
+neovim [14:15:37] $ 
+vshcmd: > cat demo_part3.vsh
