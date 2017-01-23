@@ -6,7 +6,7 @@ let b:did_ftplugin = 1
 " Can't just change the b:vsh_prompt variable, also have to change the syntax
 " definitions and the comments/commentstring definitions -- this is done in a
 " helper function.
-call vsh#vsh#SetPrompt(get(g:, 'vsh_default_prompt', 'vimshell: > '))
+call vsh#vsh#SetPrompt(get(g:, 'vsh_default_prompt', 'vshcmd: > '))
 
 " Get a process for this job, and set an autocmd so the process is closed when
 " unloaded.

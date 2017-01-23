@@ -826,7 +826,7 @@ function s:setup_colors(prompt)
 endfunction
 
 function vsh#vsh#DefaultColors()
-  call s:setup_colors('vimshell: >')
+  call s:setup_colors('vshcmd: >')
 endfunction
 
 function vsh#vsh#SetPrompt(new_prompt)

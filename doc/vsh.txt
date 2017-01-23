@@ -46,7 +46,7 @@ It is important to stress that a |vsh| buffer is a simple text file. Any and
 all standard vim commands are available in this buffer.
 
 |Vsh| treats lines beginning with a prompt as commands, prompts with a
-' #' after them are treated as comments. The default prompt is "vimshell: > ".
+' #' after them are treated as comments. The default prompt is "vshcmd: > ".
 For more information, see |vsh-prompt|.
 
 Lines not beginning with a prompt are treated as output. Running a command
@@ -105,7 +105,7 @@ A |vsh| buffer has no special markings in it for the plugin to store
 information (so that anyone without this plugin to view the file and
 understand what's going on). The only way that |vsh| determines which lines
 are commands and which lines are output is by checking the start of the line
-for the |vsh| prompt. The default |vsh| prompt is "vimshell: > " but can be
+for the |vsh| prompt. The default |vsh| prompt is "vshcmd: > " but can be
 changed on a per buffer basis with |vsh#vsh#SetPrompt()|. See
 |vsh-customisation| for details.
 
@@ -114,16 +114,16 @@ the output of a command includes a line starting with the prompt then that
 line will be treated as a command. Hence you can store a "useful commands"
 file, and "grep" it to search for tricks you once found. >
 
-        vimshell: > grep 'neat trick' ~/.vim/vsh_files/useful_commands
-        vimshell: > echo 'Hello world' # Such a a neat trick!!
+        vshcmd: > grep 'neat trick' ~/.vim/vsh_files/useful_commands
+        vshcmd: > echo 'Hello world' # Such a a neat trick!!
 <
 These commands can then be run next.
 
 If you know the output of a command will include a prompt, but you don't want
 to treat it as a command, you can use the trick below. >
 
-        vimshell: > cat other_file.vsh | sed 's/^/ /'
-         vimshell: > echo 'Hellow orld' # Can never quite remember this
+        vshcmd: > cat other_file.vsh | sed 's/^/ /'
+         vshcmd: > echo 'Hellow orld' # Can never quite remember this
 <
 Vsh will not treat the line as a command.
 NOTE: Unfortunately there is a bug where vim still treats these lines as
@@ -162,16 +162,16 @@ command with the local 'path' set to the working directory of the process
 currently in the foreground of the terminal we are communicating with. This
 means that it should work with programs like python that have changed
 directory. >
-    vimshell: > python
-    Python 3.6.0 (default, Jan 16 2017, 12:12:55) 
+    vshcmd: > python
+    Python 3.6.0 (default, Jan 16 2017, 12:12:55)
     [GCC 6.3.1 20170109] on linux
     Type "help", "copyright", "credits" or "license" for more information.
-    >>> 
-    vimshell: > import os; os.chdir(os.path.expanduser('~/.vim/bundle/vsh'))
-    >>> 
-    vimshell: > os.listdir('.')
+    >>>
+    vshcmd: > import os; os.chdir(os.path.expanduser('~/.vim/bundle/vsh'))
+    >>>
+    vshcmd: > os.listdir('.')
     ['ftdetect', '.git', 'test.vsh', 'autoload', 'TODO.txt', 'README.md', 'tests', 'syntax', 'doc', 'demo', 'ftplugin']
-    >>> 
+    >>>
 <
 Pressing `gf` on `README.md` will open that file.
 
@@ -251,34 +251,34 @@ Tips and Tricks~
 If you often want to run many lines at once (but don't want to save this as a
 shell script) you can put markers around them and use |vsh-:Vrerun| to send
 them all at once. >
-    vimshell: > cd ../ # Here, run .,/ENDBLOCK/Vrerun
-    vimshell: > ls
-    vimshell: > cd -   # ENDBLOCK
+    vshcmd: > cd ../ # Here, run .,/ENDBLOCK/Vrerun
+    vshcmd: > ls
+    vshcmd: > cd -   # ENDBLOCK
 <
 This can be even more useful with the following function and binding >
     let g:command_prefix = 'vimcmd: '
     function s:ParseCommand(line)
       let come_here_prefix = substitute(g:command_prefix, ':', ';', '')
       let come_and_stay_prefix = substitute(g:command_prefix, ':', '!', '')
-    
+
       let l:command_start = match(a:line, g:command_prefix)
       if l:command_start != -1
         return [0, a:line[l:command_start + len(g:command_prefix):]]
       end
-    
+
       let l:command_start = match(a:line, come_here_prefix)
       if l:command_start != -1
         return [1, a:line[l:command_start + len(g:command_prefix):]]
       end
-    
+
       let l:command_start = match(a:line, come_and_stay_prefix)
       if l:command_start != -1
         return [2, a:line[l:command_start + len(g:command_prefix):]]
       end
-    
+
       return [0, '']
     endfunction
-    
+
     function RunCommand(val)
       let orig_vcount = 0
       if v:count == 0 || a:val
@@ -287,29 +287,29 @@ This can be even more useful with the following function and binding >
         let orig_vcount = v:count
         let line = getline(orig_vcount)
       endif
-    
+
       let commandLine = s:ParseCommand(l:line)
       if l:commandLine[1] == ''
         echom 'Cannot parse line ' . l:line . ' for command, require prefix -- "' . g:command_prefix . '"'
       end
-    
+
       if l:commandLine[0] > 0 && orig_vcount
         exe orig_vcount
       end
-    
+
       execute l:commandLine[1]
-    
+
       if l:commandLine[0] > 1 && !a:val
         exe "''"
       end
     endfunction
-    
+
     nnoremap <silent> <F2> :<C-u>call RunCommand(0)<CR>
 <
 So that in a buffer with >
-    vimshell: > cd ../ # vimcmd! .,/ENDBLOCK/Vrerun
-    vimshell: > ls
-    vimshell: > cd -   # ENDBLOCK
+    vshcmd: > cd ../ # vimcmd! .,/ENDBLOCK/Vrerun
+    vshcmd: > ls
+    vshcmd: > cd -   # ENDBLOCK
 < you can just press <F2> on the first line to run the block of commands.
 
 ==============================================================================
@@ -325,9 +325,9 @@ Mappings~
                         the action of <CR> if the cursor is anywhere marked [x]
                         below would be the same. >
 
-            [x]vimshell: > pw[x]d
+            [x]vshcmd: > pw[x]d
             /home/hardenedapple
-            ~ [14:0[x]1:56] $ 
+            ~ [14:0[x]1:56] $
 
 <
 

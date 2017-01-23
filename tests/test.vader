@@ -7,133 +7,133 @@
 #                                   Motion                                    #
 #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
 Given vsh (vsh buffer):
-  vimshell: >
-  vimshell: >    #echo Hello there
-  vimshell: >    echo Hello there
+  vshcmd: >
+  vshcmd: >    #echo Hello there
+  vshcmd: >    echo Hello there
 
 Do (Motion down skips comments and empty lines):
   \<C-n>ix
 
 Expect:
-  vimshell: >
-  vimshell: >    #echo Hello there
-  vimshell: >    xecho Hello there
+  vshcmd: >
+  vshcmd: >    #echo Hello there
+  vshcmd: >    xecho Hello there
 
 Do (Motion down with no extra prompts stays at end):
   \<C-n>\<C-n>ix
 
 Expect:
-  vimshell: >
-  vimshell: >    #echo Hello there
-  vimshell: >    xecho Hello there
+  vshcmd: >
+  vshcmd: >    #echo Hello there
+  vshcmd: >    xecho Hello there
 
 Do (Moving up at start of file does nothing):
   \<C-p>ix
 
 Expect:
-  xvimshell: >
-  vimshell: >    #echo Hello there
-  vimshell: >    echo Hello there
+  xvshcmd: >
+  vshcmd: >    #echo Hello there
+  vshcmd: >    echo Hello there
 
 
 Do (Moving up with no previous prompt goes to top):
   \<C-n>\<C-p>ix
 
 Expect:
-  xvimshell: >
-  vimshell: >    #echo Hello there
-  vimshell: >    echo Hello there
+  xvshcmd: >
+  vshcmd: >    #echo Hello there
+  vshcmd: >    echo Hello there
 
 
 Given vsh (vsh buffer):
-  vimshell: > echo Hello there
+  vshcmd: > echo Hello there
   Hello there, this is output
 
 Do (Moving down at last prompt moves to end of output):
   \<C-n>\<C-n>ix
 
 Expect:
-  vimshell: > echo Hello there
+  vshcmd: > echo Hello there
   xHello there, this is output
 
 Do (Moving up on top prompt doesn't move cursor):
   \<C-n>\<C-p>ix
 
 Expect:
-  vimshell: > xecho Hello there
+  vshcmd: > xecho Hello there
   Hello there, this is output
 
 Given vsh (vsh buffer):
-  vimshell: > # vimshell: > ls
-  vimshell: > ls
+  vshcmd: > # vshcmd: > ls
+  vshcmd: > ls
 
 Do (Down motion includes saved output):
   \<C-n>ix
 
 Expect:
-  vimshell: > # vimshell: > xls
-  vimshell: > ls
+  vshcmd: > # vshcmd: > xls
+  vshcmd: > ls
 
 Do (Up motion includes saved output):
   \<C-n>\<C-n>\<C-p>ix
 
 Expect:
-  vimshell: > # vimshell: > xls
-  vimshell: > ls
+  vshcmd: > # vshcmd: > xls
+  vshcmd: > ls
 
 
 Given vsh (vsh buffer):
-  vimshell: > 
-  vimshell: > ls
+  vshcmd: > 
+  vshcmd: > ls
 
 Do (Down motion includes complete prompts without commands):
   \<C-n>ix
 
 Expect:
-  vimshell: >x 
-  vimshell: > ls
+  vshcmd: >x 
+  vshcmd: > ls
 
 Do (Up motion includes complete prompts without commands):
   \<C-n>\<C-n>\<C-p>ix
 
 Expect:
-  vimshell: >x 
-  vimshell: > ls
+  vshcmd: >x 
+  vshcmd: > ls
 
 
 # Tabs count as a command character
 Given vsh (vsh buffer):
-  vimshell: > 	ls
+  vshcmd: > 	ls
 
 Do (Don't skip tabs):
   \<C-n>ix
 
 Expect:
-  vimshell: > x	ls
+  vshcmd: > x	ls
 
 # In Operator Pending mode we select *up to* the previous prompt
 Given vsh (vsh buffer):
-  vimshell: > ls
+  vshcmd: > ls
   many
   many
   files
-  vimshell: > ls
+  vshcmd: > ls
 
 Do (Up to top line):
   jjd\<C-p>
 
 Expect:
-  vimshell: > ls
+  vshcmd: > ls
   files
-  vimshell: > ls
+  vshcmd: > ls
 
 Do (Down to bottom line):
   jj$d\<C-n>
 
 Expect:
-  vimshell: > ls
+  vshcmd: > ls
   many
-  vimshell: > ls
+  vshcmd: > ls
 
 Do (Down before first line):
   d\<C-n>
@@ -142,25 +142,25 @@ Expect:
   many
   many
   files
-  vimshell: > ls
+  vshcmd: > ls
 
 Do (Down from first line):
   $d\<C-n>
 
 Expect:
-  vimshell: > ls
+  vshcmd: > ls
 
 Do (Up from last line):
   2\<C-n>$d\<C-p>
 
 Expect:
-  vimshell: > ls
+  vshcmd: > ls
 
 Given vsh (vsh buffer):
   Bunch
   of lines
   at start
-  vimshell: > ls
+  vshcmd: > ls
   many
   many
   files
@@ -170,7 +170,7 @@ Do (Up nothing above):
 
 Expect:
   at start
-  vimshell: > ls
+  vshcmd: > ls
   many
   many
   files
@@ -182,22 +182,22 @@ Expect:
   Bunch
   of lines
   at start
-  vimshell: > ls
+  vshcmd: > ls
   many
 
 #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
 #                              Parsing Commands                               #
 #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
 Given vsh (vsh buffer):
-  vimshell: >
-  vimshell: > 
-  vimshell: > ls
-  vimshell: >   ls
-  vimshell: > 	ls
-  vimshell: > # ls
-  vimshell: > #ls
-  vimshell: >   #ls
-  vimshell: >  	#ls
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: > ls
+  vshcmd: >   ls
+  vshcmd: > 	ls
+  vshcmd: > # ls
+  vshcmd: > #ls
+  vshcmd: >   #ls
+  vshcmd: >  	#ls
   hello there
 
 
@@ -205,23 +205,23 @@ Do (Parsing Works nicely):
   :g/^/put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
 
 Expect:
-  vimshell: >
+  vshcmd: >
   -1
-  vimshell: > 
+  vshcmd: > 
   -1
-  vimshell: > ls
+  vshcmd: > ls
   ls
-  vimshell: >   ls
+  vshcmd: >   ls
     ls
-  vimshell: > 	ls
+  vshcmd: > 	ls
   	ls
-  vimshell: > # ls
+  vshcmd: > # ls
   -1
-  vimshell: > #ls
+  vshcmd: > #ls
   -1
-  vimshell: >   #ls
+  vshcmd: >   #ls
   -1
-  vimshell: >  	#ls
+  vshcmd: >  	#ls
    	#ls
   hello there
   -1
@@ -231,95 +231,95 @@ Expect:
 "                                Output Range                                 "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Given vsh (vsh buffer):
-  vimshell: >
-  vimshell: >
+  vshcmd: >
+  vshcmd: >
 
-  vimshell: >
-
-
+  vshcmd: >
 
 
-  vimshell: >
+
+
+  vshcmd: >
 
 
 Do (OutputRange() works nicely):
-  :g/vimshell/s/$/\=vsh#vsh#OutputRange()\<CR>
+  :g/vshcmd/s/$/\=vsh#vsh#OutputRange()\<CR>
 
 Expect:
-  vimshell: >
-  vimshell: >3,3
+  vshcmd: >
+  vshcmd: >3,3
 
-  vimshell: >5,8
-
-
+  vshcmd: >5,8
 
 
-  vimshell: >
+
+
+  vshcmd: >
 
 Given vsh (vsh buffer):
-  vimshell: >
+  vshcmd: >
   hello there
 
 Do (OutputRange() Final line):
   :s/$/\=vsh#vsh#OutputRange()\<CR>
 
 Expect:
-  vimshell: >2,2
+  vshcmd: >2,2
   hello there
 
 
 Given vsh (vsh buffer):
-  vimshell: >
+  vshcmd: >
 
 
 
 
 
-  vimshell: >
+  vshcmd: >
 
 Do (OutputRange() inside output):
   j:s/$/\=vsh#vsh#OutputRange()\<CR>
 
 Expect:
-  vimshell: >
+  vshcmd: >
   2,6
 
 
 
 
-  vimshell: >
+  vshcmd: >
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                            Save Output function                             "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Given vsh (vsh buffer):
-  vimshell: > ls
+  vshcmd: > ls
   bin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
   $ 
-  vimshell: > echo Hello
+  vshcmd: > echo Hello
 
 
 Do (Save output on command line):
   \six
 
 Expect:
-  xvimshell: > # vimshell: > ls
+  xvshcmd: > # vshcmd: > ls
   bin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
   $ 
-  vimshell: > echo Hello
+  vshcmd: > echo Hello
 
 Do (Save output when in output):
   j\six
 
 Expect:
-  vimshell: > # vimshell: > ls
+  vshcmd: > # vshcmd: > ls
   xbin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
   $ 
-  vimshell: > echo Hello
+  vshcmd: > echo Hello
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -327,31 +327,31 @@ Expect:
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Given vsh (vsh buffer):
-  vimshell: > # vimshell: > ls
+  vshcmd: > # vshcmd: > ls
   bin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
   $ 
-  vimshell: > echo Hello
+  vshcmd: > echo Hello
 
 Do (Unsave output on command line):
   \aix
 
 Expect:
-  xvimshell: > ls
+  xvshcmd: > ls
   bin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
   $ 
-  vimshell: > echo Hello
+  vshcmd: > echo Hello
 
 Do (Unsave output when in output):
   j\aix
 
 Expect:
-  vimshell: > ls
+  vshcmd: > ls
   xbin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
   $ 
-  vimshell: > echo Hello
+  vshcmd: > echo Hello
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                                 New Prompt                                  "
@@ -359,78 +359,78 @@ Expect:
 
 
 Given vsh (vsh buffer):
-  vimshell: > ls
+  vshcmd: > ls
   bin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
   $ 
-  vimshell: > echo Hello
+  vshcmd: > echo Hello
 
 Do (Unsave output on command line):
   \nx
 
 Expect:
-  vimshell: > ls
+  vshcmd: > ls
   bin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
   $ 
-  vimshell: > x
-  vimshell: > echo Hello
+  vshcmd: > x
+  vshcmd: > echo Hello
 
 Do (Unsave output when in output):
   \<C-n>\<C-n>\nx
 
 Expect:
-  vimshell: > ls
+  vshcmd: > ls
   bin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
   $ 
-  vimshell: > echo Hello
-  vimshell: > x
+  vshcmd: > echo Hello
+  vshcmd: > x
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                               Select Command                                "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Given vsh (vsh buffer):
-  vimshell: >
-  vimshell: > 
-  vimshell: >    #echo Hello there
-  vimshell: > echo Hello there
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: >    #echo Hello there
+  vshcmd: > echo Hello there
   Hello there
-  vimshell: >    echo Hello there
+  vshcmd: >    echo Hello there
 
 Do (Does nothing before empty prompt):
   cicx
 
 Expect:
-  xvimshell: >
-  vimshell: > 
-  vimshell: >    #echo Hello there
-  vimshell: > echo Hello there
+  xvshcmd: >
+  vshcmd: > 
+  vshcmd: >    #echo Hello there
+  vshcmd: > echo Hello there
   Hello there
-  vimshell: >    echo Hello there
+  vshcmd: >    echo Hello there
 
 Do (Works on empty prompts (Reasonably: not great)):
   jcicx
 
 Expect:
-  vimshell: >
-  vimshell: >x
-  vimshell: >    #echo Hello there
-  vimshell: > echo Hello there
+  vshcmd: >
+  vshcmd: >x
+  vshcmd: >    #echo Hello there
+  vshcmd: > echo Hello there
   Hello there
-  vimshell: >    echo Hello there
+  vshcmd: >    echo Hello there
 
 Do (Ignores comment prompts):
   jjcicx
 
 Expect:
-  vimshell: >
-  vimshell: >x
-  vimshell: >    #echo Hello there
-  vimshell: > echo Hello there
+  vshcmd: >
+  vshcmd: >x
+  vshcmd: >    #echo Hello there
+  vshcmd: > echo Hello there
   Hello there
-  vimshell: >    echo Hello there
+  vshcmd: >    echo Hello there
 
 
 # Real command
@@ -438,24 +438,24 @@ Do (Selects inner command on real command):
   jjjcicx
 
 Expect:
-  vimshell: >
-  vimshell: > 
-  vimshell: >    #echo Hello there
-  vimshell: > x
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: >    #echo Hello there
+  vshcmd: > x
   Hello there
-  vimshell: >    echo Hello there
+  vshcmd: >    echo Hello there
 
 
 Do (Selects outer command on real command):
   jjjcacx
 
 Expect:
-  vimshell: >
-  vimshell: > 
-  vimshell: >    #echo Hello there
-  vimshell: > x
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: >    #echo Hello there
+  vshcmd: > x
   Hello there
-  vimshell: >    echo Hello there
+  vshcmd: >    echo Hello there
 
 
 # Select command when in output
@@ -463,24 +463,24 @@ Do (Selects inner command when in output):
   jjjjcicx
 
 Expect:
-  vimshell: >
-  vimshell: > 
-  vimshell: >    #echo Hello there
-  vimshell: > x
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: >    #echo Hello there
+  vshcmd: > x
   Hello there
-  vimshell: >    echo Hello there
+  vshcmd: >    echo Hello there
 
 
 Do (Selects outer command when in output):
   jjjjcacx
 
 Expect:
-  vimshell: >
-  vimshell: > 
-  vimshell: >    #echo Hello there
-  vimshell: > x
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: >    #echo Hello there
+  vshcmd: > x
   Hello there
-  vimshell: >    echo Hello there
+  vshcmd: >    echo Hello there
 
 
 # Command with spaces
@@ -488,34 +488,34 @@ Do (Selects inner command excluding spaces):
   jjjjjcicx
 
 Expect:
-  vimshell: >
-  vimshell: > 
-  vimshell: >    #echo Hello there
-  vimshell: > echo Hello there
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: >    #echo Hello there
+  vshcmd: > echo Hello there
   Hello there
-  vimshell: >    x
+  vshcmd: >    x
 
 Do (Selects outer command including spaces):
   jjjjjcacx
 
 Expect:
-  vimshell: >
-  vimshell: > 
-  vimshell: >    #echo Hello there
-  vimshell: > echo Hello there
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: >    #echo Hello there
+  vshcmd: > echo Hello there
   Hello there
-  vimshell: > x
+  vshcmd: > x
 
 Do (Works with the redo '.' command):
   jjjdacjj.
 
 Expect:
-  vimshell: >
-  vimshell: > 
-  vimshell: >    #echo Hello there
-  vimshell: > 
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: >    #echo Hello there
+  vshcmd: > 
   Hello there
-  vimshell: > 
+  vshcmd: > 
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -523,14 +523,14 @@ Expect:
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Given vsh (vsh buffer):
-  vimshell: >
-  vimshell: >
+  vshcmd: >
+  vshcmd: >
   One line output
-  vimshell: >
+  vshcmd: >
   Multiple
   line
   output
-  vimshell: >
+  vshcmd: >
   Output at the
   end of the buffer
 
@@ -538,14 +538,14 @@ Do (Change output when no output):
   ciox
 
 Expect:
-  xvimshell: >
-  vimshell: >
+  xvshcmd: >
+  vshcmd: >
   One line output
-  vimshell: >
+  vshcmd: >
   Multiple
   line
   output
-  vimshell: >
+  vshcmd: >
   Output at the
   end of the buffer
 
@@ -554,13 +554,13 @@ Do (Change OUTPUT when no output):
 
 Expect:
   x
-  vimshell: >
+  vshcmd: >
   One line output
-  vimshell: >
+  vshcmd: >
   Multiple
   line
   output
-  vimshell: >
+  vshcmd: >
   Output at the
   end of the buffer
 
@@ -568,14 +568,14 @@ Do (Change output when one line of output):
   jciox
 
 Expect:
-  vimshell: >
-  vimshell: >
+  vshcmd: >
+  vshcmd: >
   x
-  vimshell: >
+  vshcmd: >
   Multiple
   line
   output
-  vimshell: >
+  vshcmd: >
   Output at the
   end of the buffer
 
@@ -583,13 +583,13 @@ Do (Change OUTPUT when one line of output):
   jcaox
 
 Expect:
-  vimshell: >
+  vshcmd: >
   x
-  vimshell: >
+  vshcmd: >
   Multiple
   line
   output
-  vimshell: >
+  vshcmd: >
   Output at the
   end of the buffer
 
@@ -597,12 +597,12 @@ Do (Change output when multiple lines):
   jjjciox
 
 Expect:
-  vimshell: >
-  vimshell: >
+  vshcmd: >
+  vshcmd: >
   One line output
-  vimshell: >
+  vshcmd: >
   x
-  vimshell: >
+  vshcmd: >
   Output at the
   end of the buffer
 
@@ -610,11 +610,11 @@ Do (Change output when multiple lines):
   jjjcaox
 
 Expect:
-  vimshell: >
-  vimshell: >
+  vshcmd: >
+  vshcmd: >
   One line output
   x
-  vimshell: >
+  vshcmd: >
   Output at the
   end of the buffer
 
@@ -623,10 +623,10 @@ Do (Works with the redo '.' command):
   jjdioj.
 
 Expect:
-  vimshell: >
-  vimshell: >
-  vimshell: >
-  vimshell: >
+  vshcmd: >
+  vshcmd: >
+  vshcmd: >
+  vshcmd: >
   Output at the
   end of the buffer
 
@@ -635,9 +635,9 @@ Expect:
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Given vsh (vsh buffer):
-  vimshell: > echo Hello there
+  vshcmd: > echo Hello there
   Hello there
-  vimshell: > echo Hello there
+  vshcmd: > echo Hello there
   These are some lines
   Hello there
 
@@ -645,8 +645,8 @@ Do (Output range inserted properly):
   \od\<CR>
 
 Expect:
-  vimshell: > echo Hello there
-  vimshell: > echo Hello there
+  vshcmd: > echo Hello there
+  vshcmd: > echo Hello there
   These are some lines
   Hello there
 
@@ -654,9 +654,9 @@ Do (Output range calculated well at end of file):
   jj\od\<CR>
 
 Expect:
-  vimshell: > echo Hello there
+  vshcmd: > echo Hello there
   Hello there
-  vimshell: > echo Hello there
+  vshcmd: > echo Hello there
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                              BOL override keys                              "
@@ -665,26 +665,26 @@ Expect:
 # # The function that "I" calls uses " " feedkeys(), and that interferes with
 # # Vader, hence don't use this.
 Given vsh (vsh buffer):
-  vimshell: > echo hello
-  vimshell: >   echo hello
-  vimshell: > # Not a command
+  vshcmd: > echo hello
+  vshcmd: >   echo hello
+  vshcmd: > # Not a command
   Also not a command
 
 Do ('^' normal mode override):
   ^iw\<esc>j^ix\<esc>j^iy\<esc>j^iz
 
 Expect:
-  vimshell: > wecho hello
-  vimshell: >   xecho hello
-  yvimshell: > # Not a command
+  vshcmd: > wecho hello
+  vshcmd: >   xecho hello
+  yvshcmd: > # Not a command
   zAlso not a command
 
 Do ('^' operator pending mode override);
   $c^w\<esc>j$c^x\<esc>j$c^y\<esc>j$c^z
 
 Expect:
-  vimshell: > wo
-  vimshell: >   xo
+  vshcmd: > wo
+  vshcmd: >   xo
   yd
   zd
 
@@ -693,16 +693,16 @@ Expect:
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Given vsh (vsh buffer):
-  vimshell: > echo Hello
+  vshcmd: > echo Hello
   other: > echo Hello
 
 Do (Inserts new prompts accordingly):
   ox\<CR>y\<esc>joz
 
 Expect:
-  vimshell: > echo Hello
-  vimshell: > x
-  vimshell: > y
+  vshcmd: > echo Hello
+  vshcmd: > x
+  vshcmd: > y
   other: > echo Hello
   z
 
@@ -712,7 +712,7 @@ Execute (Change the prompt and new prompt is added accordingly):
   execute "normal! ox\<esc>joy\<CR>z"
 
 Expect:
-  vimshell: > echo Hello
+  vshcmd: > echo Hello
   x
   other: > echo Hello
   other: > y
@@ -723,13 +723,13 @@ Expect:
 "                              vsh_clear_output                               "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Given vsh (vsh buffer):
-  vimshell: > false
-  vimshell: > echo Hello
+  vshcmd: > false
+  vshcmd: > echo Hello
   Hello
-  vimshell: > echo Hello; echo there
+  vshcmd: > echo Hello; echo there
   Hello
   there
-  vimshell: > echo Hello; echo there
+  vshcmd: > echo Hello; echo there
   Hello
   there
 
@@ -737,13 +737,13 @@ Execute (Remove non-existant output):
   python3 vsh_clear_output(1)
 
 Expect:
-  vimshell: > false
-  vimshell: > echo Hello
+  vshcmd: > false
+  vshcmd: > echo Hello
   Hello
-  vimshell: > echo Hello; echo there
+  vshcmd: > echo Hello; echo there
   Hello
   there
-  vimshell: > echo Hello; echo there
+  vshcmd: > echo Hello; echo there
   Hello
   there
 
@@ -751,12 +751,12 @@ Execute (Remove single line output):
   python3 vsh_clear_output(2)
 
 Expect:
-  vimshell: > false
-  vimshell: > echo Hello
-  vimshell: > echo Hello; echo there
+  vshcmd: > false
+  vshcmd: > echo Hello
+  vshcmd: > echo Hello; echo there
   Hello
   there
-  vimshell: > echo Hello; echo there
+  vshcmd: > echo Hello; echo there
   Hello
   there
 
@@ -764,11 +764,11 @@ Execute (Remove multi-line output):
   python3 vsh_clear_output(4)
 
 Expect:
-  vimshell: > false
-  vimshell: > echo Hello
+  vshcmd: > false
+  vshcmd: > echo Hello
   Hello
-  vimshell: > echo Hello; echo there
-  vimshell: > echo Hello; echo there
+  vshcmd: > echo Hello; echo there
+  vshcmd: > echo Hello; echo there
   Hello
   there
 
@@ -776,13 +776,13 @@ Execute (Remove output at end of file):
   python3 vsh_clear_output(7)
 
 Expect:
-  vimshell: > false
-  vimshell: > echo Hello
+  vshcmd: > false
+  vshcmd: > echo Hello
   Hello
-  vimshell: > echo Hello; echo there
+  vshcmd: > echo Hello; echo there
   Hello
   there
-  vimshell: > echo Hello; echo there
+  vshcmd: > echo Hello; echo there
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -790,11 +790,11 @@ Expect:
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Given vsh (vsh buffer):
-  vimshell: > echo 'Hello world' # test insert when no output already there
-  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  vshcmd: > echo 'Hello world' # test insert when no output already there
+  vshcmd: > echo 'Hello world'; echo 'there there' # test basic insert
   Hello world
 
-  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  vshcmd: > echo -n 'hello world'; echo ' this is a test' # joining lines
   hello world
 
 Execute (First line of output when not initialised is skipped):
@@ -803,11 +803,11 @@ Execute (First line of output when not initialised is skipped):
   python3 vsh_insert_text(['Hello world'], vim.current.buffer.number)
 
 Expect:
-  vimshell: > echo 'Hello world' # test insert when no output already there
-  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  vshcmd: > echo 'Hello world' # test insert when no output already there
+  vshcmd: > echo 'Hello world'; echo 'there there' # test basic insert
   Hello world
 
-  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  vshcmd: > echo -n 'hello world'; echo ' this is a test' # joining lines
   hello world
 
 Execute (First insert of an output):
@@ -817,12 +817,12 @@ Execute (First insert of an output):
   python3 vsh_insert_text(['Hello world'], vim.current.buffer.number)
 
 Expect:
-  vimshell: > echo 'Hello world' # test insert when no output already there
+  vshcmd: > echo 'Hello world' # test insert when no output already there
   Hello world
-  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  vshcmd: > echo 'Hello world'; echo 'there there' # test basic insert
   Hello world
 
-  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  vshcmd: > echo -n 'hello world'; echo ' this is a test' # joining lines
   hello world
 
 
@@ -833,11 +833,11 @@ Execute (Insert continuing an output):
   python3 vsh_insert_text(['there there'], vim.current.buffer.number)
 
 Expect:
-  vimshell: > echo 'Hello world' # test insert when no output already there
-  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  vshcmd: > echo 'Hello world' # test insert when no output already there
+  vshcmd: > echo 'Hello world'; echo 'there there' # test basic insert
   Hello world
   there there
-  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  vshcmd: > echo -n 'hello world'; echo ' this is a test' # joining lines
   hello world
 
 Execute (Insert at end of file):
@@ -847,11 +847,11 @@ Execute (Insert at end of file):
   python3 vsh_insert_text([' this is a test'], vim.current.buffer.number)
 
 Expect:
-  vimshell: > echo 'Hello world' # test insert when no output already there
-  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  vshcmd: > echo 'Hello world' # test insert when no output already there
+  vshcmd: > echo 'Hello world'; echo 'there there' # test basic insert
   Hello world
 
-  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  vshcmd: > echo -n 'hello world'; echo ' this is a test' # joining lines
   hello world this is a test
 
 Execute (Multiline output):
@@ -861,11 +861,11 @@ Execute (Multiline output):
   python3 vsh_insert_text(['', 'Hello world', 'this is a test'], vim.current.buffer.number)
 
 Expect:
-  vimshell: > echo 'Hello world' # test insert when no output already there
-  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  vshcmd: > echo 'Hello world' # test insert when no output already there
+  vshcmd: > echo 'Hello world'; echo 'there there' # test basic insert
   Hello world
 
-  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  vshcmd: > echo -n 'hello world'; echo ' this is a test' # joining lines
   hello world
   Hello world
   this is a test
@@ -879,13 +879,13 @@ Execute (Output with embedded NULL bytes):
   python3 vsh_insert_text(['Hello\nworld', 'this is a test'], vim.current.buffer.number)
 
 Expect:
-  vimshell: > echo 'Hello world' # test insert when no output already there
+  vshcmd: > echo 'Hello world' # test insert when no output already there
   Hello world
   this is a test
-  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  vshcmd: > echo 'Hello world'; echo 'there there' # test basic insert
   Hello world
 
-  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  vshcmd: > echo -n 'hello world'; echo ' this is a test' # joining lines
   hello world
 
 
@@ -895,12 +895,12 @@ Execute (Insert when insert mark has been lost):
   python3 vsh_insert_text(['there there'], vim.current.buffer.number)
 
 Expect:
-  vimshell: > echo 'Hello world' # test insert when no output already there
-  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  vshcmd: > echo 'Hello world' # test insert when no output already there
+  vshcmd: > echo 'Hello world'; echo 'there there' # test basic insert
   Hello world
 
   there there
-  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  vshcmd: > echo -n 'hello world'; echo ' this is a test' # joining lines
   hello world
 
 
@@ -909,11 +909,11 @@ Execute (Insert at end of buffer when no marks are around):
   python3 vsh_insert_text(['', 'Hello world'], vim.current.buffer.number)
 
 Expect:
-  vimshell: > echo 'Hello world' # test insert when no output already there
-  vimshell: > echo 'Hello world'; echo 'there there' # test basic insert
+  vshcmd: > echo 'Hello world' # test insert when no output already there
+  vshcmd: > echo 'Hello world'; echo 'there there' # test basic insert
   Hello world
 
-  vimshell: > echo -n 'hello world'; echo ' this is a test' # joining lines
+  vshcmd: > echo -n 'hello world'; echo ' this is a test' # joining lines
   hello world
   Hello world
 
@@ -924,7 +924,7 @@ Expect:
 "                             Runs basic commands                             "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Given vsh (vsh buffer):
-  vimshell: > echo Hello
+  vshcmd: > echo Hello
 
 Execute (Run this command):
   Vrerun
@@ -936,6 +936,6 @@ Execute (Run this command):
   endif
 
 Expect:
-  vimshell: > echo Hello
+  vshcmd: > echo Hello
   Hello
 
