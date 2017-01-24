@@ -481,6 +481,7 @@ else
       return
     endif
 
+    " Move cursor to command we're executing
     if line('.') != a:command_line
       exe a:command_line
       call s:move_to_prompt_start()
@@ -489,6 +490,14 @@ else
     " Use python so the cursor doesn't move and we don't have to faff around
     " with saving and restoring.
     python3 vsh_clear_output(int(vim.eval("line('.')")))
+
+    " If b:vsh_dir_store is set, store the working directory that this command
+    " was run in.
+    if get(b:, 'vsh_dir_store', 0)
+      undojoin | call setline(a:command_line, getline('.') 
+            \ . '  # ' . py3eval('vsh_find_cwd(' . b:vsh_job . ')'))
+    endif
+
     unlockvar b:vsh_insert_change_tick
     let b:vsh_insert_change_tick = b:changedtick
     lockvar b:vsh_insert_change_tick
@@ -551,7 +560,12 @@ else
       echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
       return
     endif
-    let subprocess_cwd = py3eval('vsh_find_cwd(' . b:vsh_job . ')')
+    let stored_dir = split(getline(s:segment_start()))[-2:]
+    if stored_dir[0] == '#' && isdirectory(stored_dir[1])
+      let subprocess_cwd = stored_dir[1]
+    else
+      let subprocess_cwd = py3eval('vsh_find_cwd(' . b:vsh_job . ')')
+    endif
     " Can't remove the extra item in the path once we've done because we've
     " changed buffer. Use BufLeave to reset the path as soon as we leave this
     " buffer (which will usually happen in the last `execute` command of this
@@ -866,7 +880,7 @@ endif
 function s:remove_buffer_variables()
   for variable in ['vsh_job', 'vsh_prompt', 'vsh_completions_cmd',
         \ 'vsh_insert_change_tick', 'vsh_insert_mark', 'vsh_prompt_mark',
-        \ 'vsh_initialised']
+        \ 'vsh_initialised', 'vsh_dir_store']
     execute 'silent! unlet b:' . variable
   endfor
   autocmd! VshBufferClose BufUnload,BufDelete <buffer>

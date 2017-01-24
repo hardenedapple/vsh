@@ -186,10 +186,23 @@ directory. >
 <
 Pressing `gf` on `README.md` will open that file.
 
-Similarly, |vsh| provides an insert-mode mapping for CTRL-XCTRL-F that runs the
-completion in the directory that the current foreground process is in.
-NOTE: These have only been tested on Linux ... I don't think it'll work on
-mac or BSD (patches welcome :-) -- look in vsh_find_cwd()).
+Similarly, |vsh| provides an insert-mode mapping for CTRL-X CTRL-F that runs
+the completion in the directory that the current foreground process is in.
+NOTE: These have only been tested on Linux ... I don't think it'll work on mac
+or BSD (patches welcome :-) -- look in vsh_find_cwd()).
+
+If the buffer-local variable `b:vsh_dir_store` is set, then just before
+running a command, |vsh| will put the text " # <cwd>" directory after the
+command line. When running |vsh-gf| or similar, |vsh| will first look for this
+marker after a command line and if it's found will use that directory in
+'path' instead of the current forground process'.
+NOTE: This may cause problems in REPL's where the '#' character is not a
+comment leader and is hence turned off by default.
+To turn this on by default, put `let g:vsh_dir_store = 1` in your vimrc.
+
+This is not used for CTRL-X CTRL-F, as it is assumed that you want to insert
+filenames relative to the working directory of the process you're sending
+that text to.
 
                 *vsh-save* *vsh-activate* *vsh-deactivate*
 When working in a |vsh| buffer pressing <CR> anywhere in the output of a

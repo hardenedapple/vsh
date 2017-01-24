@@ -68,4 +68,5 @@ setlocal formatoptions+=o
 
 call vsh#vsh#SetupMappings()
 
+let b:vsh_dir_store = get(g:, 'vsh_dir_store', 0)
 let b:undo_ftplugin = 'setlocal comments< formatoptions< | call vsh#vsh#Undoftplugin()'
