@@ -8,6 +8,7 @@ the buffer, it works on a normal file (that you save between sessions and can
 then rerun all commands in), and you can run commands anywhere in the file.
 
 Benefits are mainly around exploratory terminal sessions, where you want to
+
 1. Keep a clean record of what you did, for reproducability.
   * This often means removing output from intermediate informative commands.
 2. Search through and modify output of commands with the power of vim
