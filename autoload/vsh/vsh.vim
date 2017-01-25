@@ -824,7 +824,7 @@ endfunction
 "      I can currently have the 'this is a text' either in red or no color, I
 "      haven't managed to get it in green.
 function s:create_color_groups()
-  let colorControl = '"\[\(\d\+;\=\)\+m"' 
+  let colorControl = '"\[\(\d\+;\=\)*m"' 
   " Hide all bash control characters
   execute 'syn match vshHide ' . colorControl . ' conceal'
   let colornumbers = ['Black', 'DarkRed', 'DarkGreen', 'Yellow',
@@ -834,7 +834,7 @@ function s:create_color_groups()
   while index < len(l:colornumbers)
     let syn_num = 30 + index
     let syn_name = 'vshColorMarkerfg' . index
-    execute 'syn region ' . syn_name . ' start="\[\(\d;\)\=' . syn_num . suffix
+    execute 'syn region ' . syn_name . ' start="\[\(\d\+;\)\=' . syn_num . suffix
     execute 'hi ' . syn_name . ' ctermfg=' . colornumbers[index]
     let index += 1
   endwhile
