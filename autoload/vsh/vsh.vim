@@ -189,6 +189,7 @@ function vsh#vsh#OutputRange()
     return ''
   else
     return (l:span[0] + 1) . ',' . (l:span[1])
+  endif
 endfunction
 
 function vsh#vsh#ReplaceOutput()
@@ -304,7 +305,13 @@ function vsh#vsh#InsertOverride()
   call feedkeys(orig_count . 'i')
 endfunction
 
-" Job control vs serial stuff.
+" Where vim and nvim differ.
+" At the moment it makes little sense to implement the vim stuff properly as
+" everything would be much easier when :h job-term  has been implemented.
+" Even once that happens, I have little motivation (other than it seems "right"
+" that it should be done) to do this.
+" If anyone reading this source wants it done, either send a patch or ask me
+" nicely, it would greatly improve the chances I get round to it :-] .
 if !has('nvim') || !has('python3')
   function vsh#vsh#StartSubprocess()
   endfunction
@@ -443,36 +450,36 @@ else
     endif
   endfunction
 
- function vsh#vsh#ShowCompletions(glob)
-   let command = vsh#vsh#ParseVSHCommand(getline('.'))
-   if l:command == -1
-     echoerr "Can't show completions of a non-commandline"
-     return
-   endif
-   python3 vsh_clear_output(int(vim.eval("line('.')")))
+  function vsh#vsh#ShowCompletions(glob)
+    let command = vsh#vsh#ParseVSHCommand(getline('.'))
+    if l:command == -1
+      echoerr "Can't show completions of a non-commandline"
+      return
+    endif
+    python3 vsh_clear_output(int(vim.eval("line('.')")))
 
-   " XXX Mark use
-   call s:set_marks_at('here')
-   " Send text and special characters to request listing completions, then
-   " remove text on this line with ^U so running this again doesn't cause a
-   " problem.
-   " Our defaults are what are mentioned in the readline(3) and bash(1) man
-   " pages, but the b:vsh_completions_cmd variable should have been set at
-   " startup by parsing the output of `bind -q` in bash.
-   "
-   " The readline functions called are:
-   "    possible-completions
-   "    glob-list-expansions
-   "    unix-line-discard
-   " NB: If your shell doesn't have readline, you could use something like
-   " ['', "echo \n", ""] to get at least the glob expansion.
-   let completions_cmds = get(b:, 'vsh_completions_cmd', ['?', 'g', ''])
-   let cmd_chars = completions_cmds[a:glob ? 1 : 0]
-   let retval = jobsend(b:vsh_job, l:command . cmd_chars . completions_cmds[2])
-   if retval == 0
-     echoerr 'Failed to tab complete output'
-   endif
- endfunction
+    " XXX Mark use
+    call s:set_marks_at('here')
+    " Send text and special characters to request listing completions, then
+    " remove text on this line with ^U so running this again doesn't cause a
+    " problem.
+    " Our defaults are what are mentioned in the readline(3) and bash(1) man
+    " pages, but the b:vsh_completions_cmd variable should have been set at
+    " startup by parsing the output of `bind -q` in bash.
+    "
+    " The readline functions called are:
+    "    possible-completions
+    "    glob-list-expansions
+    "    unix-line-discard
+    " NB: If your shell doesn't have readline, you could use something like
+    " ['', "echo \n", ""] to get at least the glob expansion.
+    let completions_cmds = get(b:, 'vsh_completions_cmd', ['?', 'g', ''])
+    let cmd_chars = completions_cmds[a:glob ? 1 : 0]
+    let retval = jobsend(b:vsh_job, l:command . cmd_chars . completions_cmds[2])
+    if retval == 0
+      echoerr 'Failed to tab complete output'
+    endif
+  endfunction
 
   function vsh#vsh#RunCommand(command_line, command)
     if !get(b:, 'vsh_job', 0)
