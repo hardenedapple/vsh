@@ -194,7 +194,24 @@ endfunction
 
 function vsh#vsh#ReplaceOutput()
   let l:command_line = s:segment_start()
-  let l:command = vsh#vsh#ParseVSHCommand(getline(l:command_line))
+
+  let l:command_text = getline(l:command_line)
+
+  " b:vsh_dir_store being set means the command line will be set to
+  " b:vsh_prompt . l:command . '  # ' . cwd
+  " . Hence we ensure that l:command ignores previous stored directories.
+  if get(b:, 'vsh_dir_store', 0)
+    let last_hash = strridx(l:command_text, '  # ')
+    if last_hash != -1
+      let possible_cmd = l:command_text[:last_hash - 1]
+      let stored_dir = split(l:command_text[last_hash:])
+      if len(stored_dir) == 2 && stored_dir[0] == '#' && isdirectory(stored_dir[1])
+        let l:command_text = possible_cmd
+      endif
+    endif
+  endif
+
+  let l:command = vsh#vsh#ParseVSHCommand(l:command_text)
   if l:command == -1
     return
   endif
@@ -501,7 +518,7 @@ else
     " If b:vsh_dir_store is set, store the working directory that this command
     " was run in.
     if get(b:, 'vsh_dir_store', 0)
-      undojoin | call setline(a:command_line, getline('.') 
+      undojoin | call setline(a:command_line, b:vsh_prompt . a:command
             \ . '  # ' . py3eval('vsh_find_cwd(' . b:vsh_job . ')'))
     endif
 
