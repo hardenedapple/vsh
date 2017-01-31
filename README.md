@@ -7,6 +7,10 @@ In neovim it is different to the :terminal command because it allows modifying
 the buffer, it works on a normal file (that you save between sessions and can
 then rerun all commands in), and you can run commands anywhere in the file.
 
+It can also be thought of as an interactive version of script(1) -- interactive
+because you can go back and modify what's stored while you work -- that
+facilitates re-running the same session during reading.
+
 Benefits are mainly around exploratory terminal sessions, where you want to
 
 1. Keep a clean record of what you did, for reproducability.
