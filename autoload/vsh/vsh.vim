@@ -562,8 +562,11 @@ else
     let char_code = char2nr(l:orig_char)
     let l:cntrl_char = l:char_code - char2nr('@')
     if l:cntrl_char > 31 || l:cntrl_char < 0
-      echoerr 'cntrl_char == ' . l:cntrl_char
-      echoerr "No control-" . l:orig_char
+      " Allow cancelling without an error message by pressing <esc>.
+      if char_code != 27
+        echoerr 'cntrl_char == ' . l:cntrl_char
+        echoerr "No control-" . l:orig_char
+      endif
       return
     endif
     call jobsend(b:vsh_job, nr2char(l:cntrl_char))

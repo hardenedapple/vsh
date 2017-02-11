@@ -1,7 +1,7 @@
-import vim
-import neovim
 import os
-import signal
+import neovim
+import vim
+
 
 def vsh_outputlen(buf, curprompt):
     '''
@@ -20,6 +20,7 @@ def vsh_outputlen(buf, curprompt):
 
     # curprompt represents the first line of output.
     found_prompt = False
+    count = 0
     for (count, line) in enumerate(buf[curprompt:]):
         # Want to use vim match() so that if we decide to allow regexp prompts
         # in the future the match will behave like vim.
@@ -41,7 +42,7 @@ def vsh_outputlen(buf, curprompt):
 def vsh_recalculate_input_position(vsh_buf, insert_mark):
     '''
     Our mark of where to insert text has been lost, see if we can recalculate
-    it from our mark of which command was last executed. 
+    it from our mark of which command was last executed.
 
     If that mark is also lost then we just give up.
 
@@ -50,7 +51,7 @@ def vsh_recalculate_input_position(vsh_buf, insert_mark):
     prompt_line, _ = vsh_buf.mark(prompt_mark)
     if prompt_line == 0:
         return False
-    
+
     insert_line = prompt_line + vsh_outputlen(vsh_buf, prompt_line)
     # The previous mark being deleted means the last line of the last output
     # was also deleted. Hence the current output should be on a different line
@@ -61,6 +62,16 @@ def vsh_recalculate_input_position(vsh_buf, insert_mark):
 
 
 def vsh_insert_helper(data, vsh_buf):
+    '''Do main work of inserting text.
+
+    This function does all the work of inserting output from a shell command
+    and setting relevant marks assuming there are no newlines in the output.
+    There is only newlines in the output we're given if the shell command
+    output contains NULL bytes.
+
+    If this happens, an error is raised to the caller.
+
+    '''
     # Default to inserting text at end of file if input mark doesn't exist.
     insert_mark = vim.vars.get('vsh_insert_mark', 'd')
     insert_line, _ = vsh_buf.mark(insert_mark)
@@ -159,6 +170,7 @@ def vsh_insert_text(data, insert_buf):
 
 
 def vsh_clear_output(curline):
+    '''Remove all output from a previous command.'''
     outputlen = vsh_outputlen(vim.current.buffer, curline)
     vim.current.buffer[curline:curline + outputlen] = []
 
@@ -183,4 +195,3 @@ def vsh_find_cwd(jobnr):
         # Probably done su/sudo -- can't do anything here, fall back to
         # original bash process.
         return os.path.realpath('/proc/{}/cwd'.format(bash_pid))
-
