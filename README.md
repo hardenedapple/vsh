@@ -24,6 +24,9 @@ Some demos are provided in the links below.
 At the moment, it requires some functionality in neovim HEAD, but that should
 be coming downstream soon.
 
+### Motivation video
+[![Vsh motivation](https://asciinema.org/a/9zn5e69g0by7e9kdsz1vlzgf8.png)](https://asciinema.org/a/9zn5e69g0by7e9kdsz1vlzgf8)
+
 ### Basic introduction
 [![Vsh basics](https://asciinema.org/a/100675.png)](https://asciinema.org/a/100675)
 ### Editing output
