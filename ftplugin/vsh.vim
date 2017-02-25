@@ -66,7 +66,10 @@ setlocal conceallevel=2
 setlocal formatoptions+=r
 setlocal formatoptions+=o
 
+" Shells, gdb, and similar have '-' as a keyword.
+setlocal iskeyword+=-
+
 call vsh#vsh#SetupMappings()
 
 let b:vsh_dir_store = get(g:, 'vsh_dir_store', 0)
-let b:undo_ftplugin = 'setlocal comments< formatoptions< | call vsh#vsh#Undoftplugin()'
+let b:undo_ftplugin = 'setlocal comments< formatoptions< conceallevel< iskeyword< | call vsh#vsh#Undoftplugin()'
