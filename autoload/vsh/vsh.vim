@@ -50,36 +50,42 @@ function s:segment_end()
   return l:retval ? l:retval : l:eof + 1
 endfunction
 
+" Return screen position where the command in 'promptline' begins.
+" If a:count_whitespace is falsey, treat whitespace directly after a prompt as
+" part of the command, not otherwise.
+" If a:command_prompt is truthy, ignore comments.
 function s:prompt_end(promptline, count_whitespace, command_prompt)
-  " Return the column position where the prompt on this current line ends.
-  " With a:count_whitespace truthy skip whitespace characters after the prompt.
-  " With a:count_whitespace falsey don't skip any whitespace prompt.
-  let l:prompt = a:command_prompt ? vsh#vsh#SplitMarker(0) : b:vsh_prompt
-  if a:promptline !~# l:prompt
+  " Not a command line
+  if a:promptline !~# b:vsh_prompt
     return -1
+  endif
+
+  " Check for a comment start, and act depending on a:command_prompt
+  let l:commentstart = s:commentstart()
+  if a:promptline =~# l:commentstart
+    if a:command_prompt
+      return -1
+    else
+      let l:prompt = l:commentstart
+    endif
+  else
+    let l:prompt = b:vsh_prompt
   endif
 
   let promptend = len(l:prompt)
 
   if a:count_whitespace
-    while a:promptline[l:promptend] =~ ' '
+    while a:promptline[l:promptend] =~ '\V\s'
       let l:promptend += 1
     endwhile
   endif
 
-  return l:promptend
+  return strdisplaywidth(a:promptline[:l:promptend])
 endfunction
 
-" Skipping whitespace with 'normal w' doesn't do much most of the time, but it
-" means that we don't need to include a trailing space in the b:vsh_prompt
-" variable, the cursor position is a little nicer for changing a previous
-" command when using the two move funtions below, and a prompt without a
-" command or trailing whitespace isn't overwritten by the output of a command
-" above it.
 function s:move_to_prompt_start()
-  let promptend = s:prompt_end(getline('.'), 1, 1)
+  let promptend = s:prompt_end(getline('.'), 1, 0)
   if l:promptend != -1
-    let l:promptend += 1
     exe "normal! ".l:promptend."|"
   endif
 endfunction
@@ -272,12 +278,11 @@ function vsh#vsh#SelectCommand(include_whitespace)
   let promptline = l:search_line ? l:search_line : 1
   let curprompt = getline(l:promptline)
 
-  let promptend = s:prompt_end(l:curprompt, a:include_whitespace, 0)
+  let promptend = s:prompt_end(l:curprompt, a:include_whitespace, 1)
   if l:promptend != -1
-    " Note: Move to start of line, then move right instead of using '|' because
-    " prompt_end gives the number of characters from the start that the command
-    " is, not the number of screen columns.
-    exe 'normal! '.l:promptline.'gg0'.l:promptend.'lv$h'
+    " Note: Must use '|' because prompt_end() returns the number of screen
+    " cells used.
+    exe 'normal! '.l:promptline.'gg'.l:promptend.'|v$h'
   endif
 endfunction
 
@@ -307,7 +312,7 @@ function vsh#vsh#SelectOutput(include_prompt)
 endfunction
 
 function vsh#vsh#BOLOverride()
-  if getline('.') =~# s:command_marker()
+  if getline('.') =~# vsh#vsh#SplitMarker(0)
     call s:move_to_prompt_start()
   else
     normal! ^
