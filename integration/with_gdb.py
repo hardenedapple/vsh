@@ -5,9 +5,9 @@ import gdb
 
 
 def get_nvim_instance():
-    nvim_socket_path = os.getenv('NEOVIM_SOCKET_ADDR')
+    nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
     if not nvim_socket_path:
-        raise OSError('No socket path NEOVIM_SOCKET_ADDR in environment')
+        raise OSError('No socket path NVIM_LISTEN_ADDRESS in environment')
     return neovim.attach('socket', path=nvim_socket_path)
 
 

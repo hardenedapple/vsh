@@ -12,10 +12,9 @@ export PAGER=
 export MANPAGER='col -b'
 
 export EDITOR="$1/vsh_editor_prog"
-export NEOVIM_SOCKET_ADDR="$2"
-export NEOVIM_BUFFER_NR="$3"
+export NEOVIM_BUFFER_NR="$2"
 
-cd "$4"
+cd "$3"
 
 # It's really awkward to find out what the bindings are programmatically
 # (or at least I don't know of a nice way to query the readline library).
@@ -23,5 +22,5 @@ completions_binding="$(bind -q possible-completions 2>/dev/null)"
 glob_binding="$(bind -q glob-list-expansions 2>/dev/null)"
 discard_line="$(bind -q unix-line-discard 2>/dev/null)"
 # Just let any errors raise -- we'll see there stack in the buffer.
-"$1/vsh_tell_nvim_bindings.py" "$completions_binding" "$glob_binding" "$discard_line" "$3"
-exec "$5"
+"$1/vsh_tell_nvim_bindings.py" "$completions_binding" "$glob_binding" "$discard_line" "$2"
+exec "$4"
