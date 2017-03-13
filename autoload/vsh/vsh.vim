@@ -537,11 +537,18 @@ else
     endif
   endfunction
 
+  function vsh#vsh#VshSendCommand(buffer, line1, line2, dedent)
+    let buftouse = a:buffer
+    if a:buffer =~ '\d\+'
+      let guess_bufnr = str2nr(a:buffer)
+      if bufexists(guess_bufnr)
+        let buftouse = guess_bufnr
+      endif
+    endif
+    call vsh#vsh#VshSend(buftouse, a:line1, a:line2, a:dedent)
+  endfunction
+
   function vsh#vsh#VshSend(buffer, line1, line2, dedent)
-    " TODO Allow buffer number as well as buffer name.
-    "      Check the a:buffer argument for a series of digits, if it matches,
-    "      try to use that as a buffer number, if it doesn't try to use it as a
-    "      buffer name substring.
     let jobnr = getbufvar(a:buffer, 'vsh_job')
     if l:jobnr == ''
       echoerr 'Buffer ' . a:buffer . ' has no vsh job running'
@@ -918,7 +925,7 @@ endfunction
 
 " Global commands and mappings
 if !get(g:, 'vsh_loaded')
-  command -range -nargs=1 -bang -complete=buffer VshSend :call vsh#vsh#VshSend(<f-args>, <line1>, <line2>, '<bang>')
+  command -range -nargs=1 -bang -complete=buffer VshSend :call vsh#vsh#VshSendCommand(<f-args>, <line1>, <line2>, '<bang>')
   " Mappings have 'N' after them so that vim doesn't wait to see if this is the
   " 'Dedent' version of the mapping.
   nnoremap <expr> <silent> <Plug>VshSendN vsh#vsh#DoOperatorFunc(0)
