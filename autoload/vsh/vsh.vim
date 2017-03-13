@@ -545,26 +545,71 @@ else
         let buftouse = guess_bufnr
       endif
     endif
-    call vsh#vsh#VshSend(buftouse, a:line1, a:line2, a:dedent)
+    call vsh#vsh#VshSend(buftouse, [a:line1, 0], [a:line2, 0], a:dedent, 0)
   endfunction
 
-  function vsh#vsh#VshSend(buffer, line1, line2, dedent)
+  function vsh#vsh#VshSend(buffer, pos1, pos2, dedent, charwise)
     let jobnr = getbufvar(a:buffer, 'vsh_job')
     if l:jobnr == ''
       echoerr 'Buffer ' . a:buffer . ' has no vsh job running'
       return
     endif
 
-    let indent = a:dedent == '!' ? match(getline(a:line1), '\S') : 0
-    " Inclusive
-    for linenr in range(a:line1, a:line2)
-      call jobsend(l:jobnr, getline(linenr)[indent:] . "\n")
-    endfor
+    let [line1, col1] = a:pos1
+    let [line2, col2] = a:pos2
+    if line1 > line2
+      echoerr 'vsh#vsh#VshSend() given end before start'
+      return
+    endif
+
+    if a:charwise
+      if line1 == line2
+        let first_line = getline(line1)[col1 - 1:col2 - 1]
+        let last_bit = v:false
+      else
+        let first_line = getline(line1)[col1 - 1:]
+        let last_bit = getline(line2)[:col2 - 1]
+      endif
+      let line2 -= 1
+    else
+      let first_line = getline(line1)
+      let last_bit = v:false
+    endif
+    let line1 += 1
+
+    let indent = a:dedent == '!' ? match(first_line, '\S') : 0
+    " Inclusive, indent does not account for tabs mixing with spaces (i.e. if
+    " the first line is indented 4 spaces, and the second is indented with one
+    " tab, we will lose 3 characters of the second line).
+    " I don't think accounting for this would really be worth it...
+    " Depends on whether people would want it or not.
+    call jobsend(l:jobnr, first_line[indent:] . "\n")
+    if line2 >= line1
+      for linenr in range(line1, line2)
+        call jobsend(l:jobnr, getline(linenr)[indent:] . "\n")
+      endfor
+    endif
+
+    if last_bit isnot v:false
+      call jobsend(l:jobnr, last_bit . "\n")
+    endif
+  endfunction
+
+  function vsh#vsh#VshVisualSend(visualmode, dedent)
+    if v:count
+      let b:vsh_alt_buffer = bufname(v:count)
+    endif
+    let b:vsh_send_dedent = a:dedent ? '!' : ''
+    let [sbuf, sline, scol, soff] = getpos("'<")
+    let [ebuf, eline, ecol, eoff] = getpos("'>")
+    call vsh#vsh#VshSend(b:vsh_alt_buffer,
+          \ [sline, scol], [eline, ecol],
+          \ b:vsh_send_dedent, a:visualmode == 'v')
   endfunction
 
   function vsh#vsh#VshSendThis(selection_type)
-    if a:selection_type != 'line'
-      echom 'Operator not supported for non-linewise selections. This is TODO'
+    if a:selection_type == 'block'
+      echom 'Operator not supported for blockwise selection.'
       return
     endif
     if ! has_key(b:, 'vsh_alt_buffer')
@@ -572,7 +617,19 @@ else
       echom 'Use a count to specify, or set b:vsh_alt_buffer'
       return
     endif
-    call vsh#vsh#VshSend(b:vsh_alt_buffer, line("'["), line("']"), b:vsh_send_dedent)
+    if a:selection_type == 'line'
+      call vsh#vsh#VshSend(b:vsh_alt_buffer,
+            \ [line("'["), 0], [line("']"), 0],
+            \ b:vsh_send_dedent, 0)
+    else
+      " Send the text between the start and end positions to the vsh buffer
+      " Add a newline to the end of the string
+      let [sbuf, sline, scol, soff] = getpos("'[")
+      let [ebuf, eline, ecol, eoff] = getpos("']")
+      call vsh#vsh#VshSend(b:vsh_alt_buffer,
+            \ [sline, scol], [eline, ecol],
+            \ b:vsh_send_dedent, 1)
+    endif
   endfunction
 
   function vsh#vsh#DoOperatorFunc(dedent)
@@ -932,8 +989,8 @@ if !get(g:, 'vsh_loaded')
   nnoremap <expr> <silent> <Plug>VshSendDedent vsh#vsh#DoOperatorFunc(1)
   nnoremap <expr> <silent> <Plug>VshSendLineN vsh#vsh#DoOperatorFunc(0) . '_'
   nnoremap <expr> <silent> <Plug>VshSendLineDedent vsh#vsh#DoOperatorFunc(1) . '_'
-  vnoremap <silent> <Plug>VshSendVN :VshSend <C-r>=bufname(v:count)<CR><CR>
-  vnoremap <silent> <Plug>VshSendVDedent :VshSend! <C-r>=bufname(v:count)<CR><CR>
+  vnoremap <silent> <Plug>VshSendVN :<C-U>call vsh#vsh#VshVisualSend(visualmode(), 0)<CR>
+  vnoremap <silent> <Plug>VshSendVDedent :<C-U>call vsh#vsh#VshVisualSend(visualmode(), 1)<CR>
   if !hasmapto('<Plug>VshSend') && maparg('<leader>vd', 'n') ==# '' && maparg('<leader>vs', 'n') ==# '' && !has('g:vsh_no_default_mappings')
     vmap <Leader>vs <Plug>VshSendVN
     vmap <Leader>vd <Plug>VshSendVDedent
