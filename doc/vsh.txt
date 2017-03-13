@@ -244,6 +244,9 @@ buffer. An operator is provided under the default mapping of `<leader>vs` that
 sends the text acted upon to the buffer whose number was provided as the
 count. i.e. `3<leader>vsip` sends the text of the current paragraph to the
 process in buffer number 3.
+`<leader>vs` without a count uses the variable `b:vsh_alt_buffer`, which can
+be set manually, but is also set by giving the mapping a count.
+`<leader>vd` does the same as `<leader>vs` but dedents lines.
 
 
 ==============================================================================
@@ -431,11 +434,18 @@ ao          Act on the output of a command including the command line itself.
 
                         *vsh-global-mappings*
 
-:[range]VshSend {bufname}   *vsh-:VshSend*
+:[range]VshSend[!] {bufname}   *vsh-:VshSend*
         Send the lines in [range] to the process associated with buffer
         {bufname}.
+        With a bang, removes the indentation of the first line in the range
+        from all lines in the range.
 <leader>vs             *vsh-<leader>vs*
         Send the lines in the motion acted upon to the process associated with
         buffer number [count].
+<leader>vd              *vsh-<leader>vd*
+        Same as <leader>vs, but removes the indentation of the first line off
+        all lines in the range.
+        This is useful for sending parts of a python function to a |vsh|
+        buffer running a python interpreter.
 
  vim:tw=78:et:ft=help:norl:
