@@ -356,9 +356,7 @@ if !has('nvim') || !has('python3')
   endfunction
   function vsh#vsh#SendPassword()
   endfunction
-  function vsh#vsh#VshSend()
-  endfunction
-  function vsh#vsh#VshSendThis()
+  function vsh#vsh#VshSendThis(selection_type)
   endfunction
 
   function vsh#vsh#RunCommand(command_line, command)
@@ -539,22 +537,44 @@ else
     endif
   endfunction
 
-  function vsh#vsh#VshSend(buffer)
+  function vsh#vsh#VshSend(buffer, line1, line2, dedent)
     " TODO Allow buffer number as well as buffer name.
+    "      Check the a:buffer argument for a series of digits, if it matches,
+    "      try to use that as a buffer number, if it doesn't try to use it as a
+    "      buffer name substring.
     let jobnr = getbufvar(a:buffer, 'vsh_job')
     if l:jobnr == ''
       echoerr 'Buffer ' . a:buffer . ' has no vsh job running'
       return
     endif
 
-    call jobsend(l:jobnr, getline('.') . "\n")
+    let indent = a:dedent == '!' ? match(getline(a:line1), '\S') : 0
+    " Inclusive
+    for linenr in range(a:line1, a:line2)
+      call jobsend(l:jobnr, getline(linenr)[indent:] . "\n")
+    endfor
   endfunction
 
-  function vsh#vsh#VshSendThis(type)
-    if a:type != 'line'
+  function vsh#vsh#VshSendThis(selection_type)
+    if a:selection_type != 'line'
+      echom 'Operator not supported for non-linewise selections. This is TODO'
       return
     endif
-    execute "'[,']VshSend " . b:vsh_alt_buffer
+    if ! has_key(b:, 'vsh_alt_buffer')
+      echom "Don't know what buffer to send the selection to."
+      echom 'Use a count to specify, or set b:vsh_alt_buffer'
+      return
+    endif
+    call vsh#vsh#VshSend(b:vsh_alt_buffer, line("'["), line("']"), b:vsh_send_dedent)
+  endfunction
+
+  function vsh#vsh#DoOperatorFunc(dedent)
+    if v:count
+      let b:vsh_alt_buffer = bufname(v:count)
+    endif
+    let b:vsh_send_dedent = a:dedent ? '!' : ''
+    set operatorfunc=vsh#vsh#VshSendThis
+    return 'g@'
   endfunction
 
   function vsh#vsh#SendControlChar()
@@ -898,14 +918,22 @@ endfunction
 
 " Global commands and mappings
 if !get(g:, 'vsh_loaded')
-  command -range -nargs=1 -complete=buffer VshSend :<line1>,<line2>call vsh#vsh#VshSend(<f-args>)
-  nnoremap <silent> <Plug>VshSend :<C-u>let b:vsh_alt_buffer=bufname(v:count)<CR>:<C-U>set operatorfunc=vsh#vsh#VshSendThis<CR>g@
-  nnoremap <silent> <Plug>VshSendLine :<C-u>let b:vsh_alt_buffer=bufname(v:count)<CR>:<C-U>set operatorfunc=vsh#vsh#VshSendThis <Bar> exe 'norm! g@_'<CR>
-  vnoremap <silent> <Plug>VshSendV :VshSend <C-r>=bufname(v:count)<CR><CR>
-  if !hasmapto('<Plug>VshSend') && maparg('<leader>vs', 'n') ==# '' && !has('g:vsh_no_default_mappings')
-    vmap <Leader>vs <Plug>VshSendV
-    nmap <Leader>vs  <Plug>VshSend
-    nmap <Leader>vss  <Plug>VshSendLine
+  command -range -nargs=1 -bang -complete=buffer VshSend :call vsh#vsh#VshSend(<f-args>, <line1>, <line2>, '<bang>')
+  " Mappings have 'N' after them so that vim doesn't wait to see if this is the
+  " 'Dedent' version of the mapping.
+  nnoremap <expr> <silent> <Plug>VshSendN vsh#vsh#DoOperatorFunc(0)
+  nnoremap <expr> <silent> <Plug>VshSendDedent vsh#vsh#DoOperatorFunc(1)
+  nnoremap <expr> <silent> <Plug>VshSendLineN vsh#vsh#DoOperatorFunc(0) . '_'
+  nnoremap <expr> <silent> <Plug>VshSendLineDedent vsh#vsh#DoOperatorFunc(1) . '_'
+  vnoremap <silent> <Plug>VshSendVN :VshSend <C-r>=bufname(v:count)<CR><CR>
+  vnoremap <silent> <Plug>VshSendVDedent :VshSend! <C-r>=bufname(v:count)<CR><CR>
+  if !hasmapto('<Plug>VshSend') && maparg('<leader>vd', 'n') ==# '' && maparg('<leader>vs', 'n') ==# '' && !has('g:vsh_no_default_mappings')
+    vmap <Leader>vs <Plug>VshSendVN
+    vmap <Leader>vd <Plug>VshSendVDedent
+    nmap <Leader>vs  <Plug>VshSendN
+    nmap <Leader>vss  <Plug>VshSendLineN
+    nmap <Leader>vd  <Plug>VshSendDedent
+    nmap <Leader>vdd  <Plug>VshSendLineDedent
   end
 endif
 
