@@ -374,12 +374,20 @@ CTRL-P           Move to the previous command line.
                 and leave the cursor in insert mode at the end of that new
                 prompt.
 
+
                         *vsh-v_<F3>* *vsh-rerun-mapping* *vsh-:Vrerun*
 :[range]Vrerun  Remove all output in the range, send all command
                 lines to the underlying shell, and insert output after the
                 last command.
 <F3>            Visual mode mapping to do the above on the visual selection.
 
+
+                        *vsh-v_<F4>* *vsh-make-cmds-mapping* *vsh-:VmakeCmds*
+:[range]VmakeCmds  Put |b:vsh_prompt| at the start of every line in [range].
+                   This is useful to change output or copied text into a
+                   series of commands at the same time.
+                   (e.g. if copying a few lines from a shell script).
+<F4>            Visual mode mapping to do the above on the visual selection.
 
                             *vsh-<localleader>c* *vsh-control-char*
                           *vsh-send-control-char* *vsh-send-control*

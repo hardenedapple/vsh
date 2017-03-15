@@ -764,6 +764,7 @@ function s:define_global_mappings()
   nnoremap <silent> <Plug>(vshReplaceOutput)  :call vsh#vsh#ReplaceOutput()<CR>
   inoremap <silent> <Plug>(vshRunNewPrompt) <Esc>:call vsh#vsh#ReplaceOutputNewPrompt()<CR>
   nnoremap <silent> <Plug>(vshNewPrompt)  :<C-U>call vsh#vsh#NewPrompt(1)<CR>
+  vnoremap <silent> <Plug>(vshMakeCmd) :VmakeCmds<CR>
   vnoremap <silent> <Plug>(vshRerun) :Vrerun<CR>
 
   " Send control characters to the underlying terminal -- it will turn these into
@@ -816,6 +817,7 @@ function vsh#vsh#SetupMappings()
     call s:define_global_mappings()
   endif
   command -buffer -range Vrerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:vsh_prompt . '/call vsh#vsh#ReplaceOutput()'
+  command -buffer -range VmakeCmds execute 'keeppatterns ' . <line1> . ',' . <line2> . 's/^/' . b:vsh_prompt . '/'
   command -buffer VshPass call vsh#vsh#SendPassword()
   if !has('g:vsh_no_default_mappings')
     " Motion
@@ -831,6 +833,7 @@ function vsh#vsh#SetupMappings()
     imap <buffer> <M-CR> <Plug>(vshRunNewPrompt)
     nmap <buffer> <localleader>n  <Plug>(vshNewPrompt)
     vmap <buffer> <F3> <Plug>(vshRerun)
+    vmap <buffer> <F4> <Plug>(vshMakeCmd)
 
     " Control characters
     nmap <buffer> <localleader>c <Plug>(vshSendControlChar)
