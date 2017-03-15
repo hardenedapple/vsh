@@ -631,6 +631,97 @@ Expect:
   end of the buffer
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                          Command Block text object                          "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Given vsh (vsh buffer):
+  vshcmd: > echo Hi
+  vshcmd: > echo Hi
+  a
+  a
+  vshcmd: > echo Hi
+  vshcmd: > echo Hi
+  vshcmd: > # echo Hi
+  vshcmd: > echo Hi
+  a
+  a
+  vshcmd: > echo Hi
+  vshcmd: > echo Hi
+
+Do (Selects when at start of buffer):
+  vixx
+
+Expect:
+  a
+  a
+  vshcmd: > echo Hi
+  vshcmd: > echo Hi
+  vshcmd: > # echo Hi
+  vshcmd: > echo Hi
+  a
+  a
+  vshcmd: > echo Hi
+  vshcmd: > echo Hi
+
+Do (Select above when in output):
+  3jvixx
+
+Expect:
+  a
+  a
+  vshcmd: > echo Hi
+  vshcmd: > echo Hi
+  vshcmd: > # echo Hi
+  vshcmd: > echo Hi
+  a
+  a
+  vshcmd: > echo Hi
+  vshcmd: > echo Hi
+
+Do (Select breaks at comment):
+  4jvixx
+
+Expect:
+  vshcmd: > echo Hi
+  vshcmd: > echo Hi
+  a
+  a
+  vshcmd: > # echo Hi
+  vshcmd: > echo Hi
+  a
+  a
+  vshcmd: > echo Hi
+  vshcmd: > echo Hi
+
+Do (Select An execution block includes comments):
+  4jvaxx
+
+Expect:
+  vshcmd: > echo Hi
+  vshcmd: > echo Hi
+  a
+  a
+  a
+  a
+  vshcmd: > echo Hi
+  vshcmd: > echo Hi
+
+Do (Select works at end of buffer):
+  Gvaxx
+
+Expect:
+  vshcmd: > echo Hi
+  vshcmd: > echo Hi
+  a
+  a
+  vshcmd: > echo Hi
+  vshcmd: > echo Hi
+  vshcmd: > # echo Hi
+  vshcmd: > echo Hi
+  a
+  a
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                            Start Ranged Command                             "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 

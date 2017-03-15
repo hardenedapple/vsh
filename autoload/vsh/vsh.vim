@@ -311,6 +311,54 @@ function vsh#vsh#SelectOutput(include_prompt)
   exe 'normal! '.l:startline.'ggV'.l:endline.'gg'
 endfunction
 
+function vsh#vsh#SelectCommandBlock(include_comments)
+  if a:include_comments
+    let include_regex = vsh#vsh#SplitMarker(0)
+    let Find_prompt = { -> setpos('.', [0, s:segment_start(), 0, 0]) }
+  else
+    let include_regex = s:motion_marker()
+    let Find_prompt = { -> vsh#vsh#MoveToPrevPrompt('n', 0) }
+  endif
+
+  if getline('.') !~# include_regex
+    call Find_prompt()
+  endif
+
+  let this_line = line('.')
+  let first_line = this_line
+  let last_line = this_line
+
+  while getline(first_line) =~# include_regex
+    let first_line -= 1
+  endwhile
+  while getline(last_line) =~# include_regex
+    let last_line += 1
+  endwhile
+  let first_line += 1
+  let last_line -= 1
+
+  " if a:mode == 'operator'
+  exe 'normal! '.l:first_line.'ggV'.l:last_line.'gg'
+  " else
+  "   let curpos = getpos('.')
+  "   " The visual position is lost by the time this function is called, and it
+  "   " isn't stored in '< or '> so we can't tell which end of the visual
+  "   " selection we're at.
+  "   " We can't reselect the selection because we get a 'Not allowed' error
+  "   " normal! gv
+  "   " Currently don't know of any way to get this working.
+  "   let start_marker = getpos("'<")
+  "   let end_marker = getpos("'>")
+  "   echom string(start_marker)
+  "   echom string(end_marker)
+  "   if curpos == start_marker
+  "     return ":\<C-u>normal! gv".l:first_line."gg^\<CR>"
+  "   else
+  "     return ":\<C-u>normal! gv".l:last_line."gg$\<CR>"
+  "   end
+  " end
+endfunction
+
 function vsh#vsh#BOLOverride()
   if getline('.') =~# vsh#vsh#SplitMarker(0)
     call s:move_to_prompt_start()
@@ -804,11 +852,15 @@ function s:define_global_mappings()
   vnoremap <silent> <Plug>(vshInnerCOMMAND) :<C-u>call vsh#vsh#SelectOutput(0)<CR>
   vnoremap <silent> <Plug>(vshOuterCommand) :<C-u>call vsh#vsh#SelectCommand(0)<CR>
   vnoremap <silent> <Plug>(vshOuterCOMMAND) :<C-u>call vsh#vsh#SelectOutput(1)<CR>
+  vnoremap <silent> <Plug>(vshInnerCommandBlock) :<C-u>call vsh#vsh#SelectCommandBlock(0)<CR>
+  vnoremap <silent> <Plug>(vshOuterCommandBlock) :<C-u>call vsh#vsh#SelectCommandBlock(1)<CR>
   " Operator mode
   onoremap <silent> <Plug>(vshInnerCommand) :<C-u>call vsh#vsh#SelectCommand(1)<CR>
   onoremap <silent> <Plug>(vshInnerCOMMAND) :<C-u>call vsh#vsh#SelectOutput(0)<CR>
   onoremap <silent> <Plug>(vshOuterCommand) :<C-u>call vsh#vsh#SelectCommand(0)<CR>
   onoremap <silent> <Plug>(vshOuterCOMMAND) :<C-u>call vsh#vsh#SelectOutput(1)<CR>
+  onoremap <silent> <Plug>(vshInnerCommandBlock) :<C-u>call vsh#vsh#SelectCommandBlock(0)<CR>
+  onoremap <silent> <Plug>(vshOuterCommandBlock) :<C-u>call vsh#vsh#SelectCommandBlock(1)<CR>
   let g:vsh_autoload_did_mappings = 1
 endfunction
 
@@ -817,6 +869,9 @@ function vsh#vsh#SetupMappings()
     call s:define_global_mappings()
   endif
   command -buffer -range Vrerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:vsh_prompt . '/call vsh#vsh#ReplaceOutput()'
+  " Don't know why, but my vader tests don't like this command, though it works
+  " fine. -- they even don't like the above command with a different name in
+  " this place -- debugging is required...
   command -buffer -range VmakeCmds execute 'keeppatterns ' . <line1> . ',' . <line2> . 's/^/' . b:vsh_prompt . '/'
   command -buffer VshPass call vsh#vsh#SendPassword()
   if !has('g:vsh_no_default_mappings')
@@ -865,10 +920,14 @@ function vsh#vsh#SetupMappings()
     omap <buffer> ic <Plug>(vshInnerCommand)
     xmap <buffer> io <Plug>(vshInnerCOMMAND)
     omap <buffer> io <Plug>(vshInnerCOMMAND)
+    xmap <buffer> ix <Plug>(vshInnerCommandBlock)
+    omap <buffer> ix <Plug>(vshInnerCommandBlock)
     xmap <buffer> ac <Plug>(vshOuterCommand)
     omap <buffer> ac <Plug>(vshOuterCommand)
     xmap <buffer> ao <Plug>(vshOuterCOMMAND)
     omap <buffer> ao <Plug>(vshOuterCOMMAND)
+    xmap <buffer> ax <Plug>(vshOuterCommandBlock)
+    omap <buffer> ax <Plug>(vshOuterCommandBlock)
   endif
 endfunction
 
