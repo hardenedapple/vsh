@@ -8,7 +8,7 @@ function vsh#vsh#SplitMarker(bufnr)
   " Ignore whitespace in the variable b:vsh_prompt
   " Generalised with getbufvar() because it can get called from a different
   " buffer (when used in a callback).
-  " 
+  "
   " XXX We return '^' if there is no local prompt variable.
   "     This means that the functions where search() is called search for '^',
   "     which matches all lines.
@@ -312,6 +312,18 @@ function vsh#vsh#SelectOutput(include_prompt)
 endfunction
 
 function vsh#vsh#SelectCommandBlock(include_comments)
+  " " Throughout this function, there are some comments documenting what would
+  " " need to be done to make the visual selection *extend* instead of switch.
+  " " This alternate behaviour can be seen with  vip<move to other paragraph>ip
+  " " and compared to the current behaviour that matches
+  " " va)<move to other brace>a)
+  " " It's much uglier to make and doesn't add much, so I don't do it, but I'm
+  " " a little proud of figuring it out, so I keep it around.
+  " if a:mode != 'o'
+  "   " Reselect, so the cursor is in the position that it was before this
+  "   " function was called.
+  "   normal! gv
+  " endif
   if a:include_comments
     let include_regex = vsh#vsh#SplitMarker(0)
     let Find_prompt = { -> setpos('.', [0, s:segment_start(), 0, 0]) }
@@ -337,26 +349,41 @@ function vsh#vsh#SelectCommandBlock(include_comments)
   let first_line += 1
   let last_line -= 1
 
-  " if a:mode == 'operator'
+  " Anatomy of a visual mode mapping.
+  " If using an <expr> mapping, we can't find out where the start and end
+  " points of the current visual selection are: getpos("'<") and its
+  " counterpart both give the values that were around before.
+  " Moreover, we can't use any 'normal' commands, to find the cursor position
+  " of each side of the visual selection, as we get E523.
+  "
+  " Using a normal mapping to call a function:
+  " Mapping is called, visual mode is lost, and cursor position is moved to the
+  " *start* of the selection.
+  " We can find the sides of the visual selection using getpos("'<") and its
+  " counterpart, but we don't know which side of the selection the cursor was
+  " on before here.
+  " Reselecting the previous selection moves the cursor to the same side that
+  " it was on before.
+  " We then know what side the cursor is on, and can find the lines to move to.
+  " if a:mode == 'o'
   exe 'normal! '.l:first_line.'ggV'.l:last_line.'gg'
   " else
+  "   " Visual mode
   "   let curpos = getpos('.')
-  "   " The visual position is lost by the time this function is called, and it
-  "   " isn't stored in '< or '> so we can't tell which end of the visual
-  "   " selection we're at.
-  "   " We can't reselect the selection because we get a 'Not allowed' error
-  "   " normal! gv
-  "   " Currently don't know of any way to get this working.
   "   let start_marker = getpos("'<")
   "   let end_marker = getpos("'>")
-  "   echom string(start_marker)
-  "   echom string(end_marker)
-  "   if curpos == start_marker
-  "     return ":\<C-u>normal! gv".l:first_line."gg^\<CR>"
+  "   if curpos == end_marker
+  "     exe 'normal! gv'.l:last_line.'gg$'
+  "     if start_marker[1] >= l:first_line
+  "       exe 'normal! o'.l:first_line.'gg^o'
+  "     endif
   "   else
-  "     return ":\<C-u>normal! gv".l:last_line."gg$\<CR>"
-  "   end
-  " end
+  "     exe 'normal! gv'.l:first_line.'gg^'
+  "     if end_marker[1] <= l:last_line
+  "       exe 'normal! o'.l:last_line.'gg$o'
+  "     endif
+  "   endif
+  " endif
 endfunction
 
 function vsh#vsh#BOLOverride()
@@ -869,9 +896,6 @@ function vsh#vsh#SetupMappings()
     call s:define_global_mappings()
   endif
   command -buffer -range Vrerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:vsh_prompt . '/call vsh#vsh#ReplaceOutput()'
-  " Don't know why, but my vader tests don't like this command, though it works
-  " fine. -- they even don't like the above command with a different name in
-  " this place -- debugging is required...
   command -buffer -range VmakeCmds execute 'keeppatterns ' . <line1> . ',' . <line2> . 's/^/' . b:vsh_prompt . '/'
   command -buffer VshPass call vsh#vsh#SendPassword()
   if !has('g:vsh_no_default_mappings')
@@ -933,6 +957,7 @@ endfunction
 
 function s:teardown_mappings()
   silent! delcommand Vrerun
+  silent! delcommand VmakeCmds
   silent! delcommand VshPass
   if !has('g:vsh_no_default_mappings')
     " Motion
@@ -995,7 +1020,7 @@ endfunction
 "      I can currently have the 'this is a text' either in red or no color, I
 "      haven't managed to get it in green.
 function s:create_color_groups()
-  let colorControl = '"\[\(\d\+;\=\)*m"' 
+  let colorControl = '"\[\(\d\+;\=\)*m"'
   " Hide all bash control characters
   execute 'syn match vshHide ' . colorControl . ' conceal'
   let colornumbers = ['Black', 'DarkRed', 'DarkGreen', 'Yellow',

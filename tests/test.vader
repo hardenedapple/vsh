@@ -631,8 +631,9 @@ Expect:
   end of the buffer
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"                          Command Block text object                          "
+"                      Select Command Block text object                       "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
 Given vsh (vsh buffer):
   vshcmd: > echo Hi
   vshcmd: > echo Hi
@@ -663,11 +664,9 @@ Expect:
   vshcmd: > echo Hi
 
 Do (Select above when in output):
-  3jvixx
+  3jVixx
 
 Expect:
-  a
-  a
   vshcmd: > echo Hi
   vshcmd: > echo Hi
   vshcmd: > # echo Hi
@@ -706,7 +705,7 @@ Expect:
   vshcmd: > echo Hi
 
 Do (Select works at end of buffer):
-  Gvaxx
+  GVaxx
 
 Expect:
   vshcmd: > echo Hi
@@ -719,7 +718,6 @@ Expect:
   vshcmd: > echo Hi
   a
   a
-
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                            Start Ranged Command                             "
