@@ -105,6 +105,16 @@ class MarkStack(gdb.Command):
 class GoHere(gdb.Command):
     '''View the current position in a neovim buffer.
 
+    You can specify how to open the other file with arguments between the
+    address and the command.
+    Note that using 'edit' on large files with syntax highlighting and folding
+    will take longer than using 'buffer'.
+
+    The 'default' open method is specially handled by `gohere` to search for a
+    window marked with the window-local variable `w:gdb_view` and use that if
+    it exists. If no window is marked, then default will go to that position in
+    the current window.
+
     Usage:
         # If there is a window with w:gdb_view set go there before moving to
         # current window.
@@ -128,15 +138,26 @@ class GoHere(gdb.Command):
     def __init__(self):
         super(GoHere, self).__init__('gohere', gdb.COMMAND_USER)
 
+    def direct_goto(self, nvim, name):
+        '''Returns 'buffer' if `name` is the name of a valid neovim buffer,
+        otherwise returns 'edit' '''
+        fullname = os.path.abspath(name)
+        for buf in nvim.buffers:
+            if buf.name == fullname:
+                return 'buffer'
+        return 'edit'
+
     def invoke(self, arg, _):
         self.dont_repeat()
         args = gdb.string_to_argv(arg)
-        if len(args) > 2:
-            raise ValueError(
-                'Usage: gohere [default | e | vnew | new] [address]')
 
-        address = '$pc' if len(args) < 2 else args[1]
-        open_method = 'default' if not args else args[0]
+        address = '$pc' if len(args) < 2 else args[-1]
+        if not args:
+            open_method = 'default'
+        elif len(args) == 1:
+            open_method = args[0]
+        else:
+            open_method = ' '.join(args[:-1])
 
         pos = gdb.find_pc_line(int(gdb.parse_and_eval(address).cast(
             gdb.lookup_type('char').pointer())))
@@ -149,7 +170,7 @@ class GoHere(gdb.Command):
             win = find_marked_window(nvim)
             if win:
                 nvim.command('{} wincmd w'.format(win.number))
-            open_method = 'e'
+            open_method = self.direct_goto(nvim, pos.symtab.filename)
 
         nvim.command('{} +{} {}'.format(open_method, pos.line,
                                         os.path.abspath(pos.symtab.filename)))
