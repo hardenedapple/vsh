@@ -241,11 +241,10 @@ You can send text to the underlying terminal from another buffer with
 |vsh-:VshSend|. This command takes a range and requires a buffer name as an
 argument, it sends the text in that range to the process in the specified
 buffer. An operator is provided under the default mapping of `<leader>vs` that
-sends the text acted upon to the buffer whose number was provided as the
-count. i.e. `3<leader>vsip` sends the text of the current paragraph to the
-process in buffer number 3.
-`<leader>vs` without a count uses the variable `b:vsh_alt_buffer`, which can
-be set manually, but is also set by giving the mapping a count.
+sends the text acted upon to the buffer |b:vsh_alt_buffer|.
+|b:vsh_alt_buffer| can be set by using the `<leader>vb` mapping with a count,
+e.g. `3<leader>vb` sets |b:vsh_alt_buffer| to the name of buffer number 3 and
+does nothing else.
 `<leader>vd` does the same as `<leader>vs` but dedents lines.
 
 
@@ -447,9 +446,12 @@ ao          Act on the output of a command including the command line itself.
         {bufname}.
         With a bang, removes the indentation of the first line in the range
         from all lines in the range.
+<leader>vb              vsh-<leader>vb
+        Set |b:vsh_alt_buffer| to the name of buffer |v:count| and do nothing
+        else. Particularly useful before running <leader>vs or <leader>vd.
 <leader>vs             *vsh-<leader>vs*
         Send the lines in the motion acted upon to the process associated with
-        buffer number [count].
+        buffer |b:vsh_alt_buffer|.
 <leader>vd              *vsh-<leader>vd*
         Same as <leader>vs, but removes the indentation of the first line off
         all lines in the range.

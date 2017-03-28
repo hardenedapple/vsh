@@ -708,13 +708,30 @@ else
   endfunction
 
   function vsh#vsh#DoOperatorFunc(dedent)
-    if v:count
-      let b:vsh_alt_buffer = bufname(v:count)
-    endif
     let b:vsh_send_dedent = a:dedent ? '!' : ''
     set operatorfunc=vsh#vsh#VshSendThis
     return 'g@'
   endfunction
+
+  function vsh#vsh#SetSendbuf()
+    " Aim is just to use v:count and do nothing.
+    " When there is a count, we need to cancel it without having any effect on
+    " the buffer, so we return <Esc>.
+    " When there isn't a count, we don't want to return <Esc> because this will
+    " ring the bell.
+    if v:count
+      let b:vsh_alt_buffer = bufname(v:count)
+      " Returning <Esc> loses visual mode, we're only called in visual mode or
+      " normal mode.
+      if mode() != 'n'
+        return "\<Esc>gv"
+      else
+        return "\<Esc>"
+      endif
+    endif
+    return ''
+  endfunction
+
 
   function vsh#vsh#SendControlChar()
     if !get(b:, 'vsh_job', 0)
@@ -1072,19 +1089,23 @@ if !get(g:, 'vsh_loaded')
   command -range -nargs=1 -bang -complete=buffer VshSend :call vsh#vsh#VshSendCommand(<f-args>, <line1>, <line2>, '<bang>')
   " Mappings have 'N' after them so that vim doesn't wait to see if this is the
   " 'Dedent' version of the mapping.
+  nnoremap <expr> <silent> <Plug>VshSetSendbuf vsh#vsh#SetSendbuf()
   nnoremap <expr> <silent> <Plug>VshSendN vsh#vsh#DoOperatorFunc(0)
   nnoremap <expr> <silent> <Plug>VshSendDedent vsh#vsh#DoOperatorFunc(1)
   nnoremap <expr> <silent> <Plug>VshSendLineN vsh#vsh#DoOperatorFunc(0) . '_'
   nnoremap <expr> <silent> <Plug>VshSendLineDedent vsh#vsh#DoOperatorFunc(1) . '_'
   vnoremap <silent> <Plug>VshSendVN :<C-U>call vsh#vsh#VshVisualSend(visualmode(), 0)<CR>
   vnoremap <silent> <Plug>VshSendVDedent :<C-U>call vsh#vsh#VshVisualSend(visualmode(), 1)<CR>
+  vnoremap <expr> <silent> <Plug>VshSetSendbufV vsh#vsh#SetSendbuf()
   if !hasmapto('<Plug>VshSend') && maparg('<leader>vd', 'n') ==# '' && maparg('<leader>vs', 'n') ==# '' && !has('g:vsh_no_default_mappings')
+    vmap <Leader>vb <Plug>VshSetSendbufV
     vmap <Leader>vs <Plug>VshSendVN
     vmap <Leader>vd <Plug>VshSendVDedent
     nmap <Leader>vs  <Plug>VshSendN
     nmap <Leader>vss  <Plug>VshSendLineN
     nmap <Leader>vd  <Plug>VshSendDedent
     nmap <Leader>vdd  <Plug>VshSendLineDedent
+    nmap <Leader>vb <Plug>VshSetSendbuf
   end
 endif
 
