@@ -5,11 +5,7 @@
 stty tabs -onlcr icanon -echo -onlcr iexten isig -echonl -crterase
 
 export PAGER=
-
-# nroff encodes bold and underlines using backspaces.
-# acme doesn't handle this very well -- I don't know whether by design or not.
-# Use 'col -b' to remove backspaces and characters just before them.
-export MANPAGER='col -b'
+export MANPAGER="$1/vsh_man_pager"
 
 export EDITOR="$1/vsh_editor_prog"
 export NEOVIM_BUFFER_NR="$2"
