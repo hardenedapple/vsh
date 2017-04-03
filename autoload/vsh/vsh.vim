@@ -1006,6 +1006,9 @@ function s:teardown_mappings()
     silent! iunmap <buffer> <M-CR>
     silent! nunmap <buffer> <localleader>n
     silent! vunmap <buffer> <F3>
+    silent! nunmap <buffer> <F3>
+    silent! vunmap <buffer> <F4>
+    silent! nunmap <buffer> <F4>
 
     " Control characters
     silent! nunmap <buffer> <localleader>c
@@ -1020,10 +1023,10 @@ function s:teardown_mappings()
     silent! nunmap <buffer> gx
     silent! nunmap <buffer> gf
     silent! nunmap <buffer> gF
-    silent! nunmap <buffer> <C-w> f
-    silent! nunmap <buffer> <C-w> F
-    silent! nunmap <buffer> <C-w> gf
-    silent! nunmap <buffer> <C-w> gF
+    silent! nunmap <buffer> <C-w>f
+    silent! nunmap <buffer> <C-w>F
+    silent! nunmap <buffer> <C-w>gf
+    silent! nunmap <buffer> <C-w>gF
     silent! iunmap <buffer> <C-x><C-f>
 
     " Working with the vsh buffer text
@@ -1041,6 +1044,10 @@ function s:teardown_mappings()
     silent! ounmap <buffer> ac
     silent! xunmap <buffer> ao
     silent! ounmap <buffer> ao
+    silent! xunmap <buffer> ix
+    silent! ounmap <buffer> ix
+    silent! xunmap <buffer> ax
+    silent! ounmap <buffer> ax
   endif
 endfunction
 
