@@ -667,6 +667,8 @@ Do (Select above when in output):
   3jVixx
 
 Expect:
+  a
+  a
   vshcmd: > echo Hi
   vshcmd: > echo Hi
   vshcmd: > # echo Hi
