@@ -713,6 +713,22 @@ else
     return 'g@'
   endfunction
 
+  function vsh#vsh#RunOperatorFunc(type)
+    '[,']Vrerun
+  endfunction
+  function vsh#vsh#DoRunOperatorFunc()
+    set operatorfunc=vsh#vsh#RunOperatorFunc
+    return 'g@'
+  endfunction
+
+  function vsh#vsh#MakeCmdOperatorFunc(type)
+    '[,']VmakeCmds
+  endfunction
+  function vsh#vsh#DoMakeCmdOperatorFunc()
+    set operatorfunc=vsh#vsh#MakeCmdOperatorFunc
+    return 'g@'
+  endfunction
+
   function vsh#vsh#SetSendbuf()
     " Aim is just to use v:count and do nothing.
     " When there is a count, we need to cancel it without having any effect on
@@ -858,6 +874,8 @@ function s:define_global_mappings()
   nnoremap <silent> <Plug>(vshNewPrompt)  :<C-U>call vsh#vsh#NewPrompt(1)<CR>
   vnoremap <silent> <Plug>(vshMakeCmd) :VmakeCmds<CR>
   vnoremap <silent> <Plug>(vshRerun) :Vrerun<CR>
+  nnoremap <expr> <silent> <Plug>(vshMakeCmdOp) vsh#vsh#DoMakeCmdOperatorFunc()
+  nnoremap <expr> <silent> <Plug>(vshRerunOp) vsh#vsh#DoRunOperatorFunc()
 
   " Send control characters to the underlying terminal -- it will turn these into
   " signals sent to the foreground process.
@@ -930,6 +948,8 @@ function vsh#vsh#SetupMappings()
     nmap <buffer> <localleader>n  <Plug>(vshNewPrompt)
     vmap <buffer> <F3> <Plug>(vshRerun)
     vmap <buffer> <F4> <Plug>(vshMakeCmd)
+    nmap <buffer> <F3> <Plug>(vshRerunOp)
+    nmap <buffer> <F4> <Plug>(vshMakeCmdOp)
 
     " Control characters
     nmap <buffer> <localleader>c <Plug>(vshSendControlChar)

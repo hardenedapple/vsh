@@ -234,7 +234,10 @@ This can be achieved by using the command |vsh-:Vrerun| with a range.
 This command sends all command lines in the given range to the underlying
 process, and inserts output after the last command in that range. There is a
 visual mode convenience mapping on <F3> to run this over the current visual
-selection.
+selection. In normal mode <F3> is an operatorfunc mapping that acts on a
+provided motion. It makes all motions linewise (as the operator only makes
+sense linewise), and to act on the specific line one can use any motion in the
+current line.
 
                      *vsh-send* *vsh-send-other* *vsh-send-buffer*
 You can send text to the underlying terminal from another buffer with
@@ -379,6 +382,7 @@ CTRL-P           Move to the previous command line.
                 lines to the underlying shell, and insert output after the
                 last command.
 <F3>            Visual mode mapping to do the above on the visual selection.
+<F3>            Normal mode mapping to run the above on a given motion.
 
 
                         *vsh-v_<F4>* *vsh-make-cmds-mapping* *vsh-:VmakeCmds*
@@ -387,6 +391,7 @@ CTRL-P           Move to the previous command line.
                    series of commands at the same time.
                    (e.g. if copying a few lines from a shell script).
 <F4>            Visual mode mapping to do the above on the visual selection.
+<F4>            Normal mode mapping to run the above on a given motion.
 
                             *vsh-<localleader>c* *vsh-control-char*
                           *vsh-send-control-char* *vsh-send-control*

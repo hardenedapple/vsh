@@ -814,6 +814,56 @@ Expect:
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                       Convert some text into commands                       "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Given vsh (vsh buffer):
+  echo Hello
+  echo Hello
+  echo Hello
+  echo Hello
+  echo Hello
+
+Execute (VmakeCmds directly):
+  2,3VmakeCmds
+
+Expect:
+  echo Hello
+  vshcmd: > echo Hello
+  vshcmd: > echo Hello
+  echo Hello
+  echo Hello
+
+Do (VmakeCmds <F4> visual mode map):
+  jvj\<F4>
+
+Expect:
+  echo Hello
+  vshcmd: > echo Hello
+  vshcmd: > echo Hello
+  echo Hello
+  echo Hello
+
+Do (VmakeCmds <F4> normal mode map):
+  j\<F4>j
+
+Expect:
+  echo Hello
+  vshcmd: > echo Hello
+  vshcmd: > echo Hello
+  echo Hello
+  echo Hello
+
+Do (VmakeCmds <F4> normal mode map word motion):
+  jw\<F4>/echo/e\<CR>
+
+Expect:
+  echo Hello
+  vshcmd: > echo Hello
+  vshcmd: > echo Hello
+  echo Hello
+  echo Hello
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                              vsh_clear_output                               "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Given vsh (vsh buffer):
