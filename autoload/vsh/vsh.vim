@@ -40,7 +40,7 @@ endfunction
 function s:segment_start()
   " Handle being at the start of the file
   let l:retval = search(vsh#vsh#SplitMarker(0), 'bncW', 0)
-  return l:retval ? l:retval : 1
+  return l:retval
 endfunction
 
 function s:segment_end()
@@ -168,10 +168,6 @@ endfunction
 function s:command_span()
   let l:eof = line('$')
   let l:startline = s:segment_start()
-  " If no current prompt, no range
-  if l:startline == 0
-    return []
-  endif
 
   let l:nextprompt = s:segment_end()
   let l:cur_output_len = l:nextprompt - l:startline
@@ -334,6 +330,9 @@ function vsh#vsh#SelectCommandBlock(include_comments)
 
   if getline('.') !~# include_regex
     call Find_prompt()
+    if getline('.') !~# include_regex
+      return
+    endif
   endif
 
   let this_line = line('.')

@@ -294,17 +294,32 @@ Expect:
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Given vsh (vsh buffer):
+  just some text
+  above everything
   vshcmd: > ls
   bin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
   $ 
   vshcmd: > echo Hello
 
-
-Do (Save output on command line):
+Do (Save output ignores text without prompt):
   \six
 
 Expect:
+  xjust some text
+  above everything
+  vshcmd: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vshcmd: > echo Hello
+
+Do (Save output on command line):
+  2j\six
+
+Expect:
+  just some text
+  above everything
   xvshcmd: > # vshcmd: > ls
   bin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
@@ -312,9 +327,11 @@ Expect:
   vshcmd: > echo Hello
 
 Do (Save output when in output):
-  j\six
+  3j\six
 
 Expect:
+  just some text
+  above everything
   vshcmd: > # vshcmd: > ls
   xbin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
@@ -327,6 +344,20 @@ Expect:
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Given vsh (vsh buffer):
+  just some text
+  above everything
+  vshcmd: > # vshcmd: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vshcmd: > echo Hello
+
+Do (Unsave output ignores text without prompt):
+  \aix
+
+Expect:
+  xjust some text
+  above everything
   vshcmd: > # vshcmd: > ls
   bin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
@@ -334,9 +365,11 @@ Given vsh (vsh buffer):
   vshcmd: > echo Hello
 
 Do (Unsave output on command line):
-  \aix
+  2j\aix
 
 Expect:
+  just some text
+  above everything
   xvshcmd: > ls
   bin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
@@ -344,9 +377,11 @@ Expect:
   vshcmd: > echo Hello
 
 Do (Unsave output when in output):
-  j\aix
+  3j\aix
 
 Expect:
+  just some text
+  above everything
   vshcmd: > ls
   xbin            records    share     tentel_password.txt  TODO
   pstree_output  sensitive  temp_dir  test.vsh             xresources
@@ -630,6 +665,16 @@ Expect:
   Output at the
   end of the buffer
 
+Given vsh (vsh buffer):
+  Some text before first prompt
+  vshcmd: > ls
+
+Do (Selects output even if no prompt above):
+  dio
+
+Expect:
+  vshcmd: > ls
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                      Select Command Block text object                       "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -721,11 +766,33 @@ Expect:
   a
   a
 
+Given vsh (vsh buffer):
+  Some text before the first command
+  vshcmd: > echo hello
+
+Do (Select works at start of buffer):
+  cixx
+
+Expect:
+  xSome text before the first command
+  vshcmd: > echo hello
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                            Start Ranged Command                             "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Given vsh (vsh buffer):
+  Text before first command
+  vshcmd: > echo Hello there
+  Hello there
+  vshcmd: > echo Hello there
+  These are some lines
+  Hello there
+
+Do (Output range works at start of file):
+  \od\<CR>
+
+Expect:
   vshcmd: > echo Hello there
   Hello there
   vshcmd: > echo Hello there
@@ -733,18 +800,20 @@ Given vsh (vsh buffer):
   Hello there
 
 Do (Output range inserted properly):
-  \od\<CR>
+  j\od\<CR>
 
 Expect:
+  Text before first command
   vshcmd: > echo Hello there
   vshcmd: > echo Hello there
   These are some lines
   Hello there
 
 Do (Output range calculated well at end of file):
-  jj\od\<CR>
+  jjj\od\<CR>
 
 Expect:
+  Text before first command
   vshcmd: > echo Hello there
   Hello there
   vshcmd: > echo Hello there
