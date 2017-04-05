@@ -386,10 +386,17 @@ function vsh#vsh#SelectCommandBlock(include_comments)
   " endif
 endfunction
 
-function vsh#vsh#BOLOverride()
-  if getline('.') =~# vsh#vsh#SplitMarker(0)
+function vsh#vsh#BOLOverride(mode)
+  let curline = getline('.')
+  if curline =~# vsh#vsh#SplitMarker(0)
+    if a:mode == 'v'
+      return s:prompt_end(curline, 1, 0) . '|'
+    endif
     call s:move_to_prompt_start()
   else
+    if a:mode == 'v'
+      return '^'
+    endif
     normal! ^
   endif
 endfunction
@@ -905,8 +912,9 @@ function s:define_global_mappings()
   nnoremap <Plug>(vshStartRangedCommand)  :<C-U><C-r>=vsh#vsh#OutputRange()<CR>
 
   " Conveniance functions for beginning of command
-  nnoremap <silent> <Plug>(vshBOL) :<C-U>call vsh#vsh#BOLOverride()<CR>
-  onoremap <silent> <Plug>(vshBOL) :<C-U>call vsh#vsh#BOLOverride()<CR>
+  nnoremap <silent> <Plug>(vshBOL) :<C-U>call vsh#vsh#BOLOverride('n')<CR>
+  onoremap <silent> <Plug>(vshBOL) :<C-U>call vsh#vsh#BOLOverride('n')<CR>
+  vnoremap <expr><silent> <Plug>(vshBOL) vsh#vsh#BOLOverride('v')
   nnoremap <silent> <Plug>(vshInsertBOL) :<C-U>call vsh#vsh#InsertOverride()<CR>
 
   " Text object for the current buffer
@@ -976,6 +984,7 @@ function vsh#vsh#SetupMappings()
     nmap <buffer> <localleader>o  <Plug>(vshStartRangedCommand)
     nmap <buffer> ^ <Plug>(vshBOL)
     omap <buffer> ^ <Plug>(vshBOL)
+    vmap <buffer> ^ <Plug>(vshBOL)
     nmap <buffer> I <Plug>(vshInsertBOL)
     xmap <buffer> ic <Plug>(vshInnerCommand)
     omap <buffer> ic <Plug>(vshInnerCommand)

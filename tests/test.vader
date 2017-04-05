@@ -782,6 +782,16 @@ Expect:
   vshcmd: > 				ye
   zd
 
+Do ('^' visual mode override):
+  $v^cv\<esc>j$v^cw\<esc>j$v^cx\<esc>j$v^cy\<esc>j$v^cz
+
+Expect:
+  vshcmd: > v
+  vshcmd: >   w
+  vshcmd: > # x
+  vshcmd: > 				y
+  z
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                           Adds prompt on newline                            "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
