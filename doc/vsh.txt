@@ -341,6 +341,43 @@ So that in a buffer with >
     vshcmd: > cd -   # ENDBLOCK
 < you can just press <F2> on the first line to run the block of commands.
 
+
+
+If you segmemnt the block with comments >
+    vshcmd: > # STARTBLOCK
+    vshcmd: > ls
+    vshcmd: > cd -
+    vshcmd: > # ENDBLOCK
+<
+then it can be run using the <F3> command, and the |ix| text object via
+|<F3>ix|.
+
+
+
+As |vsh| ignores empty lines when deciding to run something, storing and
+running a block of commands that require pressing <Enter> on an empty line at
+once can be tricky.
+The most straightforward solution is to insert a |^M| character at the end of
+lines that need to have an extra newline after them. >
+    vshcmd: > python
+    vshcmd: > with open('floppy.img', 'rb') as infile:
+    vshcmd: >   mydata = infile.read()
+    vshcmd: > for i, byte in enumerate(mydata[513:]):
+    vshcmd: >   if byte != 0:
+    vshcmd: >       print(i)
+<
+An alternate solution (that could be used for nicer formatting) is to put a
+character that you know does nothing where blank lines are to be passed >
+    vshcmd: > python
+    vshcmd: > with open('floppy.img', 'rb') as infile:
+    vshcmd: >   mydata = infile.read()
+    vshcmd: > 
+    vshcmd: > for i, byte in enumerate(mydata[513:]):
+    vshcmd: >   if byte != 0:
+    vshcmd: >       print(i)
+    vshcmd: > 
+<
+
 ==============================================================================
 Mappings~
                             *vsh-mappings*
