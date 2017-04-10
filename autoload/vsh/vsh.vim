@@ -998,6 +998,7 @@ function vsh#vsh#SetupMappings()
     xmap <buffer> ax <Plug>(vshOuterCommandBlock)
     omap <buffer> ax <Plug>(vshOuterCommandBlock)
   endif
+  let b:vsh_alt_buffer = bufname('%')
 endfunction
 
 function s:teardown_mappings()
@@ -1147,7 +1148,7 @@ endif
 function s:remove_buffer_variables()
   for variable in ['vsh_job', 'vsh_prompt', 'vsh_completions_cmd',
         \ 'vsh_insert_change_tick', 'vsh_insert_mark', 'vsh_prompt_mark',
-        \ 'vsh_initialised', 'vsh_dir_store']
+        \ 'vsh_initialised', 'vsh_dir_store', 'vsh_alt_buffer']
     execute 'silent! unlet b:' . variable
   endfor
   autocmd! VshBufferClose BufUnload,BufDelete <buffer>
