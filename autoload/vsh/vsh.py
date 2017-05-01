@@ -162,7 +162,7 @@ def vsh_insert_text(data, insert_buf):
         # replaces these with '\n' characters.
         # This is rarely the case, so try to go without first, if needed, then
         # go over all lines in the output and change the characters back.
-        if e.args == (b'string cannot contain newlines',):
+        if e.args == (b'String cannot contain newlines',):
             vsh_insert_helper([val.replace('\n', '\x00') for val in data],
                               vsh_buf)
         else:
