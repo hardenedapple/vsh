@@ -21,8 +21,7 @@ Benefits are mainly around exploratory terminal sessions, where you want to
 
 Some demos are provided in the links below.
 
-At the moment, it requires some functionality in neovim HEAD, but that should
-be coming downstream soon.
+Requires nvim version 0.2
 
 ### Motivation video
 [![Vsh motivation](https://asciinema.org/a/9zn5e69g0by7e9kdsz1vlzgf8.png)](https://asciinema.org/a/9zn5e69g0by7e9kdsz1vlzgf8)
