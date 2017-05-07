@@ -1044,6 +1044,7 @@ function s:teardown_mappings()
     silent! nunmap <buffer> <localleader>o
     silent! nunmap <buffer> ^
     silent! ounmap <buffer> ^
+    silent! vunmap <buffer> ^
     silent! nunmap <buffer> I
     silent! xunmap <buffer> ic
     silent! ounmap <buffer> ic
