@@ -101,6 +101,11 @@ function vsh#vsh#MoveToNextPrompt(mode, count)
     normal! gv
   endif
 
+  " Remember where we started for operator mode
+  if a:mode == 'o'
+    let l:origline = line('.')
+  endif
+
   " Multiple times if given a count
   let index = 0
   let l:prompt = s:motion_marker()
@@ -115,7 +120,7 @@ function vsh#vsh#MoveToNextPrompt(mode, count)
 
   " We have found a prompt, we want to be on the line just before this prompt.
   if a:mode == 'o'
-    if line('.') != 1
+    if line('.') != 1 && line('.') != l:origline
       -1
     endif
   endif

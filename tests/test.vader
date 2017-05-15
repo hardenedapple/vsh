@@ -185,6 +185,17 @@ Expect:
   vshcmd: > ls
   many
 
+Do (Down on line before prompt):
+  \<C-n>0d\<C-n>
+
+Expect:
+  Bunch
+  of lines
+  at start
+  many
+  many
+  files
+
 #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
 #                              Parsing Commands                               #
 #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
