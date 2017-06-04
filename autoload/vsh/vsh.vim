@@ -869,139 +869,14 @@ else
   endfunction
 endif
 
-function s:define_global_mappings()
-  " Motion
-  nnoremap <silent> <Plug>(vshNextPrompt) :<C-U>call vsh#vsh#MoveToNextPrompt('n', v:count1)<CR>
-  nnoremap <silent> <Plug>(vshPrevPrompt) :<C-U>call vsh#vsh#MoveToPrevPrompt('n', v:count1)<CR>
-  vnoremap <silent> <Plug>(vshVNextPrompt) :<C-U>call vsh#vsh#MoveToNextPrompt('v', v:count1)<CR>
-  vnoremap <silent> <Plug>(vshVPrevPrompt) :<C-U>call vsh#vsh#MoveToPrevPrompt('v', v:count1)<CR>
-  " Only makes sense to use linewise motion here.
-  onoremap <silent> <Plug>(vshONextPrompt) V:<C-U>call vsh#vsh#MoveToNextPrompt('o', v:count1)<CR>
-  onoremap <silent> <Plug>(vshOPrevPrompt) V:<C-U>call vsh#vsh#MoveToPrevPrompt('o', v:count1)<CR>
-
-  " Execution and new prompt
-  nnoremap <silent> <Plug>(vshReplaceOutput)  :call vsh#vsh#ReplaceOutput()<CR>
-  inoremap <silent> <Plug>(vshRunNewPrompt) <Esc>:call vsh#vsh#ReplaceOutputNewPrompt()<CR>
-  nnoremap <silent> <Plug>(vshNewPrompt)  :<C-U>call vsh#vsh#NewPrompt(1)<CR>
-  vnoremap <silent> <Plug>(vshMakeCmd) :VmakeCmds<CR>
-  vnoremap <silent> <Plug>(vshRerun) :Vrerun<CR>
-  nnoremap <expr> <silent> <Plug>(vshMakeCmdOp) vsh#vsh#DoMakeCmdOperatorFunc()
-  nnoremap <expr> <silent> <Plug>(vshRerunOp) vsh#vsh#DoRunOperatorFunc()
-
-  " Send control characters to the underlying terminal -- it will turn these into
-  " signals sent to the foreground process.
-  nnoremap <silent> <Plug>(vshSendControlChar) :<C-U>call vsh#vsh#SendControlChar()<CR>
-
-  " Get underlying terminal to tab-complete for us.
-  nnoremap <silent> <Plug>(vshCompletions) :<C-U>call vsh#vsh#ShowCompletions(0)<CR>
-  inoremap <silent> <Plug>(vshICompletions) <Esc>:<C-u>call vsh#vsh#ShowCompletions(0)<CR>a
-  nnoremap <silent> <Plug>(vshGlobCompletions) :<C-U>call vsh#vsh#ShowCompletions(1)<CR>
-  inoremap <silent> <Plug>(vshIGlobCompletions) <Esc>:<C-u>call vsh#vsh#ShowCompletions(1)<CR>a
-
-  " Using shells working directory
-  nnoremap <Plug>(vshGotoThing) :<C-u>call vsh#vsh#WithPathSet("normal \<Plug>NetrwBrowseX")<CR>
-  nnoremap <Plug>(vshGotoFile) :<C-u>call vsh#vsh#WithPathSet('normal! gf')<CR>
-  nnoremap <Plug>(vshGotoFILE) :<C-u>call vsh#vsh#WithPathSet('normal! gF')<CR>
-  nnoremap <Plug>(vshSplitFile) :<C-u>call vsh#vsh#WithPathSet('wincmd f')<CR>
-  nnoremap <Plug>(vshSplitFILE) :<C-u>call vsh#vsh#WithPathSet('wincmd F')<CR>
-  nnoremap <Plug>(vshTabSplitFile) :<C-u>call vsh#vsh#WithPathSet('wincmd gf')<CR>
-  nnoremap <Plug>(vshTabSplitFILE) :<C-u>call vsh#vsh#WithPathSet('wincmd gF')<CR>
-  inoremap <expr> <Plug>(vshFileCompletion) vsh#vsh#FileCompletion()
-
-  " Save current output by commenting the current command and adding a splitter
-  " after the output. Activate it by undoing that.
-  " Don't have a toggle as I like to know exactly what my commands will do.
-  nnoremap <silent> <Plug>(vshSaveCommand) :<C-U>call vsh#vsh#SaveOutput(0)<CR>
-  nnoremap <silent> <Plug>(vshActivateCommand) :<C-U>call vsh#vsh#SaveOutput(1)<CR>
-  nnoremap <Plug>(vshStartRangedCommand)  :<C-U><C-r>=vsh#vsh#OutputRange()<CR>
-
-  " Conveniance functions for beginning of command
-  nnoremap <silent> <Plug>(vshBOL) :<C-U>call vsh#vsh#BOLOverride('n')<CR>
-  onoremap <silent> <Plug>(vshBOL) :<C-U>call vsh#vsh#BOLOverride('n')<CR>
-  vnoremap <expr><silent> <Plug>(vshBOL) vsh#vsh#BOLOverride('v')
-  nnoremap <silent> <Plug>(vshInsertBOL) :<C-U>call vsh#vsh#InsertOverride()<CR>
-
-  " Text object for the current buffer
-  vnoremap <silent> <Plug>(vshInnerCommand) :<C-u>call vsh#vsh#SelectCommand(1)<CR>
-  vnoremap <silent> <Plug>(vshInnerCOMMAND) :<C-u>call vsh#vsh#SelectOutput(0)<CR>
-  vnoremap <silent> <Plug>(vshOuterCommand) :<C-u>call vsh#vsh#SelectCommand(0)<CR>
-  vnoremap <silent> <Plug>(vshOuterCOMMAND) :<C-u>call vsh#vsh#SelectOutput(1)<CR>
-  vnoremap <silent> <Plug>(vshInnerCommandBlock) :<C-u>call vsh#vsh#SelectCommandBlock(0)<CR>
-  vnoremap <silent> <Plug>(vshOuterCommandBlock) :<C-u>call vsh#vsh#SelectCommandBlock(1)<CR>
-  " Operator mode
-  onoremap <silent> <Plug>(vshInnerCommand) :<C-u>call vsh#vsh#SelectCommand(1)<CR>
-  onoremap <silent> <Plug>(vshInnerCOMMAND) :<C-u>call vsh#vsh#SelectOutput(0)<CR>
-  onoremap <silent> <Plug>(vshOuterCommand) :<C-u>call vsh#vsh#SelectCommand(0)<CR>
-  onoremap <silent> <Plug>(vshOuterCOMMAND) :<C-u>call vsh#vsh#SelectOutput(1)<CR>
-  onoremap <silent> <Plug>(vshInnerCommandBlock) :<C-u>call vsh#vsh#SelectCommandBlock(0)<CR>
-  onoremap <silent> <Plug>(vshOuterCommandBlock) :<C-u>call vsh#vsh#SelectCommandBlock(1)<CR>
-  let g:vsh_autoload_did_mappings = 1
-endfunction
-
 function vsh#vsh#SetupMappings()
-  if !has('g:vsh_autoload_did_mappings')
-    call s:define_global_mappings()
-  endif
   command -buffer -range Vrerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:vsh_prompt . '/call vsh#vsh#ReplaceOutput()'
   command -buffer -range VmakeCmds execute 'keeppatterns ' . <line1> . ',' . <line2> . 's/^/' . b:vsh_prompt . '/'
   command -buffer VshPass call vsh#vsh#SendPassword()
   if !has('g:vsh_no_default_mappings')
-    " Motion
-    nmap <buffer> <C-n> <Plug>(vshNextPrompt)
-    nmap <buffer> <C-p> <Plug>(vshPrevPrompt)
-    vmap <buffer> <C-n> <Plug>(vshVNextPrompt)
-    vmap <buffer> <C-p> <Plug>(vshVPrevPrompt)
-    omap <buffer> <C-n> <Plug>(vshONextPrompt)
-    omap <buffer> <C-p> <Plug>(vshOPrevPrompt)
-
-    " Execution and new prompt
-    nmap <buffer> <CR>  <Plug>(vshReplaceOutput)
-    imap <buffer> <M-CR> <Plug>(vshRunNewPrompt)
-    nmap <buffer> <localleader>n  <Plug>(vshNewPrompt)
-    vmap <buffer> <F3> <Plug>(vshRerun)
-    vmap <buffer> <F4> <Plug>(vshMakeCmd)
-    nmap <buffer> <F3> <Plug>(vshRerunOp)
-    nmap <buffer> <F4> <Plug>(vshMakeCmdOp)
-
-    " Control characters
-    nmap <buffer> <localleader>c <Plug>(vshSendControlChar)
-
-    " Completions
-    nmap <buffer> <localleader>l <Plug>(vshCompletions)
-    imap <buffer> <C-q> <Plug>(vshICompletions)
-    nmap <buffer> <localleader>g <Plug>(vshGlobCompletions)
-    imap <buffer> <C-s> <Plug>(vshIGlobCompletions)
-
-    " Using working directory.
-    nmap <buffer> gx <Plug>(vshGotoThing)
-    nmap <buffer> gf <Plug>(vshGotoFile)
-    nmap <buffer> gF <Plug>(vshGotoFILE)
-    nmap <buffer> <C-w>f <Plug>(vshSplitFile)
-    nmap <buffer> <C-w>F <Plug>(vshSplitFILE)
-    nmap <buffer> <C-w>gf <Plug>(vshTabSplitFile)
-    nmap <buffer> <C-w>gF <Plug>(vshTabSplitFILE)
-    imap <buffer> <C-x><C-f> <Plug>(vshFileCompletion)
-
-    " Working with the vsh buffer text
-    nmap <buffer> <localleader>s <Plug>(vshSaveCommand)
-    nmap <buffer> <localleader>a <Plug>(vshActivateCommand)
-    nmap <buffer> <localleader>o  <Plug>(vshStartRangedCommand)
-    nmap <buffer> ^ <Plug>(vshBOL)
-    omap <buffer> ^ <Plug>(vshBOL)
-    vmap <buffer> ^ <Plug>(vshBOL)
-    nmap <buffer> I <Plug>(vshInsertBOL)
-    xmap <buffer> ic <Plug>(vshInnerCommand)
-    omap <buffer> ic <Plug>(vshInnerCommand)
-    xmap <buffer> io <Plug>(vshInnerCOMMAND)
-    omap <buffer> io <Plug>(vshInnerCOMMAND)
-    xmap <buffer> ix <Plug>(vshInnerCommandBlock)
-    omap <buffer> ix <Plug>(vshInnerCommandBlock)
-    xmap <buffer> ac <Plug>(vshOuterCommand)
-    omap <buffer> ac <Plug>(vshOuterCommand)
-    xmap <buffer> ao <Plug>(vshOuterCOMMAND)
-    omap <buffer> ao <Plug>(vshOuterCOMMAND)
-    xmap <buffer> ax <Plug>(vshOuterCommandBlock)
-    omap <buffer> ax <Plug>(vshOuterCommandBlock)
+    for [mapmode, maptype, trigger, plugmap, final_expansion] in g:vsh_buffer_mappings_list
+      execute mapmode . 'map <buffer>' . trigger . plugmap
+    endfor
   endif
   let b:vsh_alt_buffer = bufname('%')
 endfunction
@@ -1011,58 +886,9 @@ function s:teardown_mappings()
   silent! delcommand VmakeCmds
   silent! delcommand VshPass
   if !has('g:vsh_no_default_mappings')
-    " Motion
-    silent! unmap <buffer> <C-n>
-    silent! unmap <buffer> <C-p>
-
-    " Execution and new prompt
-    silent! nunmap <buffer> <CR>
-    silent! iunmap <buffer> <M-CR>
-    silent! nunmap <buffer> <localleader>n
-    silent! vunmap <buffer> <F3>
-    silent! nunmap <buffer> <F3>
-    silent! vunmap <buffer> <F4>
-    silent! nunmap <buffer> <F4>
-
-    " Control characters
-    silent! nunmap <buffer> <localleader>c
-
-    " Completions
-    silent! nunmap <buffer> <localleader>l
-    silent! iunmap <buffer> <C-q>
-    silent! nunmap <buffer> <localleader>g
-    silent! iunmap <buffer> <C-s>
-
-    " Using working directory.
-    silent! nunmap <buffer> gx
-    silent! nunmap <buffer> gf
-    silent! nunmap <buffer> gF
-    silent! nunmap <buffer> <C-w>f
-    silent! nunmap <buffer> <C-w>F
-    silent! nunmap <buffer> <C-w>gf
-    silent! nunmap <buffer> <C-w>gF
-    silent! iunmap <buffer> <C-x><C-f>
-
-    " Working with the vsh buffer text
-    silent! nunmap <buffer> <localleader>s
-    silent! nunmap <buffer> <localleader>a
-    silent! nunmap <buffer> <localleader>o
-    silent! nunmap <buffer> ^
-    silent! ounmap <buffer> ^
-    silent! vunmap <buffer> ^
-    silent! nunmap <buffer> I
-    silent! xunmap <buffer> ic
-    silent! ounmap <buffer> ic
-    silent! xunmap <buffer> io
-    silent! ounmap <buffer> io
-    silent! xunmap <buffer> ac
-    silent! ounmap <buffer> ac
-    silent! xunmap <buffer> ao
-    silent! ounmap <buffer> ao
-    silent! xunmap <buffer> ix
-    silent! ounmap <buffer> ix
-    silent! xunmap <buffer> ax
-    silent! ounmap <buffer> ax
+    for [mapmode, maptype, trigger, plugmap, final_expansion] in g:vsh_buffer_mappings_list
+      execute 'silent! ' . mapmode . 'unmap <buffer>' . trigger
+    endfor
   endif
 endfunction
 
@@ -1125,31 +951,6 @@ function vsh#vsh#SetPrompt(new_prompt)
   let &l:comments=':' . b:vsh_prompt . '#,:' . b:vsh_prompt
   let &l:commentstring = b:vsh_prompt . '# %s'
 endfunction
-
-" Global commands and mappings
-if !get(g:, 'vsh_loaded')
-  command -range -nargs=1 -bang -complete=buffer VshSend :call vsh#vsh#VshSendCommand(<f-args>, <line1>, <line2>, '<bang>')
-  " Mappings have 'N' after them so that vim doesn't wait to see if this is the
-  " 'Dedent' version of the mapping.
-  nnoremap <expr> <silent> <Plug>VshSetSendbuf vsh#vsh#SetSendbuf()
-  nnoremap <expr> <silent> <Plug>VshSendN vsh#vsh#DoOperatorFunc(0)
-  nnoremap <expr> <silent> <Plug>VshSendDedent vsh#vsh#DoOperatorFunc(1)
-  nnoremap <expr> <silent> <Plug>VshSendLineN vsh#vsh#DoOperatorFunc(0) . '_'
-  nnoremap <expr> <silent> <Plug>VshSendLineDedent vsh#vsh#DoOperatorFunc(1) . '_'
-  vnoremap <silent> <Plug>VshSendVN :<C-U>call vsh#vsh#VshVisualSend(visualmode(), 0)<CR>
-  vnoremap <silent> <Plug>VshSendVDedent :<C-U>call vsh#vsh#VshVisualSend(visualmode(), 1)<CR>
-  vnoremap <expr> <silent> <Plug>VshSetSendbufV vsh#vsh#SetSendbuf()
-  if !hasmapto('<Plug>VshSend') && maparg('<leader>vd', 'n') ==# '' && maparg('<leader>vs', 'n') ==# '' && !has('g:vsh_no_default_mappings')
-    vmap <Leader>vb <Plug>VshSetSendbufV
-    vmap <Leader>vs <Plug>VshSendVN
-    vmap <Leader>vd <Plug>VshSendVDedent
-    nmap <Leader>vs  <Plug>VshSendN
-    nmap <Leader>vss  <Plug>VshSendLineN
-    nmap <Leader>vd  <Plug>VshSendDedent
-    nmap <Leader>vdd  <Plug>VshSendLineDedent
-    nmap <Leader>vb <Plug>VshSetSendbuf
-  end
-endif
 
 function s:remove_buffer_variables()
   for variable in ['vsh_job', 'vsh_prompt', 'vsh_completions_cmd',
