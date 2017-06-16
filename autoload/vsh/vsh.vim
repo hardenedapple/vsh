@@ -700,7 +700,7 @@ else
     endif
     if ! has_key(b:, 'vsh_alt_buffer')
       echom "Don't know what buffer to send the selection to."
-      echom 'Use a count to specify, or set b:vsh_alt_buffer'
+      echom 'Set b:vsh_alt_buffer to buffer number, this can be done with [count]<leader>vb'
       return
     endif
     if a:selection_type == 'line'
