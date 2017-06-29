@@ -37,17 +37,40 @@ function s:command_marker()
   return '\V\^' . b:vsh_prompt . ' \*\[^# ]'
 endfunction
 
-function s:segment_start()
+function s:block_before(line_regex)
   " Handle being at the start of the file
-  let l:retval = search(vsh#vsh#SplitMarker(0), 'bncW', 0)
+  let l:retval = search(a:line_regex, 'bncW', 0)
   return l:retval
 endfunction
 
-function s:segment_end()
+function s:block_after(line_regex)
   " Handle being at the end of the file
   let l:eof = line('$')
-  let l:retval = search(vsh#vsh#SplitMarker(0), 'nW', l:eof)
+  let l:retval = search(a:line_regex, 'nW', l:eof)
   return l:retval ? l:retval : l:eof + 1
+endfunction
+
+function s:segment_start()
+  return s:block_before(vsh#vsh#SplitMarker(0))
+endfunction
+
+function s:segment_end()
+  return s:block_after(vsh#vsh#SplitMarker(0))
+endfunction
+
+function s:negate_prompt_regex(prompt_regex)
+  " Match any line that begins with something other than the match pattern.
+  " n.b. the '\V' settings of magic above don't actually make much of a problem
+  " here -- I was surprised, but ^\(\V\^hello\) matches all lines that don't
+  " start with 'hello'.
+  return '^\(' . a:prompt_regex . '\)\@!'
+endfunction
+
+function s:command_seg_start()
+  return s:block_before(s:negate_prompt_regex(vsh#vsh#SplitMarker(0)))
+endfunction
+function s:command_seg_end()
+  return s:block_after(s:negate_prompt_regex(vsh#vsh#SplitMarker(0)))
 endfunction
 
 " Return screen position where the command in 'promptline' begins.
@@ -327,31 +350,27 @@ function vsh#vsh#SelectCommandBlock(include_comments)
   " endif
   if a:include_comments
     let include_regex = vsh#vsh#SplitMarker(0)
-    let Find_prompt = { -> setpos('.', [0, s:segment_start(), 0, 0]) }
   else
     let include_regex = s:motion_marker()
-    let Find_prompt = { -> vsh#vsh#MoveToPrevPrompt('n', 0) }
   endif
+  let exclude_regex = s:negate_prompt_regex(l:include_regex)
+  let Find_prompt = { -> search(l:include_regex, 'bcW', 0) }
 
+  let l:start_line = 0
   if getline('.') !~# include_regex
-    call Find_prompt()
-    if getline('.') !~# include_regex
+    let l:start_line = Find_prompt()
+    if getline(l:start_line) !~# include_regex
       return
     endif
+  else
+    let l:start_line = line('.')
   endif
 
-  let this_line = line('.')
-  let first_line = this_line
-  let last_line = this_line
+  let first_line = l:start_line
+  let last_line = l:start_line
 
-  while getline(first_line) =~# include_regex
-    let first_line -= 1
-  endwhile
-  while getline(last_line) =~# include_regex
-    let last_line += 1
-  endwhile
-  let first_line += 1
-  let last_line -= 1
+  let first_line = s:block_before(exclude_regex) + 1
+  let last_line = s:block_after(exclude_regex) - 1
 
   " Anatomy of a visual mode mapping.
   " If using an <expr> mapping, we can't find out where the start and end
