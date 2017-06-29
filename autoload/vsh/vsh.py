@@ -14,7 +14,7 @@ def vsh_outputlen(buf, curprompt):
     if len(buf) <= curprompt:
         return 0
 
-    prompt = vim.eval('vsh#vsh#SplitMarker({})'.format(buf.number))[1:]
+    prompt = vim.eval('vsh#vsh#SplitMarker({})'.format(buf.number))
     if not prompt:
         return 0
 
@@ -22,12 +22,8 @@ def vsh_outputlen(buf, curprompt):
     found_prompt = False
     count = 0
     for (count, line) in enumerate(buf[curprompt:]):
-        # Want to use vim match() so that if we decide to allow regexp prompts
-        # in the future the match will behave like vim.
-        # Reading the help pages, I would use the vim.Funcref() constructor and
-        # work with the vim function inside python, but this object isn't
-        # foundu in the neovim client.
-        if line.startswith(prompt):
+        # Use vim's match() so that vim regular expressions work.
+        if vim.funcs.match(line, prompt) != -1:
             found_prompt = True
             break
 
@@ -94,9 +90,10 @@ def vsh_insert_helper(data, vsh_buf):
     # line by joining the next piece of text with the previous line.
     # If the last line included a trailing newline, then the last element in
     # data would have been '' so this still works.
-    prompt = vim.eval('vsh#vsh#SplitMarker({})'.format(vsh_buf.number))[1:]
+    prompt = vim.eval('vsh#vsh#SplitMarker({})'.format(vsh_buf.number))
     insert_line_text = vsh_buf[insert_line - 1]
-    if not insert_line_text.startswith(prompt):
+    # Use vim.funcs.match() so vim regular expressions in 'prompt' work.
+    if vim.funcs.match(insert_line_text, prompt) == -1:
         firstline = data.pop(0)
         try:
             vsh_buf[insert_line - 1] = insert_line_text + firstline
