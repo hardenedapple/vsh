@@ -130,3 +130,14 @@ if !exists('g:vsh_no_default_mappings')
     execute mapmode . 'map ' . trigger . plugmap
   endfor
 endif
+
+let g:vsh_python_mappings_list = [
+      \ ['n', '<expr><silent>', '<Leader>vfs', ' <Plug>VshPySendTerminated', ' vsh#py#SendOperatorFunc(0, 1)'],
+      \ ['n', '<expr><silent>', '<Leader>vfd', ' <Plug>VshPySendDedentTerminated', ' vsh#py#SendOperatorFunc(1, 1)'],
+      \ ['n', '<expr><silent>', '<Leader>vps', ' <Plug>VshPySendN', ' vsh#py#SendOperatorFunc(0, 0)'],
+      \ ['n', '<expr><silent>', '<Leader>vpd', ' <Plug>VshPySendDedentN', ' vsh#py#SendOperatorFunc(1, 0)'],
+      \ ['v', '<silent>', '<Leader>vfs', ' <Plug>VshPySendTerminated', ' :<C-U>call vsh#py#VisualSend(0, 1)<CR>'],
+      \ ['v', '<silent>', '<Leader>vfd', ' <Plug>VshPySendDedentTerminated', ' :<C-U>call vsh#py#VisualSend(1, 1)<CR>'],
+      \ ['v', '<silent>', '<Leader>vps', ' <Plug>VshPySendN', ' :<C-U>call vsh#py#VisualSend(0, 0)<CR>'],
+      \ ['v', '<silent>', '<Leader>vpd', ' <Plug>VshPySendDedentN', ' :<C-U>call vsh#py#VisualSend(1, 0)<CR>'],
+      \ ]
