@@ -27,6 +27,15 @@ Expect:
   vshcmd: >    #echo Hello there
   vshcmd: >    xecho Hello there
 
+Do (Down motion with count also stops):
+  2\<C-n>ix
+
+Expect:
+  vshcmd: >
+  vshcmd: >    #echo Hello there
+  vshcmd: >    xecho Hello there
+
+
 Do (Moving up at start of file does nothing):
   \<C-p>ix
 
@@ -51,6 +60,13 @@ Given vsh (vsh buffer):
 
 Do (Moving down at last prompt moves to end of output):
   \<C-n>\<C-n>ix
+
+Expect:
+  vshcmd: > echo Hello there
+  xHello there, this is output
+
+Do (Down motion with count does same):
+  2\<C-n>ix
 
 Expect:
   vshcmd: > echo Hello there
@@ -195,6 +211,95 @@ Expect:
   many
   many
   files
+
+# Checking counts work
+Given vsh (vsh buffer):
+  vshcmd: > ls
+  bunch
+  of
+  files
+  vshcmd: > echo Hello world
+  Hello world
+  vshcmd: > echo Hello world
+  vshcmd: > echo Hello world
+  vshcmd: > echo Hello world
+
+Do (Down Motion count works):
+  3\<C-n>ix
+
+Expect:
+  vshcmd: > ls
+  bunch
+  of
+  files
+  vshcmd: > echo Hello world
+  Hello world
+  vshcmd: > xecho Hello world
+  vshcmd: > echo Hello world
+  vshcmd: > echo Hello world
+
+Do (Down Motion count works with adjacent commands):
+  4\<C-n>ix
+
+Expect:
+  vshcmd: > ls
+  bunch
+  of
+  files
+  vshcmd: > echo Hello world
+  Hello world
+  vshcmd: > echo Hello world
+  vshcmd: > xecho Hello world
+  vshcmd: > echo Hello world
+
+" n.b. this behaviour is made special for when you're in the middle of an
+" output and want to remove the rest of the output without removing the command
+" below. It's not actually *for* the behaviour I test here.
+Do (Down Motion count with operator goes one less line):
+  d4\<C-n>
+
+Expect:
+  vshcmd: > echo Hello world
+  vshcmd: > echo Hello world
+
+Do (Up Motion count works):
+  3\<C-n>2\<C-p>ix
+
+Expect:
+  vshcmd: > xls
+  bunch
+  of
+  files
+  vshcmd: > echo Hello world
+  Hello world
+  vshcmd: > echo Hello world
+  vshcmd: > echo Hello world
+  vshcmd: > echo Hello world
+
+Do (Up Motion count works with adjacent commands):
+  4\<C-n>3\<C-p>ix
+
+Expect:
+  vshcmd: > xls
+  bunch
+  of
+  files
+  vshcmd: > echo Hello world
+  Hello world
+  vshcmd: > echo Hello world
+  vshcmd: > echo Hello world
+  vshcmd: > echo Hello world
+
+" n.b. this behaviour is made special for when you're in the middle of an
+" output and want to remove the rest of the output without removing the command
+" below. It's not actually *for* the behaviour I test here.
+Do (Up Motion count with operator goes one less line):
+  4\<C-n>d3\<C-p>
+
+Expect:
+  vshcmd: > ls
+  vshcmd: > echo Hello world
+
 
 #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
 #                              Parsing Commands                               #

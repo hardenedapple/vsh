@@ -114,6 +114,12 @@ function s:move_to_prompt_start()
 endfunction
 
 function vsh#vsh#MoveToNextPrompt(mode, count)
+  if s:move_next(a:mode, a:count, s:motion_marker()) == 'reached end'
+    call s:move_to_prompt_start()
+  endif
+endfunction
+
+function s:move_next(mode, count, prompt)
   " Description:
   "   Searches forward until the next prompt in the current buffer.
   "   Moves the cursor to the start of the command in that buffer.
@@ -131,12 +137,10 @@ function vsh#vsh#MoveToNextPrompt(mode, count)
 
   " Multiple times if given a count
   let index = 0
-  let l:prompt = s:motion_marker()
   while l:index < a:count
-    if search(l:prompt, 'eW') == 0
+    if search(a:prompt, 'eW') == 0
       normal G
-      call s:move_to_prompt_start()
-      return
+      return 'reached end'
     endif
     let l:index += 1
   endwhile
@@ -147,9 +151,14 @@ function vsh#vsh#MoveToNextPrompt(mode, count)
       -1
     endif
   endif
+  return 'found prompt'
 endfunction
 
 function vsh#vsh#MoveToPrevPrompt(mode, count)
+  call s:move_prev(a:mode, a:count, s:motion_marker())
+endfunction
+
+function s:move_prev(mode, count, prompt)
   " For description see above.
   let origcol = virtcol('.')
   if a:mode ==# 'v'
@@ -158,21 +167,20 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
   normal! 0
 
   " If there is no previous prompt, do nothing.
-  let l:prompt = s:motion_marker()
-  if search(l:prompt, 'beW') == 0
+  if search(a:prompt, 'beW') == 0
     if line('.') == 1
       exe 'normal! ' . origcol . '|'
     else
       normal gg0
     endif
-    return
+    return 'no previous'
   endif
 
   " Multiple times if given a count.
   let index = 1
   while l:index < a:count
-    if search(l:prompt, 'beW') == 0
-      return
+    if search(a:prompt, 'beW') == 0
+      return 'reached end'
     endif
     let l:index += 1
   endwhile
@@ -182,6 +190,7 @@ function vsh#vsh#MoveToPrevPrompt(mode, count)
       +1
     endif
   endif
+  return 'found prompt'
 endfunction
 
 " This would be internal, but I use it for testing.
