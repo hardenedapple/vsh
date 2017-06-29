@@ -669,6 +669,10 @@ else
     " tab, we will lose 3 characters of the second line).
     " I don't think accounting for this would really be worth it...
     " Depends on whether people would want it or not.
+
+    " We've already fetched the text for the first line in this range, so we
+    " may as well send it outside the loop rather than call getline() again
+    " unnecessarily.
     call jobsend(l:jobnr, first_line[indent:] . "\n")
     if line2 >= line1
       for linenr in range(line1, line2)
@@ -685,12 +689,12 @@ else
     if v:count
       let b:vsh_alt_buffer = bufname(v:count)
     endif
-    let b:vsh_send_dedent = a:dedent ? '!' : ''
     let [sbuf, sline, scol, soff] = getpos("'<")
     let [ebuf, eline, ecol, eoff] = getpos("'>")
     call vsh#vsh#VshSend(b:vsh_alt_buffer,
           \ [sline, scol], [eline, ecol],
-          \ b:vsh_send_dedent, a:visualmode == 'v')
+          \ a:dedent ? '!' : '',
+          \ a:visualmode == 'v')
   endfunction
 
   function vsh#vsh#VshSendThis(selection_type)
