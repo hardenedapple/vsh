@@ -1727,6 +1727,7 @@ Do (Operator mode works linewise):
   d]]
 
 Expect:
+  vshcmd: > echo -n Hello
   vshcmd: > # echo -n there
   vshcmd: > echo world
   Helloworld
@@ -1763,6 +1764,7 @@ Do (Operator mode to start works with count):
   d2]]
 
 Expect:
+  vshcmd: > echo -n Hello
   vshcmd: > # echo -n there
   vshcmd: > echo world
   temp
@@ -1799,12 +1801,13 @@ Expect:
   vshcmd: > command
   temp
 
-Do (Operator mode with count works backwards):
+Do (Operator mode with count backwards has exception):
   3][d2[]
 
 Expect:
   vshcmd: > echo -n Hello
   vshcmd: > echo -n there
+  vshcmd: > echo world
   temp
   temp
   vshcmd: > command

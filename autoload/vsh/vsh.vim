@@ -237,13 +237,6 @@ function vsh#vsh#CommandBlockEnds(mode, count, direction, end)
     return
   endif
 
-  " Special case:
-  "     If at start of command block, then the first execution of this function
-  "     should take us to the start of the *next* command block.
-  "     Otherwise it should take us to the start of the current command block.
-  "     In order to keep the same main loop for counts, we need to check which
-  "     we are doing.
-
   " Action (currently not thinking about end/start of buffer)
   " Going down
   "  > Aiming for end (direction * end == -1)
@@ -287,9 +280,17 @@ function vsh#vsh#CommandBlockEnds(mode, count, direction, end)
     endwhile
   endif
 
-  call s:move_to_prompt_start()
-endfunction
-function vsh#vsh#StartOfNextCommandBlock(mode, count, direction)
+  " Special case for operator mode
+  " When deleting downwards to the beginning of a command block, I usually want
+  " to leave the first line intact.
+  " Similarly, when deleting upwards to the end of a command block, I usually
+  " want to leave the last line intact.
+  " Account for this by moving one less line if either case is seen.
+  if a:mode ==# 'o' && (a:direction * a:end == 1)
+    call s:end_at_less_line(a:direction)
+  else
+    call s:move_to_prompt_start()
+  endif
 endfunction
 
 function vsh#vsh#CommandBlockLimits(include_comments, start_line, count)
