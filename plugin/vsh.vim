@@ -93,7 +93,19 @@ let g:vsh_buffer_mappings_list = [
       \ ['o', '<silent>', 'ix', ' <Plug>(vshInnerCommandBlock)',
       \  " :<C-u>call vsh#vsh#SelectCommandBlock(0)<CR>"],
       \ ['o', '<silent>', 'ax', ' <Plug>(vshOuterCommandBlock)',
-      \  " :<C-u>call vsh#vsh#SelectCommandBlock(1)<CR>"]
+      \  " :<C-u>call vsh#vsh#SelectCommandBlock(1)<CR>"],
+      \ ['n', '<silent>', '[[', ' <Plug>(vshStartOfCommandBlock)', " :<C-U>call vsh#vsh#CommandBlockEnds('n', v:count1, -1, 1)<CR>"],
+      \ ['n', '<silent>', ']]', ' <Plug>(vshStartOfNextCommandBlock)', " :<C-U>call vsh#vsh#CommandBlockEnds('n', v:count1, 1, 1)<CR>"],
+      \ ['n', '<silent>', '][', ' <Plug>(vshEndOfCommandBlock)', " :<C-U>call vsh#vsh#CommandBlockEnds('n', v:count1, 1, -1)<CR>"],
+      \ ['n', '<silent>', '[]', ' <Plug>(vshEndOfPreviousCommandBlock)', " :<C-U>call vsh#vsh#CommandBlockEnds('n', v:count1, -1, -1)<CR>"],
+      \ ['v', '<silent>', '[[', ' <Plug>(vshStartOfCommandBlock)', " :<C-U>call vsh#vsh#CommandBlockEnds('v', v:count1, -1, 1)<CR>"],
+      \ ['v', '<silent>', ']]', ' <Plug>(vshStartOfNextCommandBlock)', " :<C-U>call vsh#vsh#CommandBlockEnds('v', v:count1, 1, 1)<CR>"],
+      \ ['v', '<silent>', '][', ' <Plug>(vshEndOfCommandBlock)', " :<C-U>call vsh#vsh#CommandBlockEnds('v', v:count1, 1, -1)<CR>"],
+      \ ['v', '<silent>', '[]', ' <Plug>(vshEndOfPreviousCommandBlock)', " :<C-U>call vsh#vsh#CommandBlockEnds('v', v:count1, -1, -1)<CR>"],
+      \ ['o', '<silent>', '[[', ' <Plug>(vshStartOfCommandBlock)', " V:<C-U>call vsh#vsh#CommandBlockEnds('o', v:count1, -1, 1)<CR>"],
+      \ ['o', '<silent>', ']]', ' <Plug>(vshStartOfNextCommandBlock)', " V:<C-U>call vsh#vsh#CommandBlockEnds('o', v:count1, 1, 1)<CR>"],
+      \ ['o', '<silent>', '][', ' <Plug>(vshEndOfCommandBlock)', " V:<C-U>call vsh#vsh#CommandBlockEnds('o', v:count1, 1, -1)<CR>"],
+      \ ['o', '<silent>', '[]', ' <Plug>(vshEndOfPreviousCommandBlock)', " V:<C-U>call vsh#vsh#CommandBlockEnds('o', v:count1, -1, -1)<CR>"]
       \ ]
 
 for [mapmode, maptype, trigger, plugmap, final_expansion] in g:vsh_buffer_mappings_list

@@ -160,6 +160,9 @@ endfunction
 
 function s:move_prev(mode, count, prompt)
   " For description see above.
+  " n.b. this function also leaves the cursor just after the prompt, but does
+  " so naturally from the behaviour of the search() function rather than
+  " behaviour explicit in the function logic.
   let origcol = virtcol('.')
   if a:mode ==# 'v'
     normal! gv
@@ -173,7 +176,7 @@ function s:move_prev(mode, count, prompt)
     else
       normal gg0
     endif
-    return 'no previous'
+    return 'reached end'
   endif
 
   " Multiple times if given a count.
@@ -192,6 +195,140 @@ function s:move_prev(mode, count, prompt)
   endif
   return 'found prompt'
 endfunction
+
+function s:end_at_less_line(direction)
+  if a:direction == -1
+    +1
+  else
+    -1
+  endif
+  " Move to end of line so that the next search doesn't find this prompt, but
+  " finds the next line beginning with a prompt.
+  normal! $
+endfunction
+
+function vsh#vsh#CommandBlockEnds(mode, count, direction, end)
+  " Description:
+  "   Moves to a:count'th end of command block in a:direction.
+  "   a:direction is one of 1 (forwards) or -1 (backwards)
+  "   a:mode is 'n', 'v', or 'o'
+  "   a:end is where the cursor is left afterwards.
+  "     1 is at the start of the block, -1 is at the end.
+  "   Leaves the cursor at the start of a prompt (if not moved to one end of
+  "   the buffer).
+  let l:count = a:count
+  let l:prompt = vsh#vsh#SplitMarker(0)
+  let l:negate_prompt = s:negate_prompt_regex(l:prompt)
+
+  if a:mode ==# 'v'
+    normal! gv
+  endif
+
+  if a:direction == -1
+    " Going up the buffer (to smaller line numbers)
+    let Progressing = { prompt -> s:move_prev('n', 1, prompt) }
+    let Regressing =  { prompt -> s:move_next('n', 1, prompt) }
+  elseif a:direction == 1
+    " Going down the buffer
+    let Progressing = { prompt -> s:move_next('n', 1, prompt) }
+    let Regressing =  { prompt -> s:move_prev('n', 1, prompt) }
+  else
+    echoerr "Invalid direction given to vsh#vsh#CommandBlockEnds"
+    return
+  endif
+
+  " Special case:
+  "     If at start of command block, then the first execution of this function
+  "     should take us to the start of the *next* command block.
+  "     Otherwise it should take us to the start of the current command block.
+  "     In order to keep the same main loop for counts, we need to check which
+  "     we are doing.
+
+  " Action (currently not thinking about end/start of buffer)
+  " Going down
+  "  > Aiming for end (direction * end == -1)
+  "   > Find next prompt
+  "     Find next output
+  "     Back one
+  "  > Aiming for start (direction * end == 1)
+  "   > Find previous prompt.
+  "     Find next output
+  "     Find next prompt
+  " 
+  " Going Up
+  "  > Aiming for end (direction * end == 1)
+  "   > Find next prompt
+  "     Find previous output
+  "     Find previous prompt
+  "  > Aiming for start (direction * end == -1)
+  "   > Find previous prompt
+  "     Find previous output
+  "     Forwards one
+
+  if a:end * a:direction == 1
+    " Main loop
+    if match(getline('.'), l:negate_prompt) != -1
+      if Progressing(l:prompt) == 'reached end'
+        let l:count = 0
+      endif
+      let l:count -= 1
+    endif
+    while l:count > 0
+      if Progressing(l:negate_prompt) == 'reached end' | break | endif
+      if Progressing(l:prompt) == 'reached end' | break | endif
+      let l:count -= 1
+    endwhile
+  else
+    while l:count > 0
+      if Progressing(l:prompt) == 'reached end' | break | endif
+      if Progressing(l:negate_prompt) == 'reached end' | break | endif
+      call s:end_at_less_line(a:direction)
+      let l:count -= 1
+    endwhile
+  endif
+
+  call s:move_to_prompt_start()
+endfunction
+function vsh#vsh#StartOfNextCommandBlock(mode, count, direction)
+endfunction
+
+function vsh#vsh#CommandBlockLimits(include_comments, start_line, count)
+  if a:include_comments
+    let include_regex = vsh#vsh#SplitMarker(0)
+  else
+    let include_regex = vsh#vsh#motion_marker()
+  endif
+  " Match any line tht begins with something other than the match pattern.
+  " n.b. the '\V' settings of magic above don't actually make much of a problem
+  " here -- I was surprised, but ^\(\V\^hello\) matches all lines that don't
+  " start with 'hello'.
+  let exclude_regex = s:negate_prompt_regex(l:include_regex)
+  let Find_prompt = { -> search(l:include_regex, 'bncW', 0) }
+  let Find_end =    { -> search(l:exclude_regex, 'bncW', 0) }
+
+  if getline(a:start_line) !~# include_regex
+    let l:start_line = Find_prompt()
+    if getline(l:start_line) !~# include_regex
+      return [l:start_line, 0, 0, v:false]
+    endif
+  else
+    let l:start_line = a:start_line
+  endif
+
+  let first_line = l:start_line
+  let last_line = l:start_line
+
+  while getline(first_line) =~# include_regex
+    let first_line -= 1
+  endwhile
+  while getline(last_line) =~# include_regex
+    let last_line += 1
+  endwhile
+  let first_line += 1
+  let last_line -= 1
+  return [l:start_line, l:first_line, l:last_line, v:true]
+endfunction
+
 
 " This would be internal, but I use it for testing.
 function vsh#vsh#ParseVSHCommand(line)

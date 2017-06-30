@@ -1256,6 +1256,701 @@ Expect:
   hello world
   Hello world
 
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                          Function motion commands                           "
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Given vsh (vsh buffer):
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+" Basic motion checks
+Do (Motion over command blocks):
+  ]]ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > xecho -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Motion backwards over command blocks):
+  ]][[ix
+
+Expect:
+  vshcmd: > xecho -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Motion to end of command block):
+  ][ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > xecho world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Motion backwards to end of command block):
+  ]][]ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > xecho world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Motion to start at beginning of buffer):
+  [[ix
+
+Expect:
+  vshcmd: > xecho -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Motion to end at end of buffer):
+  Gdd2k][ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > xcommand
+
+" Motion from middle of output and middle of commands
+Do (Motion forwards):
+  j]]ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > xecho -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Motion backwards over command blocks):
+  ]]j[[ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > xecho -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Motion to end of command block):
+  j][ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > xecho world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Motion backwards to end of command block):
+  ]]j[]ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > xecho world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+
+Do (Motion forwards when inside output):
+  /temp\<CR>]]ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > xcommand
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Motion backwards when inside output):
+  /temp\<CR>[]ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > xecho world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+" Includes comments
+Do (Motion over comments to end):
+  ]]][ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > xecho world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Motion forwards over comments):
+  ]]]]ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > xecho -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Motion backwards over comments):
+  ]]]][[ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > xecho -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Motion backwards over comments to end of block):
+  ]]]]][[]ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > xecho world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+" Works with count
+Do (Motion with count):
+  3]]ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > xcommand
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Backwards motion with count):
+  3]]2[[ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > xecho -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Count to end):
+  3][ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > xecho world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Count backwards to end):
+  3]]2[]ix
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > xecho world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+" Works in operator mode
+Do (Operator mode works linewise):
+  d]]
+
+Expect:
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Operator mode to end of block works):
+  d][
+
+Expect:
+  Hellothereworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Operator mode to start works with count):
+  d2]]
+
+Expect:
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Operator mode works with count):
+  d2][
+
+Expect:
+  Helloworld
+  vshcmd: > echo -n Hello
+  vshcmd: > # echo -n there
+  vshcmd: > echo world
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Operator mode with count works backwards):
+  3]]d2[[
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Do (Operator mode with count works backwards):
+  3][d2[]
+
+Expect:
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  temp
+
+Given vsh (vsh buffer):
+  output before
+  first prompt
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  temp
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  output
+  after
+  last prompt
+
+Do (Motion forwards at start):
+  ]]ix
+
+Expect:
+  output before
+  first prompt
+  vshcmd: > xecho -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  temp
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  output
+  after
+  last prompt
+
+Do (Motion forwards to end at start):
+  ][ix
+
+Expect:
+  output before
+  first prompt
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > xecho world
+  Hellothereworld
+  temp
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  output
+  after
+  last prompt
+
+
+Do (Motion backwards at start):
+  [[ix
+
+Expect:
+  xoutput before
+  first prompt
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  temp
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  output
+  after
+  last prompt
+
+Do (Motion forwards at end):
+  G]]ix
+
+Expect:
+  output before
+  first prompt
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  temp
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > command
+  output
+  after
+  xlast prompt
+
+Do (Motion backwards at end):
+  G[[ix
+
+Expect:
+  output before
+  first prompt
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  temp
+  temp
+  temp
+  vshcmd: > xcommand
+  vshcmd: > command
+  vshcmd: > command
+  output
+  after
+  last prompt
+
+
+Do (Motion backwards to end from end):
+  G[]ix
+
+Expect:
+  output before
+  first prompt
+  vshcmd: > echo -n Hello
+  vshcmd: > echo -n there
+  vshcmd: > echo world
+  Hellothereworld
+  temp
+  temp
+  temp
+  vshcmd: > command
+  vshcmd: > command
+  vshcmd: > xcommand
+  output
+  after
+  last prompt
+
 
 " I don't know why, but if this test isn't last then I get errors in Vader.
 " TODO Figure out why -- is it the sleep command?
