@@ -293,44 +293,6 @@ function vsh#vsh#CommandBlockEnds(mode, count, direction, end)
   endif
 endfunction
 
-function vsh#vsh#CommandBlockLimits(include_comments, start_line, count)
-  if a:include_comments
-    let include_regex = vsh#vsh#SplitMarker(0)
-  else
-    let include_regex = vsh#vsh#motion_marker()
-  endif
-  " Match any line tht begins with something other than the match pattern.
-  " n.b. the '\V' settings of magic above don't actually make much of a problem
-  " here -- I was surprised, but ^\(\V\^hello\) matches all lines that don't
-  " start with 'hello'.
-  let exclude_regex = s:negate_prompt_regex(l:include_regex)
-  let Find_prompt = { -> search(l:include_regex, 'bncW', 0) }
-  let Find_end =    { -> search(l:exclude_regex, 'bncW', 0) }
-
-  if getline(a:start_line) !~# include_regex
-    let l:start_line = Find_prompt()
-    if getline(l:start_line) !~# include_regex
-      return [l:start_line, 0, 0, v:false]
-    endif
-  else
-    let l:start_line = a:start_line
-  endif
-
-  let first_line = l:start_line
-  let last_line = l:start_line
-
-  while getline(first_line) =~# include_regex
-    let first_line -= 1
-  endwhile
-  while getline(last_line) =~# include_regex
-    let last_line += 1
-  endwhile
-  let first_line += 1
-  let last_line -= 1
-  return [l:start_line, l:first_line, l:last_line, v:true]
-endfunction
-
-
 " This would be internal, but I use it for testing.
 function vsh#vsh#ParseVSHCommand(line)
   " Check we've been given a command line and not some junk
@@ -644,9 +606,9 @@ else
 
   function s:insert_text(job_id, data, event) dict
     if get(b:, 'vsh_insert_change_tick', -1) == b:changedtick
-      " TODO Workaround a bug in neovim -- ex_undojoin() should not set
-      " curbuf->b_u_curhead. Changing that is currently PR 5856 in neovim, but
-      " this workaround works fine, because when the problem is hit we don't
+      " Workaround a bug in old neovim -- ex_undojoin() should not set
+      " curbuf->b_u_curhead. Changing that was PR 5869 in neovim, this
+      " workaround works fine, because when the problem is hit we don't
       " actually have to call :undojoin anyway.
       " (the bug is only hit if we are called twice or more consecutivly
       " without u_sync() being called in between, u_sync() is what marks the
