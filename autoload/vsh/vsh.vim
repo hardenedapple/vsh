@@ -24,17 +24,15 @@ function s:commentstart()
 endfunction
 
 function s:motion_marker()
-  " Should match a valid command without a comment, OR a command prompt without
-  " any space after it.
+  " Should match a valid command without a comment, OR a command prompt.
   " Allow s:commentstart() before the prompt -- so we can move over
-  return '\V\(\^\|\^' . s:commentstart() . '\)' . b:vsh_prompt . '\( \*\[^# ]\|\$\)'
+  return '\V\(\^\|\^' . s:commentstart() . '\)' . b:vsh_prompt . '\s\*\(\[^#[:blank:]]\|\$\)'
 endfunction
 
 function s:command_marker()
   " Allow notes in the file -- make lines beginning with # a comment.
-  " Allow a command of just a <TAB> -- bash interprets the tab command, so we
-  " should allow sending it.
-  return '\V\^' . b:vsh_prompt . ' \*\[^# ]'
+  " Allow a command of just spaces (can be useful quite often).
+  return '\V\^' . b:vsh_prompt . '\s\*\(\[^#[:blank:]]\|\$\)'
 endfunction
 
 function s:block_before(line_regex)
@@ -890,7 +888,6 @@ else
     endif
     return ''
   endfunction
-
 
   function vsh#vsh#SendControlChar()
     if !get(b:, 'vsh_job', 0)

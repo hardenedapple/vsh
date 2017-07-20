@@ -117,16 +117,6 @@ Expect:
   vshcmd: > ls
 
 
-# Tabs count as a command character
-Given vsh (vsh buffer):
-  vshcmd: > 	ls
-
-Do (Don't skip tabs):
-  \<C-n>ix
-
-Expect:
-  vshcmd: > x	ls
-
 # In Operator Pending mode we select *up to* the previous prompt
 Given vsh (vsh buffer):
   vshcmd: > ls
@@ -324,7 +314,7 @@ Expect:
   vshcmd: >
   -1
   vshcmd: > 
-  -1
+
   vshcmd: > ls
   ls
   vshcmd: >   ls
@@ -338,7 +328,7 @@ Expect:
   vshcmd: >   #ls
   -1
   vshcmd: >  	#ls
-   	#ls
+  -1
   hello there
   -1
 
