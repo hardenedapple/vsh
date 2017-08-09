@@ -952,18 +952,35 @@ else
     execute a:command
   endfunction
 
-  function vsh#vsh#FileCompletion()
-    " Change buffer local directory to the current directory and return the
-    " mapping we were given.
+  function s:cd_to_cwd()
+    " Return the current working directory of this vim window, the command to
+    " use to switch the working directory, and the working directory of the
+    " foreground process in the pty.
     if !get(b:, 'vsh_job', 0)
       echoerr 'No subprocess currently running!'
       echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
       return
     endif
-    let b:vsh_prev_wd = getcwd()
+    let prev_wd = getcwd()
     " Note: only neovim has :tcd
-    let b:vsh_cd_cmd = haslocaldir() ? 'lcd ' : haslocaldir(-1, 0) ? 'tcd ' : 'cd '
-    execute b:vsh_cd_cmd . py3eval('vsh_find_cwd(' . b:vsh_job . ')')
+    " Choose the most general cd command that changes this windows cwd.
+    " If we were to use :lcd unconditionally we would give the current window a
+    " local directory if it didn't already have one.
+    let cd_cmd = haslocaldir() ? 'lcd ' : haslocaldir(-1, 0) ? 'tcd ' : 'cd '
+    return [prev_wd, cd_cmd, py3eval('vsh_find_cwd(' . b:vsh_job . ')')]
+  endfunction
+
+  function vsh#vsh#NetrwBrowse()
+    let [prev_wd, cd_cmd, newcwd] = s:cd_to_cwd()
+    execute cd_cmd . newcwd
+    execute "normal \<Plug>NetrwBrowseX"
+    execute cd_cmd . prev_wd
+  endfunction
+
+  function vsh#vsh#FileCompletion()
+    " Store variables in the buffer so that the autocmd has access to them.
+    let [b:vsh_prev_wd, b:vsh_cd_cmd, newcwd] = s:cd_to_cwd()
+    execute b:vsh_cd_cmd . newcwd
     augroup VshRevertWD
       autocmd!
       autocmd CompleteDone <buffer> execute b:vsh_cd_cmd . b:vsh_prev_wd | unlet b:vsh_cd_cmd b:vsh_prev_wd | autocmd! VshRevertWD

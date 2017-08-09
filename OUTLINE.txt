@@ -136,9 +136,13 @@ Hence store the relevant job number in a global variable g:vsh_closing_jobs
 when unloading the buffer, and on the BufDelete autocmd runs check for that
 buffer name in the stored closing jobs.
 
-Opening files in the current directory, and file completion is done by
-temporarily changing the current :lcd, and causing it to revert on an autocmd
-once the current command has finished.
+Opening files with netrw's `gx` and file completion is done by
+temporarily changing the current :lcd and reverting afterwards.
+    For file completion reverting is done with an autocmd, for `gx` revertion
+    is simply done done after the mapping has been typed.
+
+Opening files with `gf` and similar is done by setting the 'path' variable to
+include the current directory, and an autocmd is set to reset the 'path'.
     e.g. when opening a file with gf, we change current directory, set autocmd
     BufLeave to change the directory back once gf has been executed, and run
     `gf`.
@@ -153,6 +157,7 @@ once the current command has finished.
            happening, and, honestly have no plans to look into it until it
            starts "hurting".
            TODO This should be fixed in the future.
+
 
 b:undo_ftplugin
 This variable is set to a command string that is called when changing the
