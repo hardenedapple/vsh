@@ -1,0 +1,181 @@
+Basic outline of the project.
+
+For each buffer of filetype `vsh`, we create a new shell process running in a
+new pseudo terminal.
+
+    The automatic creation of the process is done by ftplugin/vsh.vim
+        This is set up to work on filetypes with a .vsh extension by the
+        ftdetect/vsh.vim file.
+
+        When a vsh buffer is detected, we set the current prompt with
+        vsh#vsh#SetPrompt().
+        This handles setting the b:vsh_prompt, &l:comments and &l:commentstring
+        variables for the current buffer, along with the syntax highlighting.
+        The syntax highlighting needs to be dynamically set based on the
+        b:vsh_prompt variable, which means we need to use the `execute` command
+        with dynamically created strings.
+        We rely on these being updated in a coordinated manner so as not to
+        cause any confusion.
+
+        Since we need the above variables to be updated together, we lock the
+        b:vsh_prompt variable.
+        All this does is protect against any direct tampering, mainly to alert
+        whoever is doing it that this is probably something that'll cause bugs.
+
+        The prompt can be changed by the user with the vsh#vsh#SetPrompt()
+        function.
+
+    Setting up the new pseudo terminal is done with the vimL jobstart()
+    function.
+        The environment for the new shell is set up in vsh_shell_start.
+        This:
+            sets termios values according to how vsh works (e.g. don't repeat
+            input).
+            exports some environment variables
+            ensures the shell for the user starts in the current directory of
+            the `vsh` buffer
+            finds the default readline bindings from querying bindings in bash.
+                See notes on completion below for the use of these bindings.
+
+Mappings are defined in plugin/vsh.vim
+    I put them in plugin/vsh.vim so they're defined just the once at startup.
+    The big list means I can query them interactively, and makes it easy to add
+    one more at a time.
+    There are three sets of mappings defined there.
+        The mappings for inside a vsh buffer.
+        Global mappings designed to be available everywhere.
+        Python specific mappings for in a Python buffer.
+            We have python specific mappings because it's the only language
+            (I know of) that relies on whitespace differently depending on
+            whether you're working at a REPL or in a script.
+            In a REPL blocks are terminated by a blank line, but they aren't in
+            a script.
+            To aid sending code between script files and a REPL, I've added
+            functions that remove blank lines and terminate blocks with blank
+            lines.
+
+A number of motions and operators are defined in autoload/vsh/vsh.vim.
+These are all pretty self-explanatory.
+The main thing to remember is that there are a few slightly varying types of
+markers in a vsh buffer.
+    A line beginning with the b:vsh_prompt variable *excluding trailing
+    whitespace* marks a line as not being part of output.
+
+    A comment is a line beginning with b:vsh_prompt followed by any amount
+    of whitespace before a single hash character #. Any remaining text to the
+    end of the line is part of the comment.
+
+    A command line (that can be run by pressing <Return>) is marked by a line
+    beginning with the b:vsh_prompt that is not a comment.
+    The b:vsh_prompt variable usually has some whitespace at its end (e.g. the
+    default has a single trailing space character), which can be a little
+    confusing when visually determining whether a line is a command.
+
+    A *motion* line (i.e. lines that <C-n> and <C-p> move to) is either a
+    command line, a line consisting of just b:vsh_prompt, or a line beginning
+    with b:vsh_prompt . ' # ' . b:vsh_prompt.
+
+    n.b. a subtlety that hasn't yet been a problem, but may in the future is
+    that a line that starts with b:vsh_prompt and doesn't match
+    s:commentstart() may still be a comment.
+    i.e. the function s:commentstart() just provides the minimal string to
+    start a comment.
+    There may be more spaces between b:vsh_prompt and the '#' character.
+
+
+Operators are defined slightly differently to the example in the :help g@
+Instead of 
+`nmap <silent> <F4> :set operatorfunc=vsh#vsh#RunOperatorFunc()<CR>g@`, I use
+`nmap <expr> <silent> <F4> vsh#vsh#DoRunOperatorFunc()`
+This is originally because I needed to do some extra work when setting the
+operator function, but it's kept around so that things like 3<F4>_ work on
+three lines at a time.
+    (following the example in :help 3<F4> complains that a count isn't allowed
+    in the :set opfunc command, and putting <C-u> in front of the colon just
+    completely ignores the count).
+
+
+We use python to insert text on the callback in case the callback happens when
+the user is in a different buffer.
+Python allows modifying text without having to set the current buffer to the
+buffer you want to change text in.
+
+We use python to remove all output from a command so we don't have to worry
+about saving and restoring the users cursor position, jumplist etc.
+
+In order to speed up adding text into the buffer on large outputs, we remember
+the end of the current output with the mark 'd and remember the start of the
+current output with the mark 'p.
+The 'p mark is there as a backup for if the user deletes the 'd mark.
+If the user redefines the position of the 'd mark output will simply be placed
+there.
+    On the one hand it seems like using the extended marks PR (when it lands)
+    would make a cleaner interface (the user can't accidently interfere with
+    the output positioning).
+    On the other hand, I've found it very useful to have the 'd and 'p marks
+    around -- for getting back to the latest ran command, and for operations.
+
+Completions are done by sending control sequences to the underlying terminal.
+The sequences are guessed by querying bash to see what bindings it would be
+using, and hoping that the readline bindings are pretty much the same across
+all terminal applications.
+This can easily fail.
+The control sequences are stored in the b:vsh_completions_cmd variable, these
+can be changed temporarily in functions by the user if they want special
+handling.
+Sometimes inserting ^I^U on the command line can provide a workaround.
+The guess is based on the readline bindings in the original bash shell.
+There may be a more clever way to guess what bindings based on what process is
+in the foreground, but I don't think it's wise to go down that route.
+
+Can manually send a control character with <localleader>c<char>
+
+Want to kill subprocesses when the buffer is deleted, but can't access buffer
+local variables in the BufDelete autocmd.
+Hence store the relevant job number in a global variable g:vsh_closing_jobs
+when unloading the buffer, and on the BufDelete autocmd runs check for that
+buffer name in the stored closing jobs.
+
+Opening files in the current directory, and file completion is done by
+temporarily changing the current :lcd, and causing it to revert on an autocmd
+once the current command has finished.
+    e.g. when opening a file with gf, we change current directory, set autocmd
+    BufLeave to change the directory back once gf has been executed, and run
+    `gf`.
+        What happens when gf doesn't work?
+           Currently we appear to just never change the current directory.
+           I don't know whether this is defined behaviour, or if I'm just
+           getting lucky.
+        What happens if gf is on the current file?
+           Current subprocess stays alive but the b:vsh_job variable gets
+           removed.
+           Same happens with :edit % Currently don't know what exactly is
+           happening, and, honestly have no plans to look into it until it
+           starts "hurting".
+           TODO This should be fixed in the future.
+
+b:undo_ftplugin
+This variable is set to a command string that is called when changing the
+filetype of the current buffer.
+I use it to call an autoload function that  
+    a) removes all local mappings
+    b) closes the current process
+    c) removes all buffer variables
+
+
+Syntax highlighting is generated based on the prompt given by the user.
+Highlighting is done before running the ftplugin, so we need to define the
+default colors first.
+So we can define the output colors programmatically (i.e. in a function)
+without redefining the function many times, the syntax/vsh.vim file simply
+calls an autoloaded function vsh#vsh#DefaultColors().
+When the ftplugin is run for this buffer, vsh#vsh#SetPrompt() calls colors
+again but with the prompt taken from the users environment.
+
+
+$EDITOR is set in the shell to change the arglist in the current nvim instance
+to whatever is given on the command line.
+You can restore the original arguments with vsh#vsh#RestoreArgs()
+
+To avoid writing passwords in plaintext there's a command :VshPass that uses
+vims password facilities.

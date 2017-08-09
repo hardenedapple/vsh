@@ -7,8 +7,8 @@ that is running this shell session.
 '''
 
 # TODO
-#   I'm reasonably confident there must be a way to find the binding directly
-#   from the readline interface.
+#   There must be a way to find the binding directly from the readline
+#   interface.
 #   Whether it's possible from *python* or not is another matter.
 #   I'm not going to make users compile anything, so if I can't find a
 #   scripting language that can do it I won't bother.

@@ -12,7 +12,10 @@ nvim = neovim.attach('socket', path=nvim_socket_path)
 
 filenames = [os.path.abspath(arg) for arg in sys.argv[1:]]
 nvim.funcs.__getattr__('vsh#vsh#EditFiles')(filenames)
-# Wait until get told to finish -- with ^D is "complete", with ^C is .
+# Wait until get told to finish -- with ^D is "complete", with ^C is not.
+# Because ^C gives a KeyboardInterrupt, the script exits with non-zero status,
+# which tells the process calling $EDITOR that the files were not edited
+# sucessfully.
 try:
     input('Press C-d for "successful" edit, C-c otherwise')
 except EOFError:
