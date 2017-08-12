@@ -146,7 +146,7 @@ adding a newline when the cursor is on these lines.
 Because many shells and REPL's provide completion abilities using the readline
 library, |Vsh| provides special allowance to send readline control characters
 to the underlying shell. When typing a command in insert mode, pressing CTRL-Q
-removes previous output and sends characters intended to call the realine
+removes previous output and sends characters intended to call the readline
 function "possible-completions". This should list the possibile completions
 under the current prompt so that one can use vim's normal completion keys to
 choose one. Similarly, CTRL-S runs the bash readline function
@@ -228,6 +228,15 @@ A special mapping on <localleader>o is provided to start a command with the
 range that refers to the current output of a command pre-inserted in the
 command line. This is slightly quicker to run filter commands with |:g|.
 
+                            *vsh-command-block-object*
+Similarly to the command objects above, there are text objects defined on
+command blocks. A group of commands without any output between them can be
+selected with `ix`, while a group of commands and comments can be selected
+with `ax`.
+This is particularly useful when running commands with the <F3> operator:
+`<F3>ix` will run the entire command block in one go, keeping them all
+together.
+
                     *vsh-run-multiple*
 Sometimes it's convenient to send many lines at once to the underlying shell.
 This can be achieved by using the command |vsh-:Vrerun| with a range.
@@ -249,6 +258,16 @@ sends the text acted upon to the buffer |b:vsh_alt_buffer|.
 e.g. `3<leader>vb` sets |b:vsh_alt_buffer| to the name of buffer number 3 and
 does nothing else.
 `<leader>vd` does the same as `<leader>vs` but dedents lines.
+
+                *vsh-send-python* *vsh-send-terminated*
+As the python REPL treats blank lines as a terminating block, while python
+scripts don't, sending text directly from a source code buffer to a REPL can
+be problematic. Some conveniance mappings are provided to help with this:
+all these mappings remove blank lines in the range they act upon. Those with
+`t` in them add a trailing blank line to mark the end of a function/block,
+those ending with a `d` dedend the lines by the amount of the first line in
+the range.
+The mappings are: `<leader>vps`, `<leader>vpd`, `<leader>vts`, and  `<leader>vtd`.
 
 
 ==============================================================================
@@ -378,7 +397,7 @@ CTRL-N           Move to the next command line.
 CTRL-P           Move to the previous command line.
 
                                 *vsh-i_M-CR* *vsh-exec-and-newprompt*
-<M-CR>        Run the current command, create a new prompt under the current
+i_<M-CR>        Run the current command, create a new prompt under the current
                 command, and leave the cursor in insert mode at the end of
                 that new prompt.
 
@@ -454,6 +473,11 @@ ac          Act on the text of a command including extra whitespace between
 io          Act on the output of a command excluding the command line itself.
 ao          Act on the output of a command including the command line itself.
 
+                *vsh-ix* *vsh-ax*
+ix          Operator mode mapping to select a group of commands.
+ax          Operator mode mapping to select a group of commands and comments
+            together.
+
 
                         *vsh-global-mappings*
 
@@ -462,7 +486,7 @@ ao          Act on the output of a command including the command line itself.
         {bufname}.
         With a bang, removes the indentation of the first line in the range
         from all lines in the range.
-<leader>vb              vsh-<leader>vb
+<leader>vb              *vsh-<leader>vb*
         Set |b:vsh_alt_buffer| to the name of buffer |v:count| and do nothing
         else. Particularly useful before running <leader>vs or <leader>vd.
 <leader>vs             *vsh-<leader>vs*
@@ -473,5 +497,22 @@ ao          Act on the output of a command including the command line itself.
         all lines in the range.
         This is useful for sending parts of a python function to a |vsh|
         buffer running a python interpreter.
+
+                        *vsh-python-mappings*
+<leader>vps         *vsh-<leader>vps*
+        Operator to run on a range of lines in a buffer.
+        Send that range of lines -- with all blank lines removed -- to the
+        process associated with buffer |b:vsh_alt_buffer|.
+<leader>vpd         *vsh-<leader>vpd*
+        Send the range of lines -- dedented and with all blank lines removed
+        -- to the process associated with buffer |b:vsh_alt_buffer|.
+<leader>vts         *vsh-<leader>vts*
+        Send the range of lines -- with all blank lines removed and a
+        terminating blank line added -- to the process associated with buffer
+        |b:vsh_alt_buffer|.
+<leader>vtd         *vsh-<leader>vtd*
+        Send the range of lines -- dedented, with all blank lines removed, and
+        with a terminating blank line added -- to the process associated with
+        buffer |b:vsh_alt_buffer|.
 
  vim:tw=78:et:ft=help:norl:
