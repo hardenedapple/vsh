@@ -123,41 +123,47 @@ Given vsh (vsh buffer):
   many
   many
   files
-  vshcmd: > ls
+  vshcmd: > ls 2
 
-Do (Up to top line):
+Do (omode up motion does not select command above):
   jjd\<C-p>
 
 Expect:
   vshcmd: > ls
   files
-  vshcmd: > ls
+  vshcmd: > ls 2
 
-Do (Down to bottom line):
+Do (omode down motion does not select command below):
   jj$d\<C-n>
 
 Expect:
   vshcmd: > ls
   many
-  vshcmd: > ls
+  vshcmd: > ls 2
 
-Do (Down before first line):
+Do (omode down motion from inside a prompt removes that prompt only):
   d\<C-n>
 
 Expect:
   many
   many
   files
-  vshcmd: > ls
+  vshcmd: > ls 2
 
-Do (Down from first line):
+Do (omode down motion from inside a command at the top of the file removes the current prompt only):
   $d\<C-n>
+
+Expect:
+  vshcmd: > ls 2
+
+Do (omode up motion from inside a command removes the current prompt and output):
+  2\<C-n>$d\<C-p>
 
 Expect:
   vshcmd: > ls
 
-Do (Up from last line):
-  2\<C-n>$d\<C-p>
+Do (omode up motion from inside a prompt removes the current prompt and output):
+  2\<C-n>0d\<C-p>
 
 Expect:
   vshcmd: > ls
@@ -171,7 +177,7 @@ Given vsh (vsh buffer):
   many
   files
 
-Do (Up nothing above):
+Do (omode down motion works without a prompt above):
   jd\<C-p>
 
 Expect:
@@ -181,7 +187,7 @@ Expect:
   many
   files
 
-Do (Down nothing below):
+Do (omode up motion works without a prompt below):
   \<C-n>jjd\<C-n>
 
 Expect:
@@ -191,7 +197,7 @@ Expect:
   vshcmd: > ls
   many
 
-Do (Down on line before prompt):
+Do (omode down motion from inside a prompt removes the current prompt only):
   \<C-n>0d\<C-n>
 
 Expect:
@@ -214,7 +220,7 @@ Given vsh (vsh buffer):
   vshcmd: > echo Hello world
   vshcmd: > echo Hello world
 
-Do (Down Motion count works):
+Do (down motion moves over N prompts when given an argument N):
   3\<C-n>ix
 
 Expect:
@@ -228,7 +234,7 @@ Expect:
   vshcmd: > echo Hello world
   vshcmd: > echo Hello world
 
-Do (Down Motion count works with adjacent commands):
+Do (down motion with arg N moves over N prompts when prompts are adjacent):
   4\<C-n>ix
 
 Expect:
@@ -245,14 +251,14 @@ Expect:
 " n.b. this behaviour is made special for when you're in the middle of an
 " output and want to remove the rest of the output without removing the command
 " below. It's not actually *for* the behaviour I test here.
-Do (Down Motion count with operator goes one less line):
+Do (omode down motion with count of N stops before N'th prompt):
   d4\<C-n>
 
 Expect:
   vshcmd: > echo Hello world
   vshcmd: > echo Hello world
 
-Do (Up Motion count works):
+Do (up motion moves over N prompts when given argument N):
   3\<C-n>2\<C-p>ix
 
 Expect:
@@ -266,7 +272,7 @@ Expect:
   vshcmd: > echo Hello world
   vshcmd: > echo Hello world
 
-Do (Up Motion count works with adjacent commands):
+Do (up motion with arg N moves over N prompts when prompts are adjacent):
   4\<C-n>3\<C-p>ix
 
 Expect:
@@ -283,7 +289,7 @@ Expect:
 " n.b. this behaviour is made special for when you're in the middle of an
 " output and want to remove the rest of the output without removing the command
 " below. It's not actually *for* the behaviour I test here.
-Do (Up Motion count with operator goes one less line):
+Do (omode up motion with count of N stops before N'th prompt):
   4\<C-n>d3\<C-p>
 
 Expect:
@@ -294,12 +300,14 @@ Expect:
 #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
 #                              Parsing Commands                               #
 #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""#
+# Our options
 Given vsh (vsh buffer):
   vshcmd: >
   vshcmd: > 
   vshcmd: > ls
   vshcmd: >   ls
   vshcmd: > 	ls
+  vshcmd: >	ls
   vshcmd: > # ls
   vshcmd: > #ls
   vshcmd: >   #ls
@@ -307,31 +315,192 @@ Given vsh (vsh buffer):
   hello there
 
 
-Do (Parsing Works nicely):
-  :g/^/put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
+Do (prompt without matching whitespace is an invalid prompt):
+  :1put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
 
 Expect:
   vshcmd: >
   -1
   vshcmd: > 
+  vshcmd: > ls
+  vshcmd: >   ls
+  vshcmd: > 	ls
+  vshcmd: >	ls
+  vshcmd: > # ls
+  vshcmd: > #ls
+  vshcmd: >   #ls
+  vshcmd: >  	#ls
+  hello there
 
+Do (line solely containing b:vsh_prompt is a valid but empty command):
+  :2put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: > 
+
+  vshcmd: > ls
+  vshcmd: >   ls
+  vshcmd: > 	ls
+  vshcmd: >	ls
+  vshcmd: > # ls
+  vshcmd: > #ls
+  vshcmd: >   #ls
+  vshcmd: >  	#ls
+  hello there
+
+Do (prompt with non-whitespace, non-hash text after is parsed as that text):
+  :3put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: > 
   vshcmd: > ls
   ls
   vshcmd: >   ls
+  vshcmd: > 	ls
+  vshcmd: >	ls
+  vshcmd: > # ls
+  vshcmd: > #ls
+  vshcmd: >   #ls
+  vshcmd: >  	#ls
+  hello there
+
+Do (prompt with command preceded by spaces is parsed as a command including that whitespace):
+  :4put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: > ls
+  vshcmd: >   ls
     ls
   vshcmd: > 	ls
+  vshcmd: >	ls
+  vshcmd: > # ls
+  vshcmd: > #ls
+  vshcmd: >   #ls
+  vshcmd: >  	#ls
+  hello there
+
+Do (prompt with command preceded by tabs is parsed as a command including that whitespace):
+  :5put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: > ls
+  vshcmd: >   ls
+  vshcmd: > 	ls
   	ls
+  vshcmd: >	ls
+  vshcmd: > # ls
+  vshcmd: > #ls
+  vshcmd: >   #ls
+  vshcmd: >  	#ls
+  hello there
+
+Do (non-matching prompt because of whitespace mismatch is an invalid command):
+  :6put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: > ls
+  vshcmd: >   ls
+  vshcmd: > 	ls
+  vshcmd: >	ls
+  -1
+  vshcmd: > # ls
+  vshcmd: > #ls
+  vshcmd: >   #ls
+  vshcmd: >  	#ls
+  hello there
+
+Do (line matching the comment regexp is an invalid command):
+  :7put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: > ls
+  vshcmd: >   ls
+  vshcmd: > 	ls
+  vshcmd: >	ls
   vshcmd: > # ls
   -1
   vshcmd: > #ls
+  vshcmd: >   #ls
+  vshcmd: >  	#ls
+  hello there
+
+Do (any prompt where the first trailing character is a hash is an invalid command):
+  :8put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: > ls
+  vshcmd: >   ls
+  vshcmd: > 	ls
+  vshcmd: >	ls
+  vshcmd: > # ls
+  vshcmd: > #ls
   -1
+  vshcmd: >   #ls
+  vshcmd: >  	#ls
+  hello there
+
+Do (prompts followed by spaces and then a hash character are invalid commands):
+  :9put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: > ls
+  vshcmd: >   ls
+  vshcmd: > 	ls
+  vshcmd: >	ls
+  vshcmd: > # ls
+  vshcmd: > #ls
   vshcmd: >   #ls
   -1
   vshcmd: >  	#ls
+  hello there
+
+Do (prompts followed by tabs before a hash character are invalid commands):
+  :10put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: > ls
+  vshcmd: >   ls
+  vshcmd: > 	ls
+  vshcmd: >	ls
+  vshcmd: > # ls
+  vshcmd: > #ls
+  vshcmd: >   #ls
+  vshcmd: >  	#ls
   -1
   hello there
-  -1
 
+Do (lines without prompts are invalid commands):
+  :11put =vsh#vsh#ParseVSHCommand(getline('.'))\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: > 
+  vshcmd: > ls
+  vshcmd: >   ls
+  vshcmd: > 	ls
+  vshcmd: >	ls
+  vshcmd: > # ls
+  vshcmd: > #ls
+  vshcmd: >   #ls
+  vshcmd: >  	#ls
+  hello there
+  -1
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                                Output Range                                 "
@@ -348,12 +517,54 @@ Given vsh (vsh buffer):
   vshcmd: >
 
 
-Do (OutputRange() works nicely):
-  :g/vshcmd/s/$/\=vsh#vsh#OutputRange()\<CR>
+Do (OutputRange() returns the empty string when the cursor is on a prompt followed by another prompt):
+  :s/$/\=vsh#vsh#OutputRange()\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: >
+
+  vshcmd: >
+
+
+
+
+  vshcmd: >
+
+Do (OutputRange() returns a range that will select a single line output):
+  :2s/$/\=vsh#vsh#OutputRange()\<CR>
 
 Expect:
   vshcmd: >
   vshcmd: >3,3
+
+  vshcmd: >
+
+
+
+
+  vshcmd: >
+
+Do (OutputRange() returns a range that will select a single line output when invoked inside that output):
+  :3s/$/\=vsh#vsh#OutputRange()\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: >
+  3,3
+  vshcmd: >
+
+
+
+
+  vshcmd: >
+
+Do (OutputRange() returns a range that will select multi-line output):
+  :4s/$/\=vsh#vsh#OutputRange()\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: >
 
   vshcmd: >5,8
 
@@ -362,38 +573,93 @@ Expect:
 
   vshcmd: >
 
+Do (OutputRange() returns a range that will select multi-line when invoked inside that output):
+  :5,8s/$/\=vsh#vsh#OutputRange()\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: >
+
+  vshcmd: >
+  5,8
+  5,8
+  5,8
+  5,8
+  vshcmd: >
+
+Do (OutputRange() on a prompt at the end of the buffer returns the empty string):
+  :$s/$/\=vsh#vsh#OutputRange()\<CR>
+
+Expect:
+  vshcmd: >
+  vshcmd: >
+
+  vshcmd: >
+
+
+
+
+  vshcmd: >
+
+
 Given vsh (vsh buffer):
+  hello there
   vshcmd: >
   hello there
 
-Do (OutputRange() Final line):
+Do (OutputRange() in an output without a command above works as if there were a command before the start of the buffer):
   :s/$/\=vsh#vsh#OutputRange()\<CR>
 
 Expect:
-  vshcmd: >2,2
+  hello there1,1
+  vshcmd: >
   hello there
+
+Do (OutputRange() on a command whose output reaches the end of the buffer works as if there were a command at the end of the buffer):
+  :2s/$/\=vsh#vsh#OutputRange()\<CR>
+
+Expect:
+  hello there
+  vshcmd: >3,3
+  hello there
+
+Do (OutputRange() in output that reaches the end of the buffer works as if there were a command at the end of the buffer):
+  :$s/$/\=vsh#vsh#OutputRange()\<CR>
+
+Expect:
+  hello there
+  vshcmd: >
+  hello there3,3
 
 
 Given vsh (vsh buffer):
   vshcmd: >
+  vshcmd: > 
+  vshcmd: > ls
+  vshcmd: >   ls
+  vshcmd: > 	ls
+  vshcmd: >	ls
+  vshcmd: > # ls
+  vshcmd: > #ls
+  vshcmd: >   #ls
+  vshcmd: >  	#ls
+  hello there
 
-
-
-
-
-  vshcmd: >
-
-Do (OutputRange() inside output):
-  j:s/$/\=vsh#vsh#OutputRange()\<CR>
+Do (OutputRange() treats all lines starting with b:vsh_prompt stripped of whitespace the same):
+  :%s/$/\=vsh#vsh#OutputRange()\<CR>
 
 Expect:
   vshcmd: >
-  2,6
-
-
-
-
-  vshcmd: >
+  vshcmd: > 
+  vshcmd: > ls
+  vshcmd: >   ls
+  vshcmd: > 	ls
+  vshcmd: >	ls
+  vshcmd: > # ls
+  vshcmd: > #ls
+  vshcmd: >   #ls
+  vshcmd: >  	#ls11,11
+  hello there11,11
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                            Save Output function                             "
@@ -408,7 +674,7 @@ Given vsh (vsh buffer):
   $ 
   vshcmd: > echo Hello
 
-Do (Save output ignores text without prompt):
+Do (Save output does nothing when invoked on text without a prompt above it):
   \six
 
 Expect:
@@ -420,7 +686,7 @@ Expect:
   $ 
   vshcmd: > echo Hello
 
-Do (Save output on command line):
+Do (Invoking save output on command line comments out that line):
   2j\six
 
 Expect:
@@ -432,7 +698,19 @@ Expect:
   $ 
   vshcmd: > echo Hello
 
-Do (Save output when in output):
+Do (save output from inside the output of some command comments out that command line):
+  3j\s
+
+Expect:
+  just some text
+  above everything
+  vshcmd: > # vshcmd: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vshcmd: > echo Hello
+
+Do (save output from inside the output of some command does not move the cursor):
   3j\six
 
 Expect:
@@ -444,6 +722,17 @@ Expect:
   $ 
   vshcmd: > echo Hello
 
+Do (save output acting on a previously saved command does nothing):
+  3j\s\six
+
+Expect:
+  just some text
+  above everything
+  vshcmd: > # vshcmd: > ls
+  xbin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vshcmd: > echo Hello
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                           Unsave output function                            "
@@ -458,7 +747,7 @@ Given vsh (vsh buffer):
   $ 
   vshcmd: > echo Hello
 
-Do (Unsave output ignores text without prompt):
+Do (Unsave does nothing when invoked on text without a prompt above it):
   \aix
 
 Expect:
@@ -470,7 +759,7 @@ Expect:
   $ 
   vshcmd: > echo Hello
 
-Do (Unsave output on command line):
+Do (Invoking unsave output when on a previously saved command line uncomments that line):
   2j\aix
 
 Expect:
@@ -482,7 +771,19 @@ Expect:
   $ 
   vshcmd: > echo Hello
 
-Do (Unsave output when in output):
+Do (Invoking unsave output when in the output of a saved command uncomments that command):
+  3j\a
+
+Expect:
+  just some text
+  above everything
+  vshcmd: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vshcmd: > echo Hello
+
+Do (Invoking unsave output when in the output of a saved command does not move the cursor):
   3j\aix
 
 Expect:
@@ -493,6 +794,18 @@ Expect:
   pstree_output  sensitive  temp_dir  test.vsh             xresources
   $ 
   vshcmd: > echo Hello
+
+Do (Invoking unsave output from a command line that was not previously saved does nothing):
+  G\aix
+
+Expect:
+  just some text
+  above everything
+  vshcmd: > # vshcmd: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  xvshcmd: > echo Hello
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                                 New Prompt                                  "
@@ -506,7 +819,18 @@ Given vsh (vsh buffer):
   $ 
   vshcmd: > echo Hello
 
-Do (Unsave output on command line):
+Do (Getting a new prompt when on a command line inserts the new prompt after this commands output):
+  \n
+
+Expect:
+  vshcmd: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vshcmd: > 
+  vshcmd: > echo Hello
+
+Do (Getting a new prompt leaves the user in insert mode):
   \nx
 
 Expect:
@@ -517,7 +841,18 @@ Expect:
   vshcmd: > x
   vshcmd: > echo Hello
 
-Do (Unsave output when in output):
+Do (Getting a new prompt from inside output behaves the same as when on the command above that output):
+  j\nx
+
+Expect:
+  vshcmd: > ls
+  bin            records    share     tentel_password.txt  TODO
+  pstree_output  sensitive  temp_dir  test.vsh             xresources
+  $ 
+  vshcmd: > x
+  vshcmd: > echo Hello
+
+Do (Getting a new prompt inserts a prompt after the current command when there is no output from that command):
   \<C-n>\<C-n>\nx
 
 Expect:
@@ -540,7 +875,7 @@ Given vsh (vsh buffer):
   Hello there
   vshcmd: >    echo Hello there
 
-Do (Does nothing before empty prompt):
+Do (select a command does nothing before empty prompt):
   cicx
 
 Expect:
@@ -551,7 +886,11 @@ Expect:
   Hello there
   vshcmd: >    echo Hello there
 
-Do (Works on empty prompts (Reasonably: not great)):
+" Would prefer the select command to select "nothing", but don't know what that
+" means so can't implement it.
+" I expect it would mean special cases for each operator, so I'm not looking
+" into it.
+Do (select a command behaves reasonably when on an empty prompt):
   jcicx
 
 Expect:
@@ -562,7 +901,7 @@ Expect:
   Hello there
   vshcmd: >    echo Hello there
 
-Do (Ignores comment prompts):
+Do (select a command ignores comment prompts):
   jjcicx
 
 Expect:
@@ -575,7 +914,7 @@ Expect:
 
 
 # Real command
-Do (Selects inner command on real command):
+Do (select inner command selects a command without preceding whitespace):
   jjjcicx
 
 Expect:
@@ -587,7 +926,7 @@ Expect:
   vshcmd: >    echo Hello there
 
 
-Do (Selects outer command on real command):
+Do (Select outer command includes preceding whitespace):
   jjjcacx
 
 Expect:
@@ -600,7 +939,7 @@ Expect:
 
 
 # Select command when in output
-Do (Selects inner command when in output):
+Do (select inner command does the same when inside output as when at the command that created that output):
   jjjjcicx
 
 Expect:
@@ -612,7 +951,7 @@ Expect:
   vshcmd: >    echo Hello there
 
 
-Do (Selects outer command when in output):
+Do (select a command does the same when inside output as when at the command that created that output):
   jjjjcacx
 
 Expect:
@@ -625,7 +964,7 @@ Expect:
 
 
 # Command with spaces
-Do (Selects inner command excluding spaces):
+Do (select inner command leaves leading whitspace in a command):
   jjjjjcicx
 
 Expect:
@@ -636,7 +975,7 @@ Expect:
   Hello there
   vshcmd: >    x
 
-Do (Selects outer command including spaces):
+Do (select outer command includes leading whitspace in a command):
   jjjjjcacx
 
 Expect:
@@ -647,7 +986,7 @@ Expect:
   Hello there
   vshcmd: > x
 
-Do (Works with the redo '.' command):
+Do (command selection is redone with the '.' command as if typed again):
   jjjdacjj.
 
 Expect:
@@ -928,8 +1267,8 @@ Expect:
 "                              BOL override keys                              "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-# # The function that "I" calls uses " " feedkeys(), and that interferes with
-# # Vader, hence don't test this.
+# The function that "I" calls uses " " feedkeys(), and that interferes with
+# Vader, hence don't test this.
 Given vsh (vsh buffer):
   vshcmd: > echo hello
   vshcmd: >   echo hello
