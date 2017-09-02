@@ -79,9 +79,10 @@ class MarkStack(gdb.Command):
             pc_pos = frame.find_sal()
             # Can only add this position if we know the filename.
             # If we don't know the filename, clear this mark.
-            # If we didn't clear the mark, then neovim would end up with
+            # If we didn't clear the mark, then neovim would end up with a
+            # confusing set of marks.
             if pc_pos.symtab:
-                full_filename = os.path.abspath(pc_pos.symtab.filename)
+                full_filename = pc_pos.symtab.fullname()
                 # Doesn't really matter if the buffer has already been loaded
                 # -- this command doesn't do anything if it has.
                 nvim.command('badd {}'.format(full_filename))
@@ -170,10 +171,10 @@ class GoHere(gdb.Command):
             win = find_marked_window(nvim)
             if win:
                 nvim.command('{} wincmd w'.format(win.number))
-            open_method = self.direct_goto(nvim, pos.symtab.filename)
+            open_method = self.direct_goto(nvim, pos.symtab.fullname())
 
         nvim.command('{} +{} {}'.format(open_method, pos.line,
-                                        os.path.abspath(pos.symtab.filename)))
+                                        os.path.abspath(pos.symtab.fullname())))
         nvim.command('silent! {}foldopen!'.format(pos.line))
 
 
