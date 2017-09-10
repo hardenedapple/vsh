@@ -3,6 +3,14 @@ import string
 import neovim
 import gdb
 
+def linespec_from_address(address):
+    '''Take an address and return the pc_line from gdb.'''
+    pos = gdb.find_pc_line(int(gdb.parse_and_eval(address).cast(
+        gdb.lookup_type('char').pointer())))
+    if not pos.symtab:
+        raise ValueError("Can't find address {}".format(address))
+    return pos
+
 
 def get_nvim_instance():
     nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
@@ -16,6 +24,36 @@ def find_marked_window(nvim):
         if win.vars.get('gdb_view'):
             return win
     return None
+
+
+def mark_position(sal, letter, nvim, delete=False):
+    '''Given a gdb symtab and line object, mark its position with `letter`.
+    
+    `delete` determines what should happen when `sal` doesn't contain enough
+    information to perform the action.
+    It's a three way choice encoded with booleans and None.
+        delete = False    =>   raise ValueError()
+        delete = True     =>   run `delmark` in the nvim instance
+        delete = None     =>   do nothing, just return
+
+    '''
+    # Can only add this position if we know the filename.
+    # The caller tells us whether they want to delete the mark otherwise or
+    # just return.
+    if not sal.symtab:
+        if delete:
+            nvim.command('delmarks {}'.format(letter))
+        elif delete is None:
+            return
+        else:
+            raise ValueError('sal has no symtab')
+    full_filename = sal.symtab.fullname()
+    # Doesn't matter if the buffer has already been loaded.
+    # `badd` doesn't do anything if it has.
+    nvim.command('badd {}'.format(full_filename))
+    bufnr = nvim.funcs.bufnr(full_filename)
+    nvim.funcs.setpos("'{}".format(letter),
+                      [bufnr, sal.line, 0, 0])
 
 
 class MarkStack(gdb.Command):
@@ -77,20 +115,10 @@ class MarkStack(gdb.Command):
             # Here we mark c_val_print_array() and c_val_print() in the same
             # position.
             pc_pos = frame.find_sal()
-            # Can only add this position if we know the filename.
             # If we don't know the filename, clear this mark.
             # If we didn't clear the mark, then neovim would end up with a
             # confusing set of marks.
-            if pc_pos.symtab:
-                full_filename = pc_pos.symtab.fullname()
-                # Doesn't really matter if the buffer has already been loaded
-                # -- this command doesn't do anything if it has.
-                nvim.command('badd {}'.format(full_filename))
-                bufnr = nvim.funcs.bufnr(full_filename)
-                nvim.funcs.setpos("'{}".format(mark),
-                                  [bufnr, pc_pos.line, 0, 0])
-            else:
-                nvim.command('delmark {}'.format(mark))
+            mark_position(pc_pos, mark, nvim, True)
 
             frame = frame.older()
             if frame is None:
@@ -160,11 +188,7 @@ class GoHere(gdb.Command):
         else:
             open_method = ' '.join(args[:-1])
 
-        pos = gdb.find_pc_line(int(gdb.parse_and_eval(address).cast(
-            gdb.lookup_type('char').pointer())))
-        if not pos.symtab:
-            raise ValueError("Can't find address {}".format(address))
-
+        pos = linespec_from_address(address)
         nvim = get_nvim_instance()
 
         if open_method == 'default':
@@ -212,6 +236,40 @@ class ShowHere(gdb.Command):
         nvim.command('{} wincmd w'.format(curwin.number))
 
 
+class MarkThis(gdb.Command):
+    '''Put the given mark at the address of the given location.
+
+    If no address is given, then mark the position in source code where the
+    current stage of execution is.
+
+    Usage:
+        mark-this [A-Z] [address]
+
+    '''
+    def __init__(self):
+        super(MarkThis, self).__init__('mark-this', gdb.COMMAND_USER)
+
+    def invoke(self, arg, _):
+        self.dont_repeat()
+        args = gdb.string_to_argv(arg)
+        address = '$pc' if len(args) < 2 else args[-1]
+        if not args:
+            raise ValueError('mark-this must be told which mark to set')
+        mark_letter = args[0]
+        if len(mark_letter) != 1 or mark_letter not in string.ascii_uppercase:
+            raise ValueError('mark-this mark should be a single uppercase letter')
+
+        pos = linespec_from_address(address)
+        nvim = get_nvim_instance()
+
+        try:
+            mark_position(pos, mark_letter, nvim, False)
+        except ValueError:
+            print('Not enough debug information.')
+            print("Can't find source code location for pc {}".format(address))
+            
+
 GoHere()
 MarkStack()
 ShowHere()
+MarkThis()
