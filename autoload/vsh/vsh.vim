@@ -3,6 +3,7 @@
 " non-output to replace, *and* how we move about the file.
 " These three functions form these strings from b:vsh_prompt
 
+" {{{ Defining Line types (command|marker|comment)
 function vsh#vsh#SplitMarker(bufnr)
   let l:bufnr = a:bufnr ? a:bufnr : bufnr('%')
   " Ignore whitespace in the variable b:vsh_prompt
@@ -104,16 +105,13 @@ function s:prompt_end(promptline, count_whitespace, command_prompt)
   return strdisplaywidth(a:promptline[:l:promptend])
 endfunction
 
+" }}}
+
+" {{{ Moving
 function s:move_to_prompt_start()
   let promptend = s:prompt_end(getline('.'), 1, 0)
   if l:promptend != -1
     exe "normal! ".l:promptend."|"
-  endif
-endfunction
-
-function vsh#vsh#MoveToNextPrompt(mode, count)
-  if s:move_next(a:mode, a:count, s:motion_marker()) == 'reached end'
-    call s:move_to_prompt_start()
   endif
 endfunction
 
@@ -152,8 +150,10 @@ function s:move_next(mode, count, prompt)
   return 'found prompt'
 endfunction
 
-function vsh#vsh#MoveToPrevPrompt(mode, count)
-  call s:move_prev(a:mode, a:count, s:motion_marker())
+function vsh#vsh#MoveToNextPrompt(mode, count)
+  if s:move_next(a:mode, a:count, s:motion_marker()) == 'reached end'
+    call s:move_to_prompt_start()
+  endif
 endfunction
 
 function s:move_prev(mode, count, prompt)
@@ -194,6 +194,10 @@ function s:move_prev(mode, count, prompt)
   return 'found prompt'
 endfunction
 
+function vsh#vsh#MoveToPrevPrompt(mode, count)
+  call s:move_prev(a:mode, a:count, s:motion_marker())
+endfunction
+
 function s:end_at_less_line(direction)
   if a:direction == -1
     +1
@@ -205,6 +209,7 @@ function s:end_at_less_line(direction)
   normal! $
 endfunction
 
+" {{{ Command Block Motion
 function vsh#vsh#CommandBlockEnds(mode, count, direction, end)
   " Description:
   "   Moves to a:count'th end of command block in a:direction.
@@ -291,6 +296,9 @@ function vsh#vsh#CommandBlockEnds(mode, count, direction, end)
   endif
 endfunction
 
+" }}}
+" }}}
+
 " This would be internal, but I use it for testing.
 function vsh#vsh#ParseVSHCommand(line)
   " Check we've been given a command line and not some junk
@@ -329,217 +337,7 @@ function vsh#vsh#OutputRange()
   endif
 endfunction
 
-function vsh#vsh#ReplaceOutput()
-  let l:command_line = s:segment_start()
-
-  let l:command_text = getline(l:command_line)
-
-  " b:vsh_dir_store being set means the command line will be set to
-  " b:vsh_prompt . l:command . '  # ' . cwd
-  " . Hence we ensure that l:command ignores previous stored directories.
-  if get(b:, 'vsh_dir_store', 0)
-    let last_hash = strridx(l:command_text, '  # ')
-    if last_hash != -1
-      let possible_cmd = l:command_text[:last_hash - 1]
-      let stored_dir = split(l:command_text[last_hash:])
-      if len(stored_dir) == 2 && stored_dir[0] == '#' && isdirectory(stored_dir[1])
-        let l:command_text = possible_cmd
-      endif
-    endif
-  endif
-
-  let l:command = vsh#vsh#ParseVSHCommand(l:command_text)
-  if l:command == -1
-    return
-  endif
-  call vsh#vsh#RunCommand(l:command_line, l:command)
-endfunction
-
-function vsh#vsh#ReplaceOutputNewPrompt()
-  call vsh#vsh#ReplaceOutput()
-  call vsh#vsh#NewPrompt(1)
-endfunction
-
-function vsh#vsh#SaveOutput(activate)
-  " Comment out the command for this output.
-  " This means we won't accidentaly re-run the command here (because the
-  " corresponding command is a comment).
-  let l:cur_cli = s:segment_start()
-  if l:cur_cli == 0
-    return
-  endif
-
-  " NOTE: Assuming default &commentstring format of    '<something> %s'
-  " This should be fine because &commentstring should be defined by
-  " vsh#vsh#SetPrompt() below.
-  let cur_command = getline(l:cur_cli)
-  let commentstart = s:commentstart()
-  " Just add the comment starter before the current command -- you can remove
-  " it with the Commentary mappings then.
-  if a:activate
-    if l:cur_command =~# l:commentstart . b:vsh_prompt
-      call setline(l:cur_cli, l:cur_command[len(l:commentstart):])
-    else
-      echo 'Output is not Saved'
-    endif
-  elseif l:cur_command =~# s:command_marker()
-    call setline(l:cur_cli, l:commentstart . l:cur_command)
-  else
-    echo 'Output is not Active'
-  endif
-endfunction
-
-function vsh#vsh#NewPrompt(skip_output)
-  if a:skip_output
-    exe s:segment_end() - 1
-  endif
-  put = b:vsh_prompt
-  startinsert!
-endfunction
-
-
-" It appears that most text objects do *something* when there isn't really
-" anything to act on (e.g. 'iw' removes whatever whitespace you're on at the
-" moment.
-" For this reason we just don't move the cursor if there isn't a command above
-" our position in the buffer.
-function vsh#vsh#SelectCommand(include_whitespace)
-  " Operate on either all the command line, or all text in the command line.
-  let search_line = search(s:motion_marker(), 'bncW', 0)
-  let promptline = l:search_line ? l:search_line : 1
-  let curprompt = getline(l:promptline)
-
-  let promptend = s:prompt_end(l:curprompt, a:include_whitespace, 1)
-  if l:promptend != -1
-    " Note: Must use '|' because prompt_end() returns the number of screen
-    " cells used.
-    exe 'normal! '.l:promptline.'gg'.l:promptend.'|v$h'
-  endif
-endfunction
-
-" SelectCommand() uses the MotionMarker() prompt, while this works with the
-" SplitMarker() prompt because that is what I've defined to separate output
-" from other output.
-function vsh#vsh#SelectOutput(include_prompt)
-  let span = s:command_span()
-  if l:span == []
-    if !a:include_prompt
-      " No output, and asked to select all output.
-      return
-    else
-      let startline = line('.')
-      let endline = line('.')
-    endif
-  else
-    let startline = l:span[0]
-    if !a:include_prompt
-      let startline += 1
-    endif
-
-    let endline = l:span[1]
-  endif
-
-  exe 'normal! '.l:startline.'ggV'.l:endline.'gg'
-endfunction
-
-function vsh#vsh#SelectCommandBlock(include_comments)
-  " " Throughout this function, there are some comments documenting what would
-  " " need to be done to make the visual selection *extend* instead of switch.
-  " " This alternate behaviour can be seen with  vip<move to other paragraph>ip
-  " " and compared to the current behaviour that matches
-  " " va)<move to other brace>a)
-  " " It's much uglier to make and doesn't add much, so I don't do it, but I'm
-  " " a little proud of figuring it out, so I keep it around.
-  " if a:mode != 'o'
-  "   " Reselect, so the cursor is in the position that it was before this
-  "   " function was called.
-  "   normal! gv
-  " endif
-  if a:include_comments
-    let include_regex = vsh#vsh#SplitMarker(0)
-  else
-    let include_regex = s:motion_marker()
-  endif
-  let exclude_regex = s:negate_prompt_regex(l:include_regex)
-  let Find_prompt = { -> search(l:include_regex, 'bcW', 0) }
-
-  let l:start_line = 0
-  if getline('.') !~# include_regex
-    let l:start_line = Find_prompt()
-    if getline(l:start_line) !~# include_regex
-      return
-    endif
-  else
-    let l:start_line = line('.')
-  endif
-
-  let first_line = l:start_line
-  let last_line = l:start_line
-
-  let first_line = s:block_before(exclude_regex) + 1
-  let last_line = s:block_after(exclude_regex) - 1
-
-  " Anatomy of a visual mode mapping.
-  " If using an <expr> mapping, we can't find out where the start and end
-  " points of the current visual selection are: getpos("'<") and its
-  " counterpart both give the values that were around before.
-  " Moreover, we can't use any 'normal' commands, to find the cursor position
-  " of each side of the visual selection, as we get E523.
-  "
-  " Using a normal mapping to call a function:
-  " Mapping is called, visual mode is lost, and cursor position is moved to the
-  " *start* of the selection.
-  " We can find the sides of the visual selection using getpos("'<") and its
-  " counterpart, but we don't know which side of the selection the cursor was
-  " on before here.
-  " Reselecting the previous selection moves the cursor to the same side that
-  " it was on before.
-  " We then know what side the cursor is on, and can find the lines to move to.
-  " if a:mode == 'o'
-  exe 'normal! '.l:first_line.'ggV'.l:last_line.'gg'
-  " else
-  "   " Visual mode
-  "   let curpos = getpos('.')
-  "   let start_marker = getpos("'<")
-  "   let end_marker = getpos("'>")
-  "   if curpos == end_marker
-  "     exe 'normal! gv'.l:last_line.'gg$'
-  "     if start_marker[1] >= l:first_line
-  "       exe 'normal! o'.l:first_line.'gg^o'
-  "     endif
-  "   else
-  "     exe 'normal! gv'.l:first_line.'gg^'
-  "     if end_marker[1] <= l:last_line
-  "       exe 'normal! o'.l:last_line.'gg$o'
-  "     endif
-  "   endif
-  " endif
-endfunction
-
-function vsh#vsh#BOLOverride(mode)
-  let curline = getline('.')
-  if curline =~# vsh#vsh#SplitMarker(0)
-    if a:mode == 'v'
-      return s:prompt_end(curline, 1, 0) . '|'
-    endif
-    call s:move_to_prompt_start()
-  else
-    if a:mode == 'v'
-      return '^'
-    endif
-    normal! ^
-  endif
-endfunction
-
-function vsh#vsh#InsertOverride()
-  let orig_count = v:count1
-  normal ^
-  " Use feedkeys so that 'i' inserts.
-  " We can't use :startinsert because otherwise we don't include the count.
-  call feedkeys(orig_count . 'i')
-endfunction
-
-" Where vim and nvim differ.
+" {{{ Where vim and nvim differ.
 " At the moment it makes little sense to implement the vim stuff properly as
 " everything would be much easier when :h job-term  has been implemented.
 " Even once that happens, I have little motivation (other than it seems "right"
@@ -585,6 +383,8 @@ if !has('nvim') || !has('python3')
 else
   let s:plugin_path = escape(expand('<sfile>:p:h'), '\ ')
 
+  " {{{ Callbacks, Job Startup, and functions on Autocmds
+  " That is close thu current process
   function s:subprocess_closed(job_id, data, event) dict
     " Callback is run in the users current buffer, not the buffer that
     " the job is started in, so have to use getbufvar()/setbufvar().
@@ -682,6 +482,17 @@ else
     endif
   endfunction
 
+  function vsh#vsh#ClosedBuffer()
+    let closing_file = expand('<afile>')
+    let closing_job = get(g:vsh_closing_jobs, closing_file, 0)
+    if closing_job != 0
+      call jobclose(closing_job)
+      call remove(g:vsh_closing_jobs, closing_file)
+    endif
+  endfunction
+  " }}}
+
+  " {{{ Commands to send something to the shell
   function vsh#vsh#ShowCompletions(glob)
     let command = vsh#vsh#ParseVSHCommand(getline('.'))
     if l:command == -1
@@ -862,14 +673,6 @@ else
     return 'g@'
   endfunction
 
-  function vsh#vsh#MakeCmdOperatorFunc(type)
-    '[,']VmakeCmds
-  endfunction
-  function vsh#vsh#DoMakeCmdOperatorFunc()
-    set operatorfunc=vsh#vsh#MakeCmdOperatorFunc
-    return 'g@'
-  endfunction
-
   function vsh#vsh#SetSendbuf()
     " Aim is just to use v:count and do nothing.
     " When there is a count, we need to cancel it without having any effect on
@@ -909,101 +712,6 @@ else
     call jobsend(b:vsh_job, nr2char(l:cntrl_char))
   endfunction
 
-  function vsh#vsh#ClosedBuffer()
-    let closing_file = expand('<afile>')
-    let closing_job = get(g:vsh_closing_jobs, closing_file, 0)
-    if closing_job != 0
-      call jobclose(closing_job)
-      call remove(g:vsh_closing_jobs, closing_file)
-    endif
-  endfunction
-
-  function vsh#vsh#WithPathSet(command)
-    if !get(b:, 'vsh_job', 0)
-      echoerr 'No subprocess currently running!'
-      echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
-      return
-    endif
-    let stored_dir = split(getline(s:segment_start()))[-2:]
-    if stored_dir[0] == '#' && isdirectory(stored_dir[1])
-      let subprocess_cwd = stored_dir[1]
-    else
-      let subprocess_cwd = py3eval('vsh_find_cwd(' . b:vsh_job . ')')
-    endif
-    " Can't remove the extra item in the path once we've done because we've
-    " changed buffer. Use BufLeave to reset the path as soon as we leave this
-    " buffer (which will usually happen in the last `execute` command of this
-    " function).
-    if !&l:path
-      let orig_path = &g:path
-      let vsh_path_restore = ''
-    else
-      let orig_path = &l:path
-      let vsh_path_restore = &l:path
-    endif
-
-    let command_string = 'autocmd Bufleave * call setbufvar(' . bufnr('%') . ', "&path", "' . l:vsh_path_restore . '") | autocmd! VshRevertPath'
-    augroup VshRevertPath
-      autocmd!
-      execute command_string
-    augroup END
-
-    let &l:path = subprocess_cwd . ',' . orig_path
-    execute a:command
-  endfunction
-
-  function s:cd_to_cwd()
-    " Return the current working directory of this vim window, the command to
-    " use to switch the working directory, and the working directory of the
-    " foreground process in the pty.
-    if !get(b:, 'vsh_job', 0)
-      echoerr 'No subprocess currently running!'
-      echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
-      return
-    endif
-    let prev_wd = getcwd()
-    " Note: only neovim has :tcd
-    " Choose the most general cd command that changes this windows cwd.
-    " If we were to use :lcd unconditionally we would give the current window a
-    " local directory if it didn't already have one.
-    let cd_cmd = haslocaldir() ? 'lcd ' : haslocaldir(-1, 0) ? 'tcd ' : 'cd '
-    return [prev_wd, cd_cmd, py3eval('vsh_find_cwd(' . b:vsh_job . ')')]
-  endfunction
-
-  function vsh#vsh#NetrwBrowse()
-    let [prev_wd, cd_cmd, newcwd] = s:cd_to_cwd()
-    execute cd_cmd . newcwd
-    execute "normal \<Plug>NetrwBrowseX"
-    execute cd_cmd . prev_wd
-  endfunction
-
-  function vsh#vsh#FileCompletion()
-    " Store variables in the buffer so that the autocmd has access to them.
-    let [b:vsh_prev_wd, b:vsh_cd_cmd, newcwd] = s:cd_to_cwd()
-    execute b:vsh_cd_cmd . newcwd
-    augroup VshRevertWD
-      autocmd!
-      autocmd CompleteDone <buffer> execute b:vsh_cd_cmd . b:vsh_prev_wd | unlet b:vsh_cd_cmd b:vsh_prev_wd | autocmd! VshRevertWD
-    augroup END
-    return "\<C-x>\<C-f>"
-  endfunction
-
-  function vsh#vsh#EditFiles(filenames)
-    " NOTE: This isn't a very robust method of keeping the users argument list
-    " around -- call it twice and the original argument list has been lost --
-    " but it works nicely enough. If the user really wanted to keep their
-    " argument list around they can just make sure to restore it between uses
-    " of $EDITOR in a vsh buffer.
-    let g:vsh_prev_argid = argidx() + 1
-    let g:vsh_prev_args = argv()
-    execute 'args ' . join(map(a:filenames, 'fnameescape(v:val)'))
-  endfunction
-
-  function vsh#vsh#RestoreArgs()
-    execute 'args ' . join(g:vsh_prev_args)
-    execute 'argument ' . g:vsh_prev_argid
-  endfunction
-
   function vsh#vsh#SendPassword()
     if !get(b:, 'vsh_job', 0)
       echoerr 'No subprocess currently running!'
@@ -1013,8 +721,319 @@ else
     let password = inputsecret('Password: ')
     call jobsend(b:vsh_job, password . "\n")
   endfunction
+  " }}}
 endif
+" }}}
 
+function vsh#vsh#MakeCmdOperatorFunc(type)
+  '[,']VmakeCmds
+endfunction
+function vsh#vsh#DoMakeCmdOperatorFunc()
+  set operatorfunc=vsh#vsh#MakeCmdOperatorFunc
+  return 'g@'
+endfunction
+
+" {{{ Integration with CWD of shell
+function vsh#vsh#WithPathSet(command)
+  if !get(b:, 'vsh_job', 0)
+    echoerr 'No subprocess currently running!'
+    echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
+    return
+  endif
+  let stored_dir = split(getline(s:segment_start()))[-2:]
+  if stored_dir[0] == '#' && isdirectory(stored_dir[1])
+    let subprocess_cwd = stored_dir[1]
+  else
+    let subprocess_cwd = py3eval('vsh_find_cwd(' . b:vsh_job . ')')
+  endif
+  " Can't remove the extra item in the path once we've done because we've
+  " changed buffer. Use BufLeave to reset the path as soon as we leave this
+  " buffer (which will usually happen in the last `execute` command of this
+  " function).
+  if !&l:path
+    let orig_path = &g:path
+    let vsh_path_restore = ''
+  else
+    let orig_path = &l:path
+    let vsh_path_restore = &l:path
+  endif
+
+  let command_string = 'autocmd Bufleave * call setbufvar(' . bufnr('%') . ', "&path", "' . l:vsh_path_restore . '") | autocmd! VshRevertPath'
+  augroup VshRevertPath
+    autocmd!
+    execute command_string
+  augroup END
+
+  let &l:path = subprocess_cwd . ',' . orig_path
+  execute a:command
+endfunction
+
+function s:cd_to_cwd()
+  " Return the current working directory of this vim window, the command to
+  " use to switch the working directory, and the working directory of the
+  " foreground process in the pty.
+  if !get(b:, 'vsh_job', 0)
+    echoerr 'No subprocess currently running!'
+    echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
+    return
+  endif
+  let prev_wd = getcwd()
+  " Note: only neovim has :tcd
+  " Choose the most general cd command that changes this windows cwd.
+  " If we were to use :lcd unconditionally we would give the current window a
+  " local directory if it didn't already have one.
+  let cd_cmd = haslocaldir() ? 'lcd ' : haslocaldir(-1, 0) ? 'tcd ' : 'cd '
+  return [prev_wd, cd_cmd, py3eval('vsh_find_cwd(' . b:vsh_job . ')')]
+endfunction
+
+function vsh#vsh#NetrwBrowse()
+  let [prev_wd, cd_cmd, newcwd] = s:cd_to_cwd()
+  execute cd_cmd . newcwd
+  execute "normal \<Plug>NetrwBrowseX"
+  execute cd_cmd . prev_wd
+endfunction
+
+function vsh#vsh#FileCompletion()
+  " Store variables in the buffer so that the autocmd has access to them.
+  let [b:vsh_prev_wd, b:vsh_cd_cmd, newcwd] = s:cd_to_cwd()
+  execute b:vsh_cd_cmd . newcwd
+  augroup VshRevertWD
+    autocmd!
+    autocmd CompleteDone <buffer> execute b:vsh_cd_cmd . b:vsh_prev_wd | unlet b:vsh_cd_cmd b:vsh_prev_wd | autocmd! VshRevertWD
+  augroup END
+  return "\<C-x>\<C-f>"
+endfunction
+
+function vsh#vsh#EditFiles(filenames)
+  " NOTE: This isn't a very robust method of keeping the users argument list
+  " around -- call it twice and the original argument list has been lost --
+  " but it works nicely enough. If the user really wanted to keep their
+  " argument list around they can just make sure to restore it between uses
+  " of $EDITOR in a vsh buffer.
+  let g:vsh_prev_argid = argidx() + 1
+  let g:vsh_prev_args = argv()
+  execute 'args ' . join(map(a:filenames, 'fnameescape(v:val)'))
+endfunction
+
+function vsh#vsh#RestoreArgs()
+  execute 'args ' . join(g:vsh_prev_args)
+  execute 'argument ' . g:vsh_prev_argid
+endfunction
+" }}}
+
+function vsh#vsh#ReplaceOutput()
+  let l:command_line = s:segment_start()
+
+  let l:command_text = getline(l:command_line)
+
+  " b:vsh_dir_store being set means the command line will be set to
+  " b:vsh_prompt . l:command . '  # ' . cwd
+  " . Hence we ensure that l:command ignores previous stored directories.
+  if get(b:, 'vsh_dir_store', 0)
+    let last_hash = strridx(l:command_text, '  # ')
+    if last_hash != -1
+      let possible_cmd = l:command_text[:last_hash - 1]
+      let stored_dir = split(l:command_text[last_hash:])
+      if len(stored_dir) == 2 && stored_dir[0] == '#' && isdirectory(stored_dir[1])
+        let l:command_text = possible_cmd
+      endif
+    endif
+  endif
+
+  let l:command = vsh#vsh#ParseVSHCommand(l:command_text)
+  if l:command == -1
+    return
+  endif
+  call vsh#vsh#RunCommand(l:command_line, l:command)
+endfunction
+
+function vsh#vsh#NewPrompt(skip_output)
+  if a:skip_output
+    exe s:segment_end() - 1
+  endif
+  put = b:vsh_prompt
+  startinsert!
+endfunction
+
+function vsh#vsh#ReplaceOutputNewPrompt()
+  call vsh#vsh#ReplaceOutput()
+  call vsh#vsh#NewPrompt(1)
+endfunction
+
+function vsh#vsh#SaveOutput(activate)
+  " Comment out the command for this output.
+  " This means we won't accidentaly re-run the command here (because the
+  " corresponding command is a comment).
+  let l:cur_cli = s:segment_start()
+  if l:cur_cli == 0
+    return
+  endif
+
+  " NOTE: Assuming default &commentstring format of    '<something> %s'
+  " This should be fine because &commentstring should be defined by
+  " vsh#vsh#SetPrompt() below.
+  let cur_command = getline(l:cur_cli)
+  let commentstart = s:commentstart()
+  " Just add the comment starter before the current command -- you can remove
+  " it with the Commentary mappings then.
+  if a:activate
+    if l:cur_command =~# l:commentstart . b:vsh_prompt
+      call setline(l:cur_cli, l:cur_command[len(l:commentstart):])
+    else
+      echo 'Output is not Saved'
+    endif
+  elseif l:cur_command =~# s:command_marker()
+    call setline(l:cur_cli, l:commentstart . l:cur_command)
+  else
+    echo 'Output is not Active'
+  endif
+endfunction
+
+" {{{ Text objects
+" It appears that most text objects do *something* when there isn't really
+" anything to act on (e.g. 'iw' removes whatever whitespace you're on at the
+" moment.
+" For this reason we just don't move the cursor if there isn't a command above
+" our position in the buffer.
+function vsh#vsh#SelectCommand(include_whitespace)
+  " Operate on either all the command line, or all text in the command line.
+  let search_line = search(s:motion_marker(), 'bncW', 0)
+  let promptline = l:search_line ? l:search_line : 1
+  let curprompt = getline(l:promptline)
+
+  let promptend = s:prompt_end(l:curprompt, a:include_whitespace, 1)
+  if l:promptend != -1
+    " Note: Must use '|' because prompt_end() returns the number of screen
+    " cells used.
+    exe 'normal! '.l:promptline.'gg'.l:promptend.'|v$h'
+  endif
+endfunction
+
+" SelectCommand() uses the MotionMarker() prompt, while this works with the
+" SplitMarker() prompt because that is what I've defined to separate output
+" from other output.
+function vsh#vsh#SelectOutput(include_prompt)
+  let span = s:command_span()
+  if l:span == []
+    if !a:include_prompt
+      " No output, and asked to select all output.
+      return
+    else
+      let startline = line('.')
+      let endline = line('.')
+    endif
+  else
+    let startline = l:span[0]
+    if !a:include_prompt
+      let startline += 1
+    endif
+
+    let endline = l:span[1]
+  endif
+
+  exe 'normal! '.l:startline.'ggV'.l:endline.'gg'
+endfunction
+
+function vsh#vsh#SelectCommandBlock(include_comments)
+  " " Throughout this function, there are some comments documenting what would
+  " " need to be done to make the visual selection *extend* instead of switch.
+  " " This alternate behaviour can be seen with  vip<move to other paragraph>ip
+  " " and compared to the current behaviour that matches
+  " " va)<move to other brace>a)
+  " " It's much uglier to make and doesn't add much, so I don't do it, but I'm
+  " " a little proud of figuring it out, so I keep it around.
+  " if a:mode != 'o'
+  "   " Reselect, so the cursor is in the position that it was before this
+  "   " function was called.
+  "   normal! gv
+  " endif
+  if a:include_comments
+    let include_regex = vsh#vsh#SplitMarker(0)
+  else
+    let include_regex = s:motion_marker()
+  endif
+  let exclude_regex = s:negate_prompt_regex(l:include_regex)
+  let Find_prompt = { -> search(l:include_regex, 'bcW', 0) }
+
+  let l:start_line = 0
+  if getline('.') !~# include_regex
+    let l:start_line = Find_prompt()
+    if getline(l:start_line) !~# include_regex
+      return
+    endif
+  else
+    let l:start_line = line('.')
+  endif
+
+  let first_line = l:start_line
+  let last_line = l:start_line
+
+  let first_line = s:block_before(exclude_regex) + 1
+  let last_line = s:block_after(exclude_regex) - 1
+
+  " Anatomy of a visual mode mapping.
+  " If using an <expr> mapping, we can't find out where the start and end
+  " points of the current visual selection are: getpos("'<") and its
+  " counterpart both give the values that were around before.
+  " Moreover, we can't use any 'normal' commands, to find the cursor position
+  " of each side of the visual selection, as we get E523.
+  "
+  " Using a normal mapping to call a function:
+  " Mapping is called, visual mode is lost, and cursor position is moved to the
+  " *start* of the selection.
+  " We can find the sides of the visual selection using getpos("'<") and its
+  " counterpart, but we don't know which side of the selection the cursor was
+  " on before here.
+  " Reselecting the previous selection moves the cursor to the same side that
+  " it was on before.
+  " We then know what side the cursor is on, and can find the lines to move to.
+  " if a:mode == 'o'
+  exe 'normal! '.l:first_line.'ggV'.l:last_line.'gg'
+  " else
+  "   " Visual mode
+  "   let curpos = getpos('.')
+  "   let start_marker = getpos("'<")
+  "   let end_marker = getpos("'>")
+  "   if curpos == end_marker
+  "     exe 'normal! gv'.l:last_line.'gg$'
+  "     if start_marker[1] >= l:first_line
+  "       exe 'normal! o'.l:first_line.'gg^o'
+  "     endif
+  "   else
+  "     exe 'normal! gv'.l:first_line.'gg^'
+  "     if end_marker[1] <= l:last_line
+  "       exe 'normal! o'.l:last_line.'gg$o'
+  "     endif
+  "   endif
+  " endif
+endfunction
+" }}}
+
+function vsh#vsh#BOLOverride(mode)
+  let curline = getline('.')
+  if curline =~# vsh#vsh#SplitMarker(0)
+    if a:mode == 'v'
+      return s:prompt_end(curline, 1, 0) . '|'
+    endif
+    call s:move_to_prompt_start()
+  else
+    if a:mode == 'v'
+      return '^'
+    endif
+    normal! ^
+  endif
+endfunction
+
+function vsh#vsh#InsertOverride()
+  let orig_count = v:count1
+  normal ^
+  " Use feedkeys so that 'i' inserts.
+  " We can't use :startinsert because otherwise we don't include the count.
+  call feedkeys(orig_count . 'i')
+endfunction
+
+
+" {{{ Setup and Teardown of ftplugin
 function vsh#vsh#SetupMappings()
   command -buffer -range Vrerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:vsh_prompt . '/call vsh#vsh#ReplaceOutput()'
   command -buffer -range VmakeCmds execute 'keeppatterns ' . <line1> . ',' . <line2> . 's/^/' . b:vsh_prompt . '/'
@@ -1112,3 +1131,4 @@ function vsh#vsh#Undoftplugin()
   call s:close_process()
   call s:remove_buffer_variables()
 endfunction
+" }}}
