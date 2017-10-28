@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 # Simple MANPAGER program that just removes special formatting and prints the
 # text to the screen.

@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 # TODO Have to play around with these settings to find the most useful for vsh.
 # stty -echonl -icanon -iexten isig onocr
