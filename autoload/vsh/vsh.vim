@@ -250,7 +250,7 @@ function vsh#vsh#CommandBlockEnds(mode, count, direction, end)
   "   > Find previous prompt.
   "     Find next output
   "     Find next prompt
-  " 
+  "
   " Going Up
   "  > Aiming for end (direction * end == 1)
   "   > Find next prompt
@@ -381,6 +381,10 @@ if !has('nvim') || !has('python3')
     call s:move_to_prompt_start()
   endfunction
 else
+  " NOTE not accounting for macOS line endings until I have a machine running
+  " it that I can test on.
+  " Just guessing what would have to be done doesn't seem sensible to me.
+  let s:line_terminator = repeat("\r", has('win32')) . "\n"
   let s:plugin_path = escape(expand('<sfile>:p:h'), '\ ')
 
   " {{{ Callbacks, Job Startup, and functions on Autocmds
@@ -434,9 +438,11 @@ else
         \ 'on_stdout': function('s:insert_text'),
         \ 'on_stderr': function('s:insert_text'),
         \ 'on_exit': function('s:subprocess_closed'),
-        \ 'pty': 1,
         \ 'TERM': 'dumb'
         \ }
+  if has('unix')
+    let s:callbacks['pty'] = 1
+  endif
 
   function vsh#vsh#StartSubprocess()
     " Note: This has to be loaded first
@@ -457,11 +463,24 @@ else
     " XXX Mark use
     call s:set_marks_at('0')
 
-    let start_script = s:plugin_path . '/vsh_shell_start'
+    " TODO Figure out the best check here.
+    " What I want to know, is if `bash` exists, whicih I guess would be true on
+    " macOS.
+    " The question is, does has('unix') return true in that case?
     let cwd = expand('%:p:h')
-    let job_id = jobstart(
-          \ [start_script, s:plugin_path, bufnr('%'), cwd, &shell],
-          \ extend({'buffer': bufnr('%')}, s:callbacks))
+    if has('unix')
+      let start_script = s:plugin_path . '/vsh_shell_start'
+      " TODO Try the below with 'cwd' set in the option dictionary instead of
+      " changing directory in the first subshell.
+      let job_id = jobstart(
+            \ [start_script, s:plugin_path, bufnr('%'), cwd, &shell],
+            \ extend({'buffer': bufnr('%')}, s:callbacks))
+    else
+      " TODO Want to not echo the command I sent to Powershell.
+      let job_id = jobstart(
+            \ ['powershell', '-OutputFormat', 'Text', '-NonInteractive'],
+            \ extend({'buffer': bufnr('%'), 'cwd': cwd}, s:callbacks))
+    endif
     if l:job_id == 0
       echoerr "Too many jobs started, can't start another."
     elseif l:job_id == -1
@@ -554,7 +573,7 @@ else
 
     " XXX Mark use
     call s:set_marks_at('here')
-    let retval = jobsend(b:vsh_job, a:command . "\n")
+    let retval = jobsend(b:vsh_job, a:command . s:line_terminator)
     if retval == 0
       echoerr 'Failed to send command "' . a:command . '" to subprocess'
     endif
@@ -610,15 +629,21 @@ else
     " We've already fetched the text for the first line in this range, so we
     " may as well send it outside the loop rather than call getline() again
     " unnecessarily.
-    call jobsend(l:jobnr, first_line[indent:] . "\n")
+    let retval = jobsend(l:jobnr, first_line[indent:] . s:line_terminator)
     if line2 >= line1
       for linenr in range(line1, line2)
-        call jobsend(l:jobnr, getline(linenr)[indent:] . "\n")
+        if retval == 0
+          echoerr 'jobsend failed in vsh#vsh#VshSend()'
+          break
+        endif
+        let retval = jobsend(l:jobnr, getline(linenr)[indent:] . s:line_terminator)
       endfor
     endif
 
     if last_bit isnot v:false
-      call jobsend(l:jobnr, last_bit . "\n")
+      if jobsend(l:jobnr, last_bit . s:line_terminator) == 0
+        echoerr 'jobsend failed in vsh#vsh#VshSend()'
+      endif
     endif
   endfunction
 
@@ -709,7 +734,9 @@ else
       endif
       return
     endif
-    call jobsend(b:vsh_job, nr2char(l:cntrl_char))
+    if jobsend(b:vsh_job, nr2char(l:cntrl_char)) == 0
+      echoerr 'jobsend() failed to send control character'
+    endif
   endfunction
 
   function vsh#vsh#SendPassword()
@@ -719,7 +746,9 @@ else
       return
     endif
     let password = inputsecret('Password: ')
-    call jobsend(b:vsh_job, password . "\n")
+    if jobsend(b:vsh_job, password . s:line_terminator) == 0
+      echoerr 'jobsend() failed to send password'
+    endif
   endfunction
   " }}}
 endif
@@ -1070,6 +1099,9 @@ endfunction
 "      I can currently have the 'this is a text' either in red or no color, I
 "      haven't managed to get it in green.
 function s:create_color_groups()
+  if has('win32')
+    return
+  endif
   let colorControl = '"\[\(\d\+;\=\)*m"'
   " Hide all bash control characters
   execute 'syn match vshHide ' . colorControl . ' conceal'

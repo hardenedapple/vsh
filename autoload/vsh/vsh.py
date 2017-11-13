@@ -92,6 +92,18 @@ def vsh_insert_helper(data, vsh_buf):
     # data would have been '' so this still works.
     prompt = vim.eval('vsh#vsh#SplitMarker({})'.format(vsh_buf.number))
     insert_line_text = vsh_buf[insert_line - 1]
+    # As @bfredl mentioned in #neovim, jobstart() process output is a stream of
+    # bytes not a list of lines, it just looks like a list of lines because of
+    # how they're represented in vimL.
+    # Hence we have to manually remove any '\r' characters from our input (i.e.
+    # powershells output).
+    if vim.eval("has('win32')") == '1':
+        # Can't use line.rstrip('\r'), as in the case that the line ends with
+        # an actual CR that isn't part of a line ending then it would end up
+        # removing that.
+        #  e.g.   "line-text\r\r\n" would end up as "line-text\r\n" after
+        #  saving the file.
+        data = [line[:-1] if line.endswith('\r') else line for line in data]
     # Use vim.funcs.match() so vim regular expressions in 'prompt' work.
     if vim.funcs.match(insert_line_text, prompt) == -1:
         firstline = data.pop(0)
