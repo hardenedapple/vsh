@@ -478,7 +478,7 @@ else
     else
       " TODO Want to not echo the command I sent to Powershell.
       let job_id = jobstart(
-            \ ['powershell', '-OutputFormat', 'Text', '-NonInteractive'],
+            \ ['powershell', '-OutputFormat', 'Text', '-NoLogo', '-NonInteractive'],
             \ extend({'buffer': bufnr('%'), 'cwd': cwd}, s:callbacks))
     endif
     if l:job_id == 0
