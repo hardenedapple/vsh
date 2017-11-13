@@ -468,18 +468,17 @@ else
     " macOS.
     " The question is, does has('unix') return true in that case?
     let cwd = expand('%:p:h')
+    let arguments = extend({'buffer': bufnr('%'), 'cwd': cwd}, s:callbacks)
     if has('unix')
       let start_script = s:plugin_path . '/vsh_shell_start'
-      " TODO Try the below with 'cwd' set in the option dictionary instead of
-      " changing directory in the first subshell.
       let job_id = jobstart(
-            \ [start_script, s:plugin_path, bufnr('%'), cwd, &shell],
-            \ extend({'buffer': bufnr('%')}, s:callbacks))
+            \ [start_script, s:plugin_path, bufnr('%'), &shell],
+            \ arguments)
     else
       " TODO Want to not echo the command I sent to Powershell.
       let job_id = jobstart(
             \ ['powershell', '-OutputFormat', 'Text', '-NoLogo', '-NonInteractive'],
-            \ extend({'buffer': bufnr('%'), 'cwd': cwd}, s:callbacks))
+            \ arguments)
     endif
     if l:job_id == 0
       echoerr "Too many jobs started, can't start another."
