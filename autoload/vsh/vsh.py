@@ -92,18 +92,6 @@ def vsh_insert_helper(data, vsh_buf):
     # data would have been '' so this still works.
     prompt = vim.eval('vsh#vsh#SplitMarker({})'.format(vsh_buf.number))
     insert_line_text = vsh_buf[insert_line - 1]
-    # As @bfredl mentioned in #neovim, jobstart() process output is a stream of
-    # bytes not a list of lines, it just looks like a list of lines because of
-    # how they're represented in vimL.
-    # Hence we have to manually remove any '\r' characters from our input (i.e.
-    # powershells output).
-    if vim.eval("has('win32')") == '1':
-        # Can't use line.rstrip('\r'), as in the case that the line ends with
-        # an actual CR that isn't part of a line ending then it would end up
-        # removing that.
-        #  e.g.   "line-text\r\r\n" would end up as "line-text\r\n" after
-        #  saving the file.
-        data = [line[:-1] if line.endswith('\r') else line for line in data]
     # Use vim.funcs.match() so vim regular expressions in 'prompt' work.
     if vim.funcs.match(insert_line_text, prompt) == -1:
         firstline = data.pop(0)
@@ -149,8 +137,20 @@ def vsh_insert_text(data, insert_buf):
         vim.command('echomsg "Vsh text recieved for invalid buffer"')
         return
 
+    # As @bfredl mentioned in #neovim, jobstart() process output is a stream of
+    # bytes not a list of lines, it just looks like a list of lines because of
+    # how they're represented in vimL.
+    # Hence we have to manually remove any '\r' characters from our input (i.e.
+    # powershells output).
+    if vim.eval("has('win32')") == '1':
+        # It's a little wasteful to transform a list into a string and then
+        # split it back into a list rather than transforming the list in place.
+        # On the other hand, transforming the list in place is a pain, and has
+        # edge cases.
+        data = '\n'.join(data).split('\r\n')
     # Don't print out the starting prompt of the shell.
-    if 'vsh_initialised' not in vsh_buf.vars or \
+    # This is not a problem with Windows Powershell.
+    elif 'vsh_initialised' not in vsh_buf.vars or \
             not vsh_buf.vars['vsh_initialised']:
         vsh_buf.vars['vsh_initialised'] = 1
         # TODO Find a better way to check this is just the starting prompt of
