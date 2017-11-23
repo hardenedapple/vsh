@@ -140,14 +140,18 @@ def vsh_insert_text(data, insert_buf):
     # As @bfredl mentioned in #neovim, jobstart() process output is a stream of
     # bytes not a list of lines, it just looks like a list of lines because of
     # how they're represented in vimL.
-    # Hence we have to manually remove any '\r' characters from our input (i.e.
+    # Hence we have to manually remove extra '\r' characters from our input (i.e.
     # powershells output).
+    # Unfortunately, some commands (e.g. `git`) don't end their lines with
+    # '\r\n' when running in powershell, instead they end their lines with
+    # '\n'.
+    # This means we can't tell for certain whether a lone '\n' was meant to be
+    # a character in the middle of a line or a line ending.
+    # Empirically I've seen '\n' meant as a line ending more often than a
+    # character in the middle of a line, so that's always our guess.
     if vim.eval("has('win32')") == '1':
-        # It's a little wasteful to transform a list into a string and then
-        # split it back into a list rather than transforming the list in place.
-        # On the other hand, transforming the list in place is a pain, and has
-        # edge cases.
-        data = '\n'.join(data).split('\r\n')
+        data = [val[:-1] if (len(val) > 0 and val[-1] == '\r') else val
+                for val in data]
     # Don't print out the starting prompt of the shell.
     # This is not a problem with Windows Powershell.
     elif 'vsh_initialised' not in vsh_buf.vars or \
