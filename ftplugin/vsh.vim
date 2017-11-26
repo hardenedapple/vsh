@@ -66,10 +66,13 @@ setlocal conceallevel=2
 setlocal formatoptions+=r
 setlocal formatoptions+=o
 
+" Default tabsize in the output of many programs.
+setlocal tabstop=8
+
 " Shells, gdb, and similar have '-' as a keyword.
 setlocal iskeyword+=-
 
 call vsh#vsh#SetupMappings()
 
 let b:vsh_dir_store = get(g:, 'vsh_dir_store', 0)
-let b:undo_ftplugin = 'setlocal comments< formatoptions< conceallevel< iskeyword< | call vsh#vsh#Undoftplugin()'
+let b:undo_ftplugin = 'setlocal tabstop< comments< formatoptions< conceallevel< iskeyword< | call vsh#vsh#Undoftplugin()'
