@@ -447,7 +447,7 @@ else
   function vsh#vsh#StartSubprocess()
     " Note: This has to be loaded first
     " If the python3 provider hasn't yet been started, then starting it *after*
-    " starting the subprocess means that when we call jobclose(b:vsh_job) the
+    " starting the subprocess means that when we call chanclose(b:vsh_job) the
     " bash process isn't sent a SIGHUP.
     " This limits the effect of the problem that neovim PR #5986 is for.
     " https://github.com/neovim/neovim/pull/5986
@@ -493,9 +493,9 @@ else
   endfunction
 
   function s:close_process()
-    " jobclose() sends a SIGHUP to the bash process
+    " chanclose() sends a SIGHUP to the bash process
     if get(b:, 'vsh_job', 0)
-      call jobclose(b:vsh_job)
+      call chanclose(b:vsh_job)
       unlet b:vsh_job
     endif
   endfunction
@@ -504,7 +504,7 @@ else
     let closing_file = expand('<afile>')
     let closing_job = get(g:vsh_closing_jobs, closing_file, 0)
     if closing_job != 0
-      call jobclose(closing_job)
+      call chanclose(closing_job)
       call remove(g:vsh_closing_jobs, closing_file)
     endif
   endfunction
@@ -536,7 +536,7 @@ else
     " ['', "echo \n", ""] to get at least the glob expansion.
     let completions_cmds = get(b:, 'vsh_completions_cmd', ['?', 'g', ''])
     let cmd_chars = completions_cmds[a:glob ? 1 : 0]
-    let retval = jobsend(b:vsh_job, l:command . cmd_chars . completions_cmds[2])
+    let retval = chansend(b:vsh_job, l:command . cmd_chars . completions_cmds[2])
     if retval == 0
       echoerr 'Failed to tab complete output'
     endif
@@ -572,7 +572,7 @@ else
 
     " XXX Mark use
     call s:set_marks_at('here')
-    let retval = jobsend(b:vsh_job, a:command . s:line_terminator)
+    let retval = chansend(b:vsh_job, a:command . s:line_terminator)
     if retval == 0
       echoerr 'Failed to send command "' . a:command . '" to subprocess'
     endif
@@ -628,20 +628,20 @@ else
     " We've already fetched the text for the first line in this range, so we
     " may as well send it outside the loop rather than call getline() again
     " unnecessarily.
-    let retval = jobsend(l:jobnr, first_line[indent:] . s:line_terminator)
+    let retval = chansend(l:jobnr, first_line[indent:] . s:line_terminator)
     if line2 >= line1
       for linenr in range(line1, line2)
         if retval == 0
-          echoerr 'jobsend failed in vsh#vsh#VshSend()'
+          echoerr 'chansend failed in vsh#vsh#VshSend()'
           break
         endif
-        let retval = jobsend(l:jobnr, getline(linenr)[indent:] . s:line_terminator)
+        let retval = chansend(l:jobnr, getline(linenr)[indent:] . s:line_terminator)
       endfor
     endif
 
     if last_bit isnot v:false
-      if jobsend(l:jobnr, last_bit . s:line_terminator) == 0
-        echoerr 'jobsend failed in vsh#vsh#VshSend()'
+      if chansend(l:jobnr, last_bit . s:line_terminator) == 0
+        echoerr 'chansend failed in vsh#vsh#VshSend()'
       endif
     endif
   endfunction
@@ -733,8 +733,8 @@ else
       endif
       return
     endif
-    if jobsend(b:vsh_job, nr2char(l:cntrl_char)) == 0
-      echoerr 'jobsend() failed to send control character'
+    if chansend(b:vsh_job, nr2char(l:cntrl_char)) == 0
+      echoerr 'chansend() failed to send control character'
     endif
   endfunction
 
@@ -745,8 +745,8 @@ else
       return
     endif
     let password = inputsecret('Password: ')
-    if jobsend(b:vsh_job, password . s:line_terminator) == 0
-      echoerr 'jobsend() failed to send password'
+    if chansend(b:vsh_job, password . s:line_terminator) == 0
+      echoerr 'chansend() failed to send password'
     endif
   endfunction
   " }}}

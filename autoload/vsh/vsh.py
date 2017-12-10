@@ -158,7 +158,7 @@ def vsh_insert_text(data, insert_buf):
             not vsh_buf.vars['vsh_initialised']:
         vsh_buf.vars['vsh_initialised'] = 1
         # TODO Find a better way to check this is just the starting prompt of
-        # the shell. This seems brittle.
+        # the shell. This is brittle.
         if len(data) == 1:
             return
 

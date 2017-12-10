@@ -36,18 +36,18 @@ function vsh#py#SendRange(buffer, line1, line2, dedent)
   " unnecessarily.
   let Include_line = { linetext -> match(linetext, '^\s*$') == -1 }
   if Include_line(first_line[indent:])
-    call jobsend(l:jobnr, first_line[indent:] . "\n")
+    call chansend(l:jobnr, first_line[indent:] . "\n")
   endif
   if a:line2 >= l:line1
     for linenr in range(l:line1, a:line2)
       let curline = getline(linenr)[indent:]
       if Include_line(curline)
-        call jobsend(l:jobnr, curline . "\n")
+        call chansend(l:jobnr, curline . "\n")
       endif
     endfor
   endif
   if b:vsh_py_terminate_range
-    call jobsend(l:jobnr, "\n")
+    call chansend(l:jobnr, "\n")
   endif
 endfunction
 
