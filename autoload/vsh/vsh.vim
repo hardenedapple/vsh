@@ -1102,17 +1102,21 @@ endfunction
 "       $start_red hello there $start_green this is a test $end_color
 "      I can currently have the 'this is a text' either in red or no color, I
 "      haven't managed to get it in green.
-function s:create_color_groups()
+function s:create_color_groups(prompt)
   if has('win32')
     return
   endif
-  let colorControl = '"\[\(\d\+;\=\)*m"'
+  let colorControl = '\[\(\d\+;\=\)*m'
   " Hide all bash control characters
-  execute 'syn match vshHide ' . colorControl . ' conceal'
+  execute 'syn match vshHide "' . colorControl . '" conceal'
   let colornumbers = ['Black', 'DarkRed', 'DarkGreen', 'Yellow',
         \ 'DarkBlue', 'DarkMagenta', 'DarkCyan']
   let index = 0
-  let suffix = 'm" end=' . colorControl . ' contains=vshHide keepend'
+	" We have the prompt here to ensure that fouled output from a pty doesn't
+	" colour the entire file below it.
+	" Ensure the prompt is still coloured as normal by only using it in a
+	" look-ahead pattern.
+	let suffix = 'm" end="\(^\(' . a:prompt . '\)\@=\|' . colorControl . '\)" contains=vshHide keepend'
   while index < len(l:colornumbers)
     let syn_num = 30 + index
     let syn_name = 'vshColorMarkerfg' . index
@@ -1130,7 +1134,7 @@ function s:setup_colors(prompt)
   hi	def	link	vshPrompt	PreProc
   hi	def	link	vshCommand	Comment
   hi	def	link	vshString	String
-  call s:create_color_groups()
+  call s:create_color_groups(a:prompt)
 endfunction
 
 function vsh#vsh#DefaultColors()
