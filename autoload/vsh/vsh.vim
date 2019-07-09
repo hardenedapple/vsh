@@ -1043,7 +1043,8 @@ endfunction
 
 function vsh#vsh#BOLOverride(mode)
   let curline = getline('.')
-  if curline =~# vsh#vsh#SplitMarker(0)
+	let matchstr = getbufvar('%', 'vsh_prompt', '')
+  if matchstr == '' || curline =~# matchstr
     if a:mode == 'v'
       return s:prompt_end(curline, 1, 0) . '|'
     endif
