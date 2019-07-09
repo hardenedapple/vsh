@@ -481,7 +481,11 @@ else
             \ arguments)
     endif
     if l:job_id == 0
-      echoerr "Too many jobs started, can't start another."
+			echoerr "Either invalid arguments or neovim job table is full."
+			echoerr "Actions to take are:"
+			echoerr "Check this vsh buffer is in a directory that exists."
+      echoerr "Does `echo jobstart(['ls'])` return 0 (this might indicate a full job table)."
+			echoerr "Once the problem has been fixed run `:call vsh#vsh#StartSubprocess()` again."
     elseif l:job_id == -1
       echoerr 'Failed to find bash executable.'
     else
