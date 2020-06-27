@@ -261,6 +261,8 @@ function vsh#vsh#CommandBlockEnds(mode, count, direction, end)
   "     Find previous output
   "     Forwards one
 
+  " Record motion as a jump (that means CTRL_I and CTRL_O record these).
+  mark '
   if a:end * a:direction == 1
     " Main loop
     if match(getline('.'), l:negate_prompt) != -1
