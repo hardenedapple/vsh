@@ -1,5 +1,5 @@
 import os
-import neovim
+import pynvim
 import vim
 
 
@@ -170,16 +170,19 @@ def vsh_insert_text(data, insert_buf):
 
     try:
         vsh_insert_helper(data, vsh_buf)
-    except neovim.api.nvim.NvimError as e:
+    except pynvim.api.nvim.NvimError as e:
         # If data from the subshell contains NULL characters, then neovim
         # replaces these with '\n' characters.
         # This is rarely the case, so try to go without first, if needed, then
         # go over all lines in the output and change the characters back.
-        if e.args == (b'String cannot contain newlines',):
-            vsh_insert_helper([val.replace('\n', '\x00') for val in data],
-                              vsh_buf)
-        else:
-            raise
+        # Different pynvim versions have different arguments, so it's difficult
+        # to tell whether the problem is the above one based on checking the
+        # arguments.
+        # There may be nice way to find the above out, but I'm just going to
+        # guess that the problem is newlines and try again.
+        # If that wasn't the problem then we just re-raise the error anyway.
+        vsh_insert_helper([val.replace('\n', '\x00') for val in data],
+                        vsh_buf)
 
 
 def vsh_clear_output(curline):
