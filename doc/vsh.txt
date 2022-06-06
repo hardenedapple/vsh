@@ -147,11 +147,20 @@ Because many shells and REPL's provide completion abilities using the readline
 library, |Vsh| provides special allowance to send readline control characters
 to the underlying shell. When typing a command in insert mode, pressing CTRL-Q
 removes previous output and sends characters intended to call the readline
-function "possible-completions". This should list the possibile completions
+function "possible-completions". This should list the possible completions
 under the current prompt so that one can use vim's normal completion keys to
 choose one. Similarly, CTRL-S runs the bash readline function
 "glob-list-expansions". These commands can also be run in normal mode with
 <localleader>l and <localleader>g respectively.
+
+N.b. It may be beneficial to turn of pagination of completions in readline
+when using this feature.  That means all completions are put into the buffer
+immediately rather than being paginated.  In order to turn such pagination off
+for all "dumb" terminals one can add the following clause to ~/.inputrc . >
+        $if term=dumb
+          set page-completions off
+        $endif
+<
 
                         *vsh-shell*
 |Vsh| uses the 'shell' option to decide what shell to start. Most of the
