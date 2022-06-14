@@ -466,7 +466,7 @@ else
     call s:set_marks_at('0')
 
     " TODO Figure out the best check here.
-    " What I want to know, is if `bash` exists, whicih I guess would be true on
+    " What I want to know, is if `bash` exists, which I guess would be true on
     " macOS.
     " The question is, does has('unix') return true in that case?
     let cwd = expand('%:p:h')
