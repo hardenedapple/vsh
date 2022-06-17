@@ -405,12 +405,17 @@ else
     endif
 
     " So that b:undo_ftplugin works nicely, don't set variables if they don't
-    " exist in the buffer.
-    if getbufvar(self.buffer, 'vsh_job', 0)
+    " exist in the buffer.  Only unset them when the vsh_job matches the
+    " job_id that we were called to handle.  If they don't match then something
+    " else has updated b:vsh_job between the process being sent a request to
+    " close and the callback being called.  This is likely a very quick unset
+    " of filetype and then reset of the filetype (happens when opening .vsh
+    " files at startup in recent neovims).
+    if getbufvar(self.buffer, 'vsh_job', 0) == a:job_id
       call setbufvar(self.buffer, 'vsh_job', 0)
-    endif
-    if getbufvar(self.buffer, 'vsh_initialised', 0)
-      call setbufvar(self.buffer, 'vsh_initialised', 0)
+      if getbufvar(self.buffer, 'vsh_initialised', 0)
+        call setbufvar(self.buffer, 'vsh_initialised', 0)
+      endif
     endif
   endfunction
 
