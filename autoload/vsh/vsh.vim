@@ -1,3 +1,9 @@
+" On recent neovim builds we can no longer be certain that plugin/vsh.vim will
+" be loaded before ftplugin/vsh.vim.  ftplugin/vsh.vim uses this file, and we
+" need the global variables defined in plugin/vsh.vim.  Hence force that
+" loading if necessary.
+runtime! plugin/vsh.vim
+
 " The user specifies a b:vsh_prompt variable that marks a command and/or a comment.
 " This variable specifies what should be a command, what lines count as
 " non-output to replace, *and* how we move about the file.
