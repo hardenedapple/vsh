@@ -26,7 +26,7 @@ import os
 import sys
 
 try:
-    import neovim
+    import pynvim
 except ImportError:
     print("Require neovim library.")
 
@@ -144,8 +144,10 @@ if __name__ == "__main__":
     list_glob_completions = find_command_from_output(sys.argv[2])
     discard_line = find_command_from_output(sys.argv[3])
 
-    nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
-    nvim = neovim.attach('socket', path=nvim_socket_path)
+    nvim_socket_path = os.getenv('NVIM')
+    if not nvim_socket_path:
+        nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
+    nvim = pynvim.attach('socket', path=nvim_socket_path)
     curbuf = nvim.buffers[int(sys.argv[4])]
     curbuf.vars['vsh_completions_cmd'] = [
         possible_completions,

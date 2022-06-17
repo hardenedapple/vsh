@@ -3,12 +3,14 @@
 import os
 import sys
 try:
-    import neovim
+    import pynvim
 except ImportError:
     print("Require neovim library.")
 
-nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
-nvim = neovim.attach('socket', path=nvim_socket_path)
+nvim_socket_path = os.getenv('NVIM')
+if not nvim_socket_path:
+    nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
+nvim = pynvim.attach('socket', path=nvim_socket_path)
 
 filenames = [os.path.abspath(arg) for arg in sys.argv[1:]]
 nvim.funcs.__getattr__('vsh#vsh#EditFiles')(filenames)

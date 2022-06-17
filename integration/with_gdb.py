@@ -1,6 +1,6 @@
 import os
 import string
-import neovim
+import pynvim
 import gdb
 
 def linespec_from_address(address):
@@ -13,10 +13,12 @@ def linespec_from_address(address):
 
 
 def get_nvim_instance():
-    nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
+    nvim_socket_path = os.getenv('NVIM')
+    if not nvim_socket_path:
+        nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
     if not nvim_socket_path:
         raise OSError('No socket path NVIM_LISTEN_ADDRESS in environment')
-    return neovim.attach('socket', path=nvim_socket_path)
+    return pynvim.attach('socket', path=nvim_socket_path)
 
 
 def find_marked_window(nvim):
