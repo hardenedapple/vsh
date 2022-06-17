@@ -1093,9 +1093,9 @@ function vsh#vsh#SetupMappings()
 endfunction
 
 function s:teardown_mappings()
-  silent! delcommand Vrerun
-  silent! delcommand VmakeCmds
-  silent! delcommand VshPass
+  silent! delcommand -buffer Vrerun
+  silent! delcommand -buffer VmakeCmds
+  silent! delcommand -buffer VshPass
   if !has('g:vsh_no_default_mappings')
     for [mapmode, maptype, trigger, plugmap, final_expansion] in g:vsh_buffer_mappings_list
       execute 'silent! ' . mapmode . 'unmap <buffer>' . trigger
