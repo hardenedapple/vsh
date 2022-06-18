@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''
 Find the users bindings for the `possible-completions`, `glob-list-expansions`,
 and `unix-line-discard` readline commands. Then store them in the neovim buffer
