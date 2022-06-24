@@ -822,31 +822,82 @@ function s:cd_to_cwd()
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
   endif
-  let prev_wd = getcwd()
+  let [l:prev_wd, l:_, l:__] = get(s:saved_buffer_directories, bufnr('%'), [getcwd(), '', 0])
   " Note: only neovim has :tcd
   " Choose the most general cd command that changes this windows cwd.
   " If we were to use :lcd unconditionally we would give the current window a
   " local directory if it didn't already have one.
-  let cd_cmd = haslocaldir() ? 'lcd ' : haslocaldir(-1, 0) ? 'tcd ' : 'cd '
-  return [prev_wd, cd_cmd, py3eval('vsh_find_cwd(' . b:vsh_job . ')')]
+  let l:cd_cmd = haslocaldir() ? 'lcd ' : haslocaldir(-1, 0) ? 'tcd ' : 'cd '
+  return [l:prev_wd, l:cd_cmd, py3eval('vsh_find_cwd(' . b:vsh_job . ')')]
 endfunction
 
 function vsh#vsh#NetrwBrowse()
-  let [prev_wd, cd_cmd, newcwd] = s:cd_to_cwd()
-  execute cd_cmd . newcwd
+  let [l:prev_wd, l:cd_cmd, l:newcwd] = s:cd_to_cwd()
+  execute l:cd_cmd . l:newcwd
   execute "normal \<Plug>NetrwBrowseX"
-  execute cd_cmd . prev_wd
+  execute l:cd_cmd . l:prev_wd
 endfunction
 
+let s:saved_buffer_directories = {}
+
 function vsh#vsh#FileCompletion()
-  " Store variables in the buffer so that the autocmd has access to them.
-  let [b:vsh_prev_wd, b:vsh_cd_cmd, newcwd] = s:cd_to_cwd()
-  execute b:vsh_cd_cmd . newcwd
-  augroup VshRevertWD
-    autocmd!
-    autocmd CompleteDone <buffer> execute b:vsh_cd_cmd . b:vsh_prev_wd | unlet b:vsh_cd_cmd b:vsh_prev_wd | autocmd! VshRevertWD
-  augroup END
+  " Store variables related to the buffer so that the autocmd has access to
+  " them.
+  "
+  " Order of behaviour on multiple calls in succession is:
+  "		1) Call this function.
+  "		2) Call this function again.
+  "		3) Return C-x C-f, at this point CompleteDone runs, and then a new
+  "		   completion is started.
+  "		4) Call this function again.
+  "
+  "	The important point is that the autocommand can not simply clear up after
+  "	us.  Rather it must have some way to tell whether we want to clear up or
+  "	whether there will be a second autocommand running later.
+  "
+  "	We do this by recording a generation number.  The generation number can
+  "	only be 0, 1, or 2, but that's fine.
+  "
+  "	We originally stored the variables on the buffer so that the autocommand
+  "	had direct access to them.  Since we're now calling a function to act on
+  "	our more complicated actions we store information in a script-local
+  "	dictionary that said function can inspect instead.  This removes the worry
+  "	about exposing internal variables.
+  let [l:prev_wd, l:cd_cmd, l:completion_levels]
+        \ = get(s:saved_buffer_directories, bufnr('%'), ['', '', 0])
+
+  if !l:completion_levels
+    let [l:prev_wd, l:cd_cmd, l:newcwd] = s:cd_to_cwd()
+    let s:saved_buffer_directories[bufnr('%')] = [l:prev_wd, l:cd_cmd, 1]
+    augroup VshRevertWD
+      autocmd!
+      autocmd CompleteDone <buffer> call vsh#vsh#RevertWD()
+    augroup END
+    execute l:cd_cmd . l:newcwd
+  elseif l:completion_levels == 2
+    echom 'VSH FileCompletion generation number gone outside of expected values: ' . l:completion_levels
+  else
+    let s:saved_buffer_directories[bufnr('%')] = [l:prev_wd, l:cd_cmd, l:completion_levels + 1]
+  endif
+
   return "\<C-x>\<C-f>"
+endfunction
+
+function vsh#vsh#RevertWD()
+  if !has_key(s:saved_buffer_directories, bufnr('%'))
+    echom 'VSH saved buffer directories does not contain anything for this buffer'
+    return
+  endif
+  let [l:prev_wd, l:cd_cmd, l:completion_levels] = s:saved_buffer_directories[bufnr('%')]
+  if l:completion_levels == 2
+    let s:saved_buffer_directories[bufnr('%')] = [l:prev_wd, l:cd_cmd, l:completion_levels - 1]
+  elseif l:completion_levels == 1
+    let s:saved_buffer_directories[bufnr('%')] = [l:prev_wd, l:cd_cmd, 0]
+    execute l:cd_cmd . l:prev_wd
+    autocmd! VshRevertWD
+  else
+    echom 'VSH RevertWD called when generation number is bad: ' . l:completion_levels
+  endif
 endfunction
 
 function vsh#vsh#EditFiles(filenames)
