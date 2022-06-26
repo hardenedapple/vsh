@@ -268,7 +268,9 @@ function vsh#vsh#CommandBlockEnds(mode, count, direction, end)
   "     Forwards one
 
   " Record motion as a jump (that means CTRL_I and CTRL_O record these).
-  mark '
+  " N.b. use `normal` rather than `mark` directly so that the mark is set on
+  " the current cursor column as well as cursor line.
+  normal m`
   if a:end * a:direction == 1
     " Main loop
     if match(getline('.'), l:negate_prompt) != -1
