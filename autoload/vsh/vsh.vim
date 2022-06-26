@@ -795,7 +795,10 @@ function vsh#vsh#WithPathSet(command)
   " changed buffer. Use BufLeave to reset the path as soon as we leave this
   " buffer (which will usually happen in the last `execute` command of this
   " function).
-  if !&l:path
+  " N.b. just as a link to remind myself when reading the code:  This `&l:`
+  " stuff is documented under :help :let-&  (the bit about the `&l:` prefix is
+  " under a few options).
+  if strlen(&l:path) == 0
     let orig_path = &g:path
     let vsh_path_restore = ''
   else
@@ -803,14 +806,10 @@ function vsh#vsh#WithPathSet(command)
     let vsh_path_restore = &l:path
   endif
 
-  let command_string = 'autocmd Bufleave * call setbufvar(' . bufnr('%') . ', "&path", "' . l:vsh_path_restore . '") | autocmd! VshRevertPath'
-  augroup VshRevertPath
-    autocmd!
-    execute command_string
-  augroup END
-
   let &l:path = subprocess_cwd . ',' . orig_path
+  let l:current_buffer = bufnr('%')
   execute a:command
+  call setbufvar(l:current_buffer, '&path', l:vsh_path_restore)
 endfunction
 
 function s:cd_to_cwd()
