@@ -821,7 +821,13 @@ function s:cd_to_cwd()
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
   endif
-  let [l:prev_wd, l:_, l:__] = get(s:saved_buffer_directories, bufnr('%'), [getcwd(), '', 0])
+  " As yet there should be no case when we're called with l:completion_level
+  " set.  This is due to how vsh#vsh#FileCompletion() is written.  That said, I
+  " don't think this function should actually be limited to that case.
+  let [l:prev_wd, l:_, l:completion_level] = get(s:saved_buffer_directories, bufnr('%'), [getcwd(), '', 0])
+  if !l:completion_level
+    let l:prev_wd = getcwd()
+  endif
   " Note: only neovim has :tcd
   " Choose the most general cd command that changes this windows cwd.
   " If we were to use :lcd unconditionally we would give the current window a
