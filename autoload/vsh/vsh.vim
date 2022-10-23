@@ -128,6 +128,18 @@ function s:move_next(mode, count, prompt)
   "   If there are spaces between the prompt and the command line then skip
   "   them until reach the first character in the command.
   "   If there is no command after the prompt, move to the end of the line.
+
+	" It is unfortunate that by the time any functions are called the visual
+	" selection has been unset and we have lost our position.  This results in
+	" the observable that moving down using this mapping jumps the window view
+	" around.
+	" Writing and executing a command clears the current selection and moves us
+	" to the top of the selection, reselecting moves the cursor back down to the
+	" bottom of the selection but does not necessarily give us back the original
+	" window position.  All vimL is run after our cursor has nominally returned
+	" to the start of the selection -- including <C-r>= commands.  So as yet I
+	" don't know any way to save the window position before it has been lost by
+	" the act of running a mapping.
   if a:mode ==# 'v'
     normal! gv
   endif
@@ -141,7 +153,7 @@ function s:move_next(mode, count, prompt)
   let index = 0
   while l:index < a:count
     if search(a:prompt, 'eW') == 0
-      normal G
+      normal! G
       return 'reached end'
     endif
     let l:index += 1
@@ -178,7 +190,7 @@ function s:move_prev(mode, count, prompt)
     if line('.') == 1
       exe 'normal! ' . origcol . '|'
     else
-      normal gg0
+      normal! gg0
     endif
     return 'reached end'
   endif
@@ -270,7 +282,7 @@ function vsh#vsh#CommandBlockEnds(mode, count, direction, end)
   " Record motion as a jump (that means CTRL_I and CTRL_O record these).
   " N.b. use `normal` rather than `mark` directly so that the mark is set on
   " the current cursor column as well as cursor line.
-  normal m`
+  normal! m`
   if a:end * a:direction == 1
     " Main loop
     if match(getline('.'), l:negate_prompt) != -1
