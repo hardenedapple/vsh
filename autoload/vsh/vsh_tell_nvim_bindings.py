@@ -25,11 +25,6 @@ that is running this shell session.
 import os
 import sys
 
-try:
-    import pynvim
-except ImportError:
-    print("Require neovim library.")
-
 def find_next_binding(position, bind_str):
     '''
     Called when parsing failed while in the middle of a binding.
@@ -144,13 +139,31 @@ if __name__ == "__main__":
     list_glob_completions = find_command_from_output(sys.argv[2])
     discard_line = find_command_from_output(sys.argv[3])
 
-    nvim_socket_path = os.getenv('NVIM')
-    if not nvim_socket_path:
-        nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
-    nvim = pynvim.attach('socket', path=nvim_socket_path)
-    curbuf = nvim.buffers[int(sys.argv[4])]
-    curbuf.vars['vsh_completions_cmd'] = [
-        possible_completions,
-        list_glob_completions,
-        discard_line
-    ]
+    completions_list = [possible_completions, list_glob_completions, discard_line]
+    if os.getenv('NVIM') or os.getenv('NVIM_LISTEN_ADDRESS'):
+        import pynvim
+        nvim_socket_path = os.getenv('NVIM')
+        if not nvim_socket_path:
+            nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
+        nvim = pynvim.attach('socket', path=nvim_socket_path)
+        curbuf = nvim.buffers[int(sys.argv[4])]
+        curbuf.vars['vsh_completions_cmd'] = completions_list
+    elif os.getenv('VSH_VIM_LISTEN_ADDRESS'):
+        import socket
+        import re
+        import json
+        origvim_socket_addr = os.getenv('VSH_VIM_LISTEN_ADDRESS')
+        m = re.match('localhost:(\d+)', origvim_socket_addr)
+        assert(m)
+        sock = socket.socket()
+        sock.connect(('localhost', int(m.groups()[0])))
+        message = [
+                'call', 'setbufvar',
+                [int(sys.argv[4]), 'vsh_completions_cmd', completions_list]
+        ]
+        message = json.dumps(message).encode('utf8')
+        sock.send(message)
+        sock.shutdown(socket.SHUT_RDWR)
+        sock.close()
+    else:
+        print('No vim to send info to!', file=sys.stderr)
