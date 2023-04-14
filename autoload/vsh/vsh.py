@@ -20,11 +20,8 @@ else:
         # I honestly don't know whether getting input from a pty gives me a
         # string with newlines in it or calls the callback for each string.
         # Will have this assertion and run it a bunch to see what comes up.
-        assert ('\n' not in data)
-        if '\0' in data:
-            vim.command("echomsg 'Does have some newlines'")
-        data = data.split('\0')
-        data.append('')
+        data = data.split('\n')
+        assert ('\0' not in data)
         return vsh_insert_text_1(data, insert_buf)
     def vsh_get_mark(vsh_buf, markchar):
         tmp = vsh_buf.mark(markchar)

@@ -721,6 +721,8 @@ if !has('nvim') || !has('python3')
         \ 'err_cb': function('s:insert_text'),
         \ 'exit_cb': function('s:subprocess_closed'),
         \ 'stoponexit': "hup",
+        \ 'err_mode': 'raw',
+        \ 'out_mode': 'raw',
         \ 'env' : { 'TERM' : 'dumb' },
         \ }
   if has('unix')
@@ -740,7 +742,6 @@ if !has('nvim') || !has('python3')
             \ [start_script, s:plugin_path, bufnr('%'), &shell, "original vim"],
             \ arguments)
       let s:channel_buffer_mapping[job_getchannel(job_obj)] = bufnr('%')
-      echom 'Started subprocess'
     else
       echoerr 'Powershell not yet implemented for original vim'
     endif
