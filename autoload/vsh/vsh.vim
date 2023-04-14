@@ -373,7 +373,7 @@ function s:set_marks_at(position)
 endfunction
 
 function s:close_process()
-  if get(b:, 'vsh_job', 0)
+  if getbufvar(bufnr(), 'vsh_job') != ''
     call s:channel_close(b:vsh_job)
     unlet b:vsh_job
   endif
@@ -463,7 +463,6 @@ function vsh#vsh#StartSubprocess()
   call s:start_subprocess()
 endfunction
 
-" {{{ Commands to send something to the shell
 function vsh#vsh#RunCommand(command_line, command)
   if getbufvar(bufnr(), 'vsh_job') == ''
     echoerr 'No subprocess currently running!'
@@ -693,7 +692,6 @@ function s:insert_text_general(data, buffer)
   lockvar b:vsh_insert_change_tick
 endfunction
 " }}}
-" }}}
 
 " {{{ Where vim and nvim differ.
 " At the moment it makes little sense to implement the vim stuff properly as
@@ -702,7 +700,8 @@ endfunction
 " that it should be done) to do this.
 " If anyone reading this source wants it done, either send a patch or ask me
 " nicely, it would greatly improve the chances I get round to it :-] .
-if !has('nvim') || !has('python3')
+if !has('nvim')
+  " Vim Specific Functions {{{
   let s:channel_buffer_mapping = {}
 
   function s:subprocess_closed(job_obj, exit_status)
@@ -734,6 +733,9 @@ if !has('nvim') || !has('python3')
   endfunction
 
   function s:start_subprocess()
+    if !exists('g:vsh_origvim_server_port')
+      " TODO Something in python to start a channel to listen on.
+    endif
     let cwd = expand('%:p:h')
     let arguments = extend({'cwd': cwd}, s:callbacks)
     if has('unix')
@@ -771,9 +773,9 @@ if !has('nvim') || !has('python3')
     call ch_sendraw(tmp, a:data)
     return 1
   endfunction
-
+  " }}}
 else
-
+  " Neovim Specific functions {{{
   " Current process has exited, clear up buffer local variables.
   function s:subprocess_closed(job_id, data, event) dict
     call s:clear_vsh_vars(self.buffer, a:job_id)
@@ -783,7 +785,6 @@ else
     call s:insert_text_general(a:data, self.buffer)
   endfunction
 
-  " {{{ Callbacks, Job Startup, and functions on Autocmds
   let s:callbacks = {
         \ 'on_stdout': function('s:insert_text'),
         \ 'on_stderr': function('s:insert_text'),
@@ -889,7 +890,7 @@ function s:cd_to_cwd()
   " Return the current working directory of this vim window, the command to
   " use to switch the working directory, and the working directory of the
   " foreground process in the pty.
-  if !get(b:, 'vsh_job', 0)
+  if getbufvar(bufnr(), 'vsh_job') == ''
     echoerr 'No subprocess currently running!'
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return

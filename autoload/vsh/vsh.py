@@ -20,8 +20,8 @@ else:
         # I honestly don't know whether getting input from a pty gives me a
         # string with newlines in it or calls the callback for each string.
         # Will have this assertion and run it a bunch to see what comes up.
+        assert ('\x00' not in data)
         data = data.split('\n')
-        assert ('\0' not in data)
         return vsh_insert_text_1(data, insert_buf)
     def vsh_get_mark(vsh_buf, markchar):
         tmp = vsh_buf.mark(markchar)
@@ -33,7 +33,6 @@ else:
         if tmp is None:
             return 0, 0
         return tmp
-
 
 def vsh_outputlen(buf, curprompt):
     '''
