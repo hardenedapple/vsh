@@ -754,6 +754,8 @@ if !has('nvim')
       echoerr 'No splitter channel to send on'
       return
     else
+      " Anything being sent on vsh_splittel_chan closes the server process.
+      " This would also hold for closing the server process.
       call ch_sendraw(g:vsh_splitter_chan, 'XXX')
     endif
     if !exists('g:vsh_origvim_server_pid') && a:force != 0
