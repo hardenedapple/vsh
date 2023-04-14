@@ -7,14 +7,26 @@ stty tabs -onlcr icanon -echo -onlcr iexten isig -echonl -crterase
 export PAGER=
 export MANPAGER="$1/vsh_man_pager"
 
-export EDITOR="$1/vsh_editor_prog"
-export NEOVIM_BUFFER_NR="$2"
+export VIM_BUFFER_NR="$2"
+# N.b. These variables are in the `vim` environment, but not the `nvim`
+# environment.  With these set some commands change their output to fit the
+# size of the terminal that is reported, I don't think it's a good idea to take
+# this info since the vsh file will naturally have different column widths.
+unset COLUMNS
+unset LINES
 
-# It's really awkward to find out what the bindings are programmatically
-# (or at least I don't know of a nice way to query the readline library).
-completions_binding="$(bind -q possible-completions 2>/dev/null)"
-glob_binding="$(bind -q glob-list-expansions 2>/dev/null)"
-discard_line="$(bind -q unix-line-discard 2>/dev/null)"
-# Just let any errors raise -- we'll see there stack in the buffer.
-"$1/vsh_tell_nvim_bindings.py" "$completions_binding" "$glob_binding" "$discard_line" "$2"
+# Some things not yet implemented for original vim.
+if [ -z "$4" ]; then
+  export EDITOR="$1/vsh_editor_prog"
+  # It's really awkward to find out what the bindings are programmatically
+  # (or at least I don't know of a nice way to query the readline library).
+  completions_binding="$(bind -q possible-completions 2>/dev/null)"
+  glob_binding="$(bind -q glob-list-expansions 2>/dev/null)"
+  discard_line="$(bind -q unix-line-discard 2>/dev/null)"
+  # Just let any errors raise -- we'll see there stack in the buffer.
+  "$1/vsh_tell_nvim_bindings.py" "$completions_binding" "$glob_binding" "$discard_line" "$2"
+else
+  # Not handled yet.
+  export EDITOR="/bin/false"
+fi
 exec "$3"

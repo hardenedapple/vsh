@@ -1,6 +1,41 @@
 import os
-import pynvim
 import vim
+# Neovim legacy vim module does not have `bindeval`.
+# Vim `eval` returns a string rather than an integer.
+if vim.eval("has('nvim')") != '0':
+    import pynvim
+    vsh_FailedToInsert = pynvim.api.nvim.NvimError
+    vsh_FuncStore = vim.funcs
+    def vsh_get_mark(vsh_buf, markchar):
+        return vsh_buf.mark(markchar)
+    def vsh_insert_text(data, insert_buf):
+        return vsh_insert_text_1(data, insert_buf)
+else:
+    import collections
+    vsh_FuncStoreType = collections.namedtuple('vsh_FuncStoreType',
+                                               ['match', 'setpos'])
+    vsh_FuncStore = vsh_FuncStoreType(vim.Function('match'),
+                                      vim.Function('setpos'))
+    def vsh_insert_text(data, insert_buf):
+        # I honestly don't know whether getting input from a pty gives me a
+        # string with newlines in it or calls the callback for each string.
+        # Will have this assertion and run it a bunch to see what comes up.
+        assert ('\n' not in data)
+        if '\0' in data:
+            vim.command("echomsg 'Does have some newlines'")
+        data = data.split('\0')
+        data.append('')
+        return vsh_insert_text_1(data, insert_buf)
+    def vsh_get_mark(vsh_buf, markchar):
+        tmp = vsh_buf.mark(markchar)
+        # Original vim returns `None` when a mark does not exist, convert to
+        # what neovim sees.
+        # We also have a difference that original vim returns a list while
+        # neovim returns a list.  Doesn't matter, but worth mentioning for a
+        # reminder.
+        if tmp is None:
+            return 0, 0
+        return tmp
 
 
 def vsh_outputlen(buf, curprompt):
@@ -23,7 +58,7 @@ def vsh_outputlen(buf, curprompt):
     count = 0
     for (count, line) in enumerate(buf[curprompt:]):
         # Use vim's match() so that vim regular expressions work.
-        if vim.funcs.match(line, prompt) != -1:
+        if vsh_FuncStore.match(line, prompt) != -1:
             found_prompt = True
             break
 
@@ -44,7 +79,7 @@ def vsh_recalculate_input_position(vsh_buf, insert_mark):
 
     '''
     prompt_mark = vim.vars.get('vsh_prompt_mark', 'p')
-    prompt_line, _ = vsh_buf.mark(prompt_mark)
+    prompt_line, _ = vsh_get_mark(vsh_buf, prompt_mark)
     if prompt_line == 0:
         return False
 
@@ -53,7 +88,7 @@ def vsh_recalculate_input_position(vsh_buf, insert_mark):
     # was also deleted. Hence the current output should be on a different line
     # to what's there at the moment.
     vsh_buf.append('', insert_line)
-    vim.funcs.setpos("'" + insert_mark, [vsh_buf.number, insert_line + 1, 0])
+    vsh_FuncStore.setpos("'" + insert_mark, [vsh_buf.number, insert_line + 1, 0])
     return True
 
 
@@ -70,7 +105,7 @@ def vsh_insert_helper(data, vsh_buf):
     '''
     # Default to inserting text at end of file if input mark doesn't exist.
     insert_mark = vim.vars.get('vsh_insert_mark', 'd')
-    insert_line, _ = vsh_buf.mark(insert_mark)
+    insert_line, _ = vsh_get_mark(vsh_buf, insert_mark)
     if insert_line == 0:
         # Attempt to recalculate the input position from knowledge of which
         # prompt was last executed -- this just gives us a little extra
@@ -92,8 +127,8 @@ def vsh_insert_helper(data, vsh_buf):
     # data would have been '' so this still works.
     prompt = vim.eval('vsh#vsh#SplitMarker({})'.format(vsh_buf.number))
     insert_line_text = vsh_buf[insert_line - 1]
-    # Use vim.funcs.match() so vim regular expressions in 'prompt' work.
-    if vim.funcs.match(insert_line_text, prompt) == -1:
+    # Use vsh_FuncStore.match() so vim regular expressions in 'prompt' work.
+    if vsh_FuncStore.match(insert_line_text, prompt) == -1:
         firstline = data.pop(0)
         try:
             vsh_buf[insert_line - 1] = insert_line_text + firstline
@@ -121,11 +156,11 @@ def vsh_insert_helper(data, vsh_buf):
     if data:
         vsh_buf.append(data, insert_line)
     # This should fix issue #14 as soon as neovim issue #5713 is fixed
-    vim.funcs.setpos("'" + insert_mark,
+    vsh_FuncStore.setpos("'" + insert_mark,
                      [vsh_buf.number, len(data) + insert_line, 0])
 
 
-def vsh_insert_text(data, insert_buf):
+def vsh_insert_text_1(data, insert_buf):
     '''
     Insert text into a vsh buffer in the correct place.
     Don't modify the user state and don't interrupt their workflow.
@@ -170,7 +205,7 @@ def vsh_insert_text(data, insert_buf):
 
     try:
         vsh_insert_helper(data, vsh_buf)
-    except pynvim.api.nvim.NvimError as e:
+    except vsh_FailedToInsert as e:
         # If data from the subshell contains NULL characters, then neovim
         # replaces these with '\n' characters.
         # This is rarely the case, so try to go without first, if needed, then
@@ -191,7 +226,7 @@ def vsh_clear_output(curline):
     vim.current.buffer[curline:curline + outputlen] = []
 
 
-def vsh_find_cwd(jobnr):
+def vsh_find_cwd(bash_pid):
     '''
     Find the cwd of the foreground process group in vsh_buf.
 
@@ -201,7 +236,6 @@ def vsh_find_cwd(jobnr):
 
     '''
     # See man proc(5) for what's happening here.
-    bash_pid = vim.funcs.jobpid(jobnr)
     with open('/proc/{}/stat'.format(bash_pid), 'rb') as infile:
         status_data = infile.read()
     foreground_pid = status_data.split()[7].decode('utf-8')

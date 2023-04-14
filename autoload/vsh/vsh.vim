@@ -129,17 +129,17 @@ function s:move_next(mode, count, prompt)
   "   them until reach the first character in the command.
   "   If there is no command after the prompt, move to the end of the line.
 
-	" It is unfortunate that by the time any functions are called the visual
-	" selection has been unset and we have lost our position.  This results in
-	" the observable that moving down using this mapping jumps the window view
-	" around.
-	" Writing and executing a command clears the current selection and moves us
-	" to the top of the selection, reselecting moves the cursor back down to the
-	" bottom of the selection but does not necessarily give us back the original
-	" window position.  All vimL is run after our cursor has nominally returned
-	" to the start of the selection -- including <C-r>= commands.  So as yet I
-	" don't know any way to save the window position before it has been lost by
-	" the act of running a mapping.
+  " It is unfortunate that by the time any functions are called the visual
+  " selection has been unset and we have lost our position.  This results in
+  " the observable that moving down using this mapping jumps the window view
+  " around.
+  " Writing and executing a command clears the current selection and moves us
+  " to the top of the selection, reselecting moves the cursor back down to the
+  " bottom of the selection but does not necessarily give us back the original
+  " window position.  All vimL is run after our cursor has nominally returned
+  " to the start of the selection -- including <C-r>= commands.  So as yet I
+  " don't know any way to save the window position before it has been lost by
+  " the act of running a mapping.
   if a:mode ==# 'v'
     normal! gv
   endif
@@ -359,6 +359,342 @@ function vsh#vsh#OutputRange()
   endif
 endfunction
 
+" {{{ Shared vim and neovim channel/job stuff.
+" NOTE not accounting for macOS line endings until I have a machine running
+" it that I can test on.
+" Just guessing what would have to be done doesn't seem sensible to me.
+let s:line_terminator = repeat("\r", has('win32')) . "\n"
+let s:plugin_path = escape(expand('<sfile>:p:h'), '\ ')
+
+function s:set_marks_at(position)
+  let l:position = a:position == 'here' ? '' : a:position
+  execute l:position . ' mark ' . get(g:, 'vsh_insert_mark', 'd')
+  execute l:position . ' mark ' . get(g:, 'vsh_prompt_mark', 'p')
+endfunction
+
+function s:close_process()
+  if get(b:, 'vsh_job', 0)
+    call s:channel_close(b:vsh_job)
+    unlet b:vsh_job
+  endif
+endfunction
+
+function vsh#vsh#ClosedBuffer()
+  let closing_file = expand('<afile>')
+  let closing_job = get(g:vsh_closing_jobs, closing_file, 0)
+  if closing_job != 0
+    call s:channel_close(closing_job)
+    call remove(g:vsh_closing_jobs, closing_file)
+  endif
+endfunction
+
+function vsh#vsh#SendControlChar()
+  if getbufvar(bufnr(), 'vsh_job') == ''
+    echoerr 'No subprocess currently running!'
+    echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
+    return
+  endif
+  let orig_char = toupper(nr2char(getchar()))
+  let char_code = char2nr(l:orig_char)
+  let l:cntrl_char = l:char_code - char2nr('@')
+  if l:cntrl_char > 31 || l:cntrl_char < 0
+    " Allow cancelling without an error message by pressing <esc>.
+    if char_code != 27
+      echoerr 'cntrl_char == ' . l:cntrl_char
+      echoerr "No control-" . l:orig_char
+    endif
+    return
+  endif
+  if s:channel_send(b:vsh_job, nr2char(l:cntrl_char)) == 0
+    echoerr 's:channel_send() failed to send control character'
+  endif
+endfunction
+
+function vsh#vsh#ShowCompletions(glob)
+  let command = vsh#vsh#ParseVSHCommand(getline('.'))
+  if l:command == -1
+    echoerr "Can't show completions of a non-commandline"
+    return
+  endif
+  python3 vsh_clear_output(int(vim.eval("line('.')")))
+
+  " XXX Mark use
+  call s:set_marks_at('here')
+  " Send text and special characters to request listing completions, then
+  " remove text on this line with ^U so running this again doesn't cause a
+  " problem.
+  " Our defaults are what are mentioned in the readline(3) and bash(1) man
+  " pages, but the b:vsh_completions_cmd variable should have been set at
+  " startup by parsing the output of `bind -q` in bash.
+  "
+  " The readline functions called are:
+  "    possible-completions
+  "    glob-list-expansions
+  "    unix-line-discard
+  " NB: If your shell doesn't have readline, you could use something like
+  " ['', "echo \n", ""] to get at least the glob expansion.
+  let completions_cmds = get(b:, 'vsh_completions_cmd', ['?', 'g', ''])
+  let cmd_chars = completions_cmds[a:glob ? 1 : 0]
+  let retval = s:channel_send(b:vsh_job, l:command . cmd_chars . completions_cmds[2])
+  if retval == 0
+    echoerr 'Failed to tab complete output'
+  endif
+endfunction
+
+function vsh#vsh#StartSubprocess()
+  " Note: This has to be loaded first for neovim.
+  " If the python3 provider hasn't yet been started, then starting it *after*
+  " starting the subprocess means that when we call chanclose(b:vsh_job) the
+  " bash process isn't sent a SIGHUP.
+  " This limits the effect of the problem that neovim PR #5986 is for.
+  " https://github.com/neovim/neovim/pull/5986
+  if !exists('g:vsh_py_loaded')
+    exe 'py3file ' . s:plugin_path . '/vsh.py'
+    let g:vsh_py_loaded = 1
+  endif
+
+  if get(b:, 'vsh_job', 0)
+    echoerr 'Already a subprocess running for this buffer'
+    return
+  endif
+  " XXX Mark use
+  call s:set_marks_at('0')
+
+  call s:start_subprocess()
+endfunction
+
+" {{{ Commands to send something to the shell
+function vsh#vsh#RunCommand(command_line, command)
+  if getbufvar(bufnr(), 'vsh_job') == ''
+    echoerr 'No subprocess currently running!'
+    echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
+    return
+  endif
+
+  " Move cursor to command we're executing
+  if line('.') != a:command_line
+    exe a:command_line
+    call s:move_to_prompt_start()
+  endif
+
+  " Use python so the cursor doesn't move and we don't have to faff around
+  " with saving and restoring.
+  python3 vsh_clear_output(int(vim.eval("line('.')")))
+
+  " If b:vsh_dir_store is set, store the working directory that this command
+  " was run in.
+  if get(b:, 'vsh_dir_store', 0)
+    undojoin | call setline(a:command_line, b:vsh_prompt . a:command
+          \ . '  # ' . py3eval('vsh_find_cwd(' . s:vsh_get_jobid(b:vsh_job) . ')'))
+  endif
+
+  unlockvar b:vsh_insert_change_tick
+  let b:vsh_insert_change_tick = b:changedtick
+  lockvar b:vsh_insert_change_tick
+
+  " XXX Mark use
+  call s:set_marks_at('here')
+  let retval = s:channel_send(b:vsh_job, a:command . s:line_terminator)
+  if retval == 0
+    echoerr 'Failed to send command "' . a:command . '" to subprocess'
+  endif
+endfunction
+
+function vsh#vsh#VshSendCommand(buffer, line1, line2, dedent)
+  let buftouse = a:buffer
+  if a:buffer =~ '\d\+'
+    let guess_bufnr = str2nr(a:buffer)
+    if bufexists(guess_bufnr)
+      let buftouse = guess_bufnr
+    endif
+  endif
+  call vsh#vsh#VshSend(buftouse, [a:line1, 0], [a:line2, 0], a:dedent, 0)
+endfunction
+
+function vsh#vsh#VshSend(buffer, pos1, pos2, dedent, charwise)
+  let job = getbufvar(a:buffer, 'vsh_job')
+  if l:job == ''
+    echoerr 'Buffer ' . a:buffer . ' has no vsh job running'
+    return
+  endif
+
+  let [line1, col1] = a:pos1
+  let [line2, col2] = a:pos2
+  if line1 > line2
+    echoerr 'vsh#vsh#VshSend() given end before start'
+    return
+  endif
+
+  if a:charwise
+    if line1 == line2
+      let first_line = getline(line1)[col1 - 1:col2 - 1]
+      let last_bit = v:false
+    else
+      let first_line = getline(line1)[col1 - 1:]
+      let last_bit = getline(line2)[:col2 - 1]
+    endif
+    let line2 -= 1
+  else
+    let first_line = getline(line1)
+    let last_bit = v:false
+  endif
+  let line1 += 1
+
+  let indent = a:dedent == '!' ? match(first_line, '\S') : 0
+  " Inclusive, indent does not account for tabs mixing with spaces (i.e. if
+  " the first line is indented 4 spaces, and the second is indented with one
+  " tab, we will lose 3 characters of the second line).
+  " I don't think accounting for this would really be worth it...
+  " Depends on whether people would want it or not.
+
+  " We've already fetched the text for the first line in this range, so we
+  " may as well send it outside the loop rather than call getline() again
+  " unnecessarily.
+  let retval = s:channel_send(l:job, first_line[indent:] . s:line_terminator)
+  if line2 >= line1
+    for linenr in range(line1, line2)
+      if retval == 0
+        echoerr 's:channel_send failed in vsh#vsh#VshSend()'
+        break
+      endif
+      let retval = s:channel_send(l:job, getline(linenr)[indent:] . s:line_terminator)
+    endfor
+  endif
+
+  if last_bit isnot v:false
+    if s:channel_send(l:job, last_bit . s:line_terminator) == 0
+      echoerr 's:channel_send failed in vsh#vsh#VshSend()'
+    endif
+  endif
+endfunction
+
+function vsh#vsh#VshVisualSend(visualmode, dedent)
+  if v:count
+    let b:vsh_alt_buffer = bufname(v:count)
+  endif
+  let [sbuf, sline, scol, soff] = getpos("'<")
+  let [ebuf, eline, ecol, eoff] = getpos("'>")
+  call vsh#vsh#VshSend(b:vsh_alt_buffer,
+        \ [sline, scol], [eline, ecol],
+        \ a:dedent ? '!' : '',
+        \ a:visualmode == 'v')
+endfunction
+
+function vsh#vsh#VshSendThis(selection_type)
+  if a:selection_type == 'block'
+    echom 'Operator not supported for blockwise selection.'
+    return
+  endif
+  if ! has_key(b:, 'vsh_alt_buffer')
+    echom "Don't know what buffer to send the selection to."
+    echom 'Set b:vsh_alt_buffer to buffer number, this can be done with [count]<leader>vb'
+    return
+  endif
+  if a:selection_type == 'line'
+    call vsh#vsh#VshSend(b:vsh_alt_buffer,
+          \ [line("'["), 0], [line("']"), 0],
+          \ b:vsh_send_dedent, 0)
+  else
+    " Send the text between the start and end positions to the vsh buffer
+    " Add a newline to the end of the string
+    let [sbuf, sline, scol, soff] = getpos("'[")
+    let [ebuf, eline, ecol, eoff] = getpos("']")
+    call vsh#vsh#VshSend(b:vsh_alt_buffer,
+          \ [sline, scol], [eline, ecol],
+          \ b:vsh_send_dedent, 1)
+  endif
+endfunction
+
+function vsh#vsh#DoOperatorFunc(dedent)
+  let b:vsh_send_dedent = a:dedent ? '!' : ''
+  set operatorfunc=vsh#vsh#VshSendThis
+  return 'g@'
+endfunction
+
+function vsh#vsh#RunOperatorFunc(type)
+  '[,']Vrerun
+endfunction
+function vsh#vsh#DoRunOperatorFunc()
+  set operatorfunc=vsh#vsh#RunOperatorFunc
+  return 'g@'
+endfunction
+
+function vsh#vsh#SetSendbuf()
+  " Aim is just to use v:count and do nothing.
+  " When there is a count, we need to cancel it without having any effect on
+  " the buffer, so we return <Esc>.
+  " When there isn't a count, we don't want to return <Esc> because this will
+  " ring the bell.
+  if v:count
+    let b:vsh_alt_buffer = bufname(v:count)
+    " Returning <Esc> loses visual mode, we're only called in visual mode or
+    " normal mode.
+    if mode() != 'n'
+      return "\<Esc>gv"
+    else
+      return "\<Esc>"
+    endif
+  endif
+  return ''
+endfunction
+
+function vsh#vsh#SendPassword()
+  if !get(b:, 'vsh_job', 0)
+    echoerr 'No subprocess currently running!'
+    echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
+    return
+  endif
+  let password = inputsecret('Password: ')
+  if s:channel_send(b:vsh_job, password . s:line_terminator) == 0
+    echoerr 's:channel_send() failed to send password'
+  endif
+endfunction
+
+function s:clear_vsh_vars(buffer, job)
+  " Callback is run in the users current buffer, not the buffer that
+  " the job is started in, so have to use getbufvar()/setbufvar().
+  if !bufexists(a:buffer)
+    return
+  endif
+  " So that b:undo_ftplugin works nicely, don't set variables if they don't
+  " exist in the buffer.  Only unset them when the vsh_job matches the job that
+  " we were called to handle.  If they don't match then something else has
+  " updated b:vsh_job between the process being sent a request to close and the
+  " callback being called.  This is likely a very quick unset of filetype and
+  " then reset of the filetype (happens when opening .vsh files at startup in
+  " recent neovims).
+  if getbufvar(a:buffer, 'vsh_job', 0) == a:job
+    call setbufvar(a:buffer, 'vsh_job', 0)
+    if getbufvar(a:buffer, 'vsh_initialised', 0)
+      call setbufvar(a:buffer, 'vsh_initialised', 0)
+    endif
+  endif
+endfunction
+
+function s:insert_text_general(data, buffer)
+  if get(b:, 'vsh_insert_change_tick', -1) == b:changedtick
+    " Workaround a bug in old neovim -- ex_undojoin() should not set
+    " curbuf->b_u_curhead. Changing that was PR 5869 in neovim, this
+    " workaround works fine, because when the problem is hit we don't
+    " actually have to call :undojoin anyway.
+    " (the bug is only hit if we are called twice or more consecutivly
+    " without u_sync() being called in between, u_sync() is what marks the
+    " start of an undo block).
+    try
+      undojoin | python3 vsh_insert_text(vim.eval('a:data'), vim.eval('a:buffer'))
+    catch /undojoin is not allowed after undo/
+      python3 vsh_insert_text(vim.eval('a:data'), vim.eval('a:buffer'))
+    endtry
+  else
+    python3 vsh_insert_text(vim.eval('a:data'), vim.eval('a:buffer'))
+  endif
+  unlockvar b:vsh_insert_change_tick
+  let b:vsh_insert_change_tick = b:changedtick
+  lockvar b:vsh_insert_change_tick
+endfunction
+" }}}
+" }}}
+
 " {{{ Where vim and nvim differ.
 " At the moment it makes little sense to implement the vim stuff properly as
 " everything would be much easier when :h job-term  has been implemented.
@@ -367,129 +703,101 @@ endfunction
 " If anyone reading this source wants it done, either send a patch or ask me
 " nicely, it would greatly improve the chances I get round to it :-] .
 if !has('nvim') || !has('python3')
-  function vsh#vsh#StartSubprocess()
-  endfunction
-  function vsh#vsh#SendControlChar()
-  endfunction
-  function vsh#vsh#ClosedBuffer()
-  endfunction
-  function s:close_process()
-  endfunction
-  function vsh#vsh#ShowCompletions()
-    normal! <C-n>
-  endfunction
-  function vsh#vsh#VshSend(buffer)
-  endfunction
-  function vsh#vsh#WithPathSet(command)
-    execute a:command
-  endfunction
-  function vsh#vsh#FileCompletion()
-    return "\<C-x>\<C-f>"
-  endfunction
-  function vsh#vsh#SendPassword()
-  endfunction
-  function vsh#vsh#VshSendThis(selection_type)
+  let s:channel_buffer_mapping = {}
+
+  function s:subprocess_closed(job_obj, exit_status)
+    let chan = job_getchannel(a:job_obj)
+    let buf = get(s:channel_buffer_mapping, chan, -1)
+    call s:clear_vsh_vars(buf, a:job_obj)
   endfunction
 
-  function vsh#vsh#RunCommand(command_line, command)
-    let l:command_range = vsh#vsh#OutputRange()
-    if l:command_range
-      exe l:command_range . '! ' . a:command
-    else
-      exe 'r! ' .  a:command
-    endif
-
-    exe a:command_line
-    call s:move_to_prompt_start()
-  endfunction
-else
-  " NOTE not accounting for macOS line endings until I have a machine running
-  " it that I can test on.
-  " Just guessing what would have to be done doesn't seem sensible to me.
-  let s:line_terminator = repeat("\r", has('win32')) . "\n"
-  let s:plugin_path = escape(expand('<sfile>:p:h'), '\ ')
-
-  " {{{ Callbacks, Job Startup, and functions on Autocmds
-  " That is close thu current process
-  function s:subprocess_closed(job_id, data, event) dict
-    " Callback is run in the users current buffer, not the buffer that
-    " the job is started in, so have to use getbufvar()/setbufvar().
-    if !bufexists(self.buffer)
-      return
-    endif
-
-    " So that b:undo_ftplugin works nicely, don't set variables if they don't
-    " exist in the buffer.  Only unset them when the vsh_job matches the
-    " job_id that we were called to handle.  If they don't match then something
-    " else has updated b:vsh_job between the process being sent a request to
-    " close and the callback being called.  This is likely a very quick unset
-    " of filetype and then reset of the filetype (happens when opening .vsh
-    " files at startup in recent neovims).
-    if getbufvar(self.buffer, 'vsh_job', 0) == a:job_id
-      call setbufvar(self.buffer, 'vsh_job', 0)
-      if getbufvar(self.buffer, 'vsh_initialised', 0)
-        call setbufvar(self.buffer, 'vsh_initialised', 0)
-      endif
-    endif
-  endfunction
-
-  function s:insert_text(job_id, data, event) dict
-    if get(b:, 'vsh_insert_change_tick', -1) == b:changedtick
-      " Workaround a bug in old neovim -- ex_undojoin() should not set
-      " curbuf->b_u_curhead. Changing that was PR 5869 in neovim, this
-      " workaround works fine, because when the problem is hit we don't
-      " actually have to call :undojoin anyway.
-      " (the bug is only hit if we are called twice or more consecutivly
-      " without u_sync() being called in between, u_sync() is what marks the
-      " start of an undo block).
-      try
-        undojoin | python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
-      catch /undojoin is not allowed after undo/
-        python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
-      endtry
-    else
-      python3 vsh_insert_text(vim.eval('a:data'), vim.eval('self.buffer'))
-    end
-    unlockvar b:vsh_insert_change_tick
-    let b:vsh_insert_change_tick = b:changedtick
-    lockvar b:vsh_insert_change_tick
-  endfunction
-
-  function s:set_marks_at(position)
-    let l:position = a:position == 'here' ? '' : a:position
-    execute l:position . ' mark ' . get(g:, 'vsh_insert_mark', 'd')
-    execute l:position . ' mark ' . get(g:, 'vsh_prompt_mark', 'p')
+  function s:insert_text(channel, msg)
+    let buf = get(s:channel_buffer_mapping, a:channel, -1)
+    call s:insert_text_general(a:msg, buf)
   endfunction
 
   let s:callbacks = {
-        \ 'on_stdout': function('s:insert_text'),
-        \ 'on_stderr': function('s:insert_text'),
-        \ 'on_exit': function('s:subprocess_closed'),
-        \ 'TERM': 'dumb'
+        \ 'out_cb': function('s:insert_text'),
+        \ 'err_cb': function('s:insert_text'),
+        \ 'exit_cb': function('s:subprocess_closed'),
+        \ 'stoponexit': "hup",
+        \ 'env' : { 'TERM' : 'dumb' },
         \ }
   if has('unix')
     let s:callbacks['pty'] = 1
   endif
 
-  function vsh#vsh#StartSubprocess()
-    " Note: This has to be loaded first
-    " If the python3 provider hasn't yet been started, then starting it *after*
-    " starting the subprocess means that when we call chanclose(b:vsh_job) the
-    " bash process isn't sent a SIGHUP.
-    " This limits the effect of the problem that neovim PR #5986 is for.
-    " https://github.com/neovim/neovim/pull/5986
-    if !exists('g:vsh_py_loaded')
-      exe 'py3file ' . s:plugin_path . '/vsh.py'
-      let g:vsh_py_loaded = 1
+  function s:vsh_get_jobid(job)
+    return job_info(a:job)['process']
+  endfunction
+
+  function s:start_subprocess()
+    let cwd = expand('%:p:h')
+    let arguments = extend({'cwd': cwd}, s:callbacks)
+    if has('unix')
+      let start_script = s:plugin_path . '/vsh_shell_start'
+      let job_obj = job_start(
+            \ [start_script, s:plugin_path, bufnr('%'), &shell, "original vim"],
+            \ arguments)
+      let s:channel_buffer_mapping[job_getchannel(job_obj)] = bufnr('%')
+      echom 'Started subprocess'
+    else
+      echoerr 'Powershell not yet implemented for original vim'
     endif
 
-    if get(b:, 'vsh_job', 0)
-      echoerr 'Already a subprocess running for this buffer'
-      return
+    if job_status(l:job_obj) == 'fail' || job_status(l:job_obj) == 'dead'
+      echoerr "Failure to initialise job object."
+      echoerr "Actions to take are:"
+      echoerr "Check this vsh buffer is in a directory that exists."
+      echoerr "Does `echo jobstart(['ls'])` return 0 (this might indicate a full job table)."
+      echoerr "Once the problem has been fixed run `:call vsh#vsh#StartSubprocess()` again."
+      echoerr "Check that " . &shell . " exists and is on PATH"
+    else
+      " Would like to lock this, but I need to be able to change it from
+      " another buffer (in ClosedBuffer() and SubprocessClosed()), and I can't
+      " unlock it from there.
+      let b:vsh_job = l:job_obj
     endif
-    " XXX Mark use
-    call s:set_marks_at('0')
+  endfunction
 
+  function s:channel_close(job_obj)
+    " ch_close() should send a SIGHUP to the bash process
+    return ch_close(job_getchannel(a:job_obj))
+  endfunction
+
+  function s:channel_send(job_obj, data)
+    let tmp = job_getchannel(a:job_obj)
+    call ch_sendraw(tmp, a:data)
+    return 1
+  endfunction
+
+else
+
+  " Current process has exited, clear up buffer local variables.
+  function s:subprocess_closed(job_id, data, event) dict
+    call s:clear_vsh_vars(self.buffer, a:job_id)
+  endfunction
+
+  function s:insert_text(job_id, data, event) dict
+    call s:insert_text_general(a:data, self.buffer)
+  endfunction
+
+  " {{{ Callbacks, Job Startup, and functions on Autocmds
+  let s:callbacks = {
+        \ 'on_stdout': function('s:insert_text'),
+        \ 'on_stderr': function('s:insert_text'),
+        \ 'on_exit': function('s:subprocess_closed'),
+        \ 'env' : { 'TERM' : 'dumb' },
+        \ }
+  if has('unix')
+    let s:callbacks['pty'] = 1
+  endif
+
+  function s:vsh_get_jobid(job)
+    return jobpid(a:job)
+  endfunction
+
+  function s:start_subprocess()
     " TODO Figure out the best check here.
     " What I want to know, is if `bash` exists, which I guess would be true on
     " macOS.
@@ -508,11 +816,11 @@ else
             \ arguments)
     endif
     if l:job_id == 0
-			echoerr "Either invalid arguments or neovim job table is full."
-			echoerr "Actions to take are:"
-			echoerr "Check this vsh buffer is in a directory that exists."
+      echoerr "Either invalid arguments or neovim job table is full."
+      echoerr "Actions to take are:"
+      echoerr "Check this vsh buffer is in a directory that exists."
       echoerr "Does `echo jobstart(['ls'])` return 0 (this might indicate a full job table)."
-			echoerr "Once the problem has been fixed run `:call vsh#vsh#StartSubprocess()` again."
+      echoerr "Once the problem has been fixed run `:call vsh#vsh#StartSubprocess()` again."
     elseif l:job_id == -1
       echoerr 'Failed to find bash executable.'
     else
@@ -523,262 +831,12 @@ else
     endif
   endfunction
 
-  function s:close_process()
+  function s:channel_close(job_id)
     " chanclose() sends a SIGHUP to the bash process
-    if get(b:, 'vsh_job', 0)
-      call chanclose(b:vsh_job)
-      unlet b:vsh_job
-    endif
+    return chanclose(a:job_id)
   endfunction
-
-  function vsh#vsh#ClosedBuffer()
-    let closing_file = expand('<afile>')
-    let closing_job = get(g:vsh_closing_jobs, closing_file, 0)
-    if closing_job != 0
-      call chanclose(closing_job)
-      call remove(g:vsh_closing_jobs, closing_file)
-    endif
-  endfunction
-  " }}}
-
-  " {{{ Commands to send something to the shell
-  function vsh#vsh#ShowCompletions(glob)
-    let command = vsh#vsh#ParseVSHCommand(getline('.'))
-    if l:command == -1
-      echoerr "Can't show completions of a non-commandline"
-      return
-    endif
-    python3 vsh_clear_output(int(vim.eval("line('.')")))
-
-    " XXX Mark use
-    call s:set_marks_at('here')
-    " Send text and special characters to request listing completions, then
-    " remove text on this line with ^U so running this again doesn't cause a
-    " problem.
-    " Our defaults are what are mentioned in the readline(3) and bash(1) man
-    " pages, but the b:vsh_completions_cmd variable should have been set at
-    " startup by parsing the output of `bind -q` in bash.
-    "
-    " The readline functions called are:
-    "    possible-completions
-    "    glob-list-expansions
-    "    unix-line-discard
-    " NB: If your shell doesn't have readline, you could use something like
-    " ['', "echo \n", ""] to get at least the glob expansion.
-    let completions_cmds = get(b:, 'vsh_completions_cmd', ['?', 'g', ''])
-    let cmd_chars = completions_cmds[a:glob ? 1 : 0]
-    let retval = chansend(b:vsh_job, l:command . cmd_chars . completions_cmds[2])
-    if retval == 0
-      echoerr 'Failed to tab complete output'
-    endif
-  endfunction
-
-  function vsh#vsh#RunCommand(command_line, command)
-    if !get(b:, 'vsh_job', 0)
-      echoerr 'No subprocess currently running!'
-      echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
-      return
-    endif
-
-    " Move cursor to command we're executing
-    if line('.') != a:command_line
-      exe a:command_line
-      call s:move_to_prompt_start()
-    endif
-
-    " Use python so the cursor doesn't move and we don't have to faff around
-    " with saving and restoring.
-    python3 vsh_clear_output(int(vim.eval("line('.')")))
-
-    " If b:vsh_dir_store is set, store the working directory that this command
-    " was run in.
-    if get(b:, 'vsh_dir_store', 0)
-      undojoin | call setline(a:command_line, b:vsh_prompt . a:command
-            \ . '  # ' . py3eval('vsh_find_cwd(' . b:vsh_job . ')'))
-    endif
-
-    unlockvar b:vsh_insert_change_tick
-    let b:vsh_insert_change_tick = b:changedtick
-    lockvar b:vsh_insert_change_tick
-
-    " XXX Mark use
-    call s:set_marks_at('here')
-    let retval = chansend(b:vsh_job, a:command . s:line_terminator)
-    if retval == 0
-      echoerr 'Failed to send command "' . a:command . '" to subprocess'
-    endif
-  endfunction
-
-  function vsh#vsh#VshSendCommand(buffer, line1, line2, dedent)
-    let buftouse = a:buffer
-    if a:buffer =~ '\d\+'
-      let guess_bufnr = str2nr(a:buffer)
-      if bufexists(guess_bufnr)
-        let buftouse = guess_bufnr
-      endif
-    endif
-    call vsh#vsh#VshSend(buftouse, [a:line1, 0], [a:line2, 0], a:dedent, 0)
-  endfunction
-
-  function vsh#vsh#VshSend(buffer, pos1, pos2, dedent, charwise)
-    let jobnr = getbufvar(a:buffer, 'vsh_job')
-    if l:jobnr == ''
-      echoerr 'Buffer ' . a:buffer . ' has no vsh job running'
-      return
-    endif
-
-    let [line1, col1] = a:pos1
-    let [line2, col2] = a:pos2
-    if line1 > line2
-      echoerr 'vsh#vsh#VshSend() given end before start'
-      return
-    endif
-
-    if a:charwise
-      if line1 == line2
-        let first_line = getline(line1)[col1 - 1:col2 - 1]
-        let last_bit = v:false
-      else
-        let first_line = getline(line1)[col1 - 1:]
-        let last_bit = getline(line2)[:col2 - 1]
-      endif
-      let line2 -= 1
-    else
-      let first_line = getline(line1)
-      let last_bit = v:false
-    endif
-    let line1 += 1
-
-    let indent = a:dedent == '!' ? match(first_line, '\S') : 0
-    " Inclusive, indent does not account for tabs mixing with spaces (i.e. if
-    " the first line is indented 4 spaces, and the second is indented with one
-    " tab, we will lose 3 characters of the second line).
-    " I don't think accounting for this would really be worth it...
-    " Depends on whether people would want it or not.
-
-    " We've already fetched the text for the first line in this range, so we
-    " may as well send it outside the loop rather than call getline() again
-    " unnecessarily.
-    let retval = chansend(l:jobnr, first_line[indent:] . s:line_terminator)
-    if line2 >= line1
-      for linenr in range(line1, line2)
-        if retval == 0
-          echoerr 'chansend failed in vsh#vsh#VshSend()'
-          break
-        endif
-        let retval = chansend(l:jobnr, getline(linenr)[indent:] . s:line_terminator)
-      endfor
-    endif
-
-    if last_bit isnot v:false
-      if chansend(l:jobnr, last_bit . s:line_terminator) == 0
-        echoerr 'chansend failed in vsh#vsh#VshSend()'
-      endif
-    endif
-  endfunction
-
-  function vsh#vsh#VshVisualSend(visualmode, dedent)
-    if v:count
-      let b:vsh_alt_buffer = bufname(v:count)
-    endif
-    let [sbuf, sline, scol, soff] = getpos("'<")
-    let [ebuf, eline, ecol, eoff] = getpos("'>")
-    call vsh#vsh#VshSend(b:vsh_alt_buffer,
-          \ [sline, scol], [eline, ecol],
-          \ a:dedent ? '!' : '',
-          \ a:visualmode == 'v')
-  endfunction
-
-  function vsh#vsh#VshSendThis(selection_type)
-    if a:selection_type == 'block'
-      echom 'Operator not supported for blockwise selection.'
-      return
-    endif
-    if ! has_key(b:, 'vsh_alt_buffer')
-      echom "Don't know what buffer to send the selection to."
-      echom 'Set b:vsh_alt_buffer to buffer number, this can be done with [count]<leader>vb'
-      return
-    endif
-    if a:selection_type == 'line'
-      call vsh#vsh#VshSend(b:vsh_alt_buffer,
-            \ [line("'["), 0], [line("']"), 0],
-            \ b:vsh_send_dedent, 0)
-    else
-      " Send the text between the start and end positions to the vsh buffer
-      " Add a newline to the end of the string
-      let [sbuf, sline, scol, soff] = getpos("'[")
-      let [ebuf, eline, ecol, eoff] = getpos("']")
-      call vsh#vsh#VshSend(b:vsh_alt_buffer,
-            \ [sline, scol], [eline, ecol],
-            \ b:vsh_send_dedent, 1)
-    endif
-  endfunction
-
-  function vsh#vsh#DoOperatorFunc(dedent)
-    let b:vsh_send_dedent = a:dedent ? '!' : ''
-    set operatorfunc=vsh#vsh#VshSendThis
-    return 'g@'
-  endfunction
-
-  function vsh#vsh#RunOperatorFunc(type)
-    '[,']Vrerun
-  endfunction
-  function vsh#vsh#DoRunOperatorFunc()
-    set operatorfunc=vsh#vsh#RunOperatorFunc
-    return 'g@'
-  endfunction
-
-  function vsh#vsh#SetSendbuf()
-    " Aim is just to use v:count and do nothing.
-    " When there is a count, we need to cancel it without having any effect on
-    " the buffer, so we return <Esc>.
-    " When there isn't a count, we don't want to return <Esc> because this will
-    " ring the bell.
-    if v:count
-      let b:vsh_alt_buffer = bufname(v:count)
-      " Returning <Esc> loses visual mode, we're only called in visual mode or
-      " normal mode.
-      if mode() != 'n'
-        return "\<Esc>gv"
-      else
-        return "\<Esc>"
-      endif
-    endif
-    return ''
-  endfunction
-
-  function vsh#vsh#SendControlChar()
-    if !get(b:, 'vsh_job', 0)
-      echoerr 'No subprocess currently running!'
-      echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
-      return
-    endif
-    let orig_char = toupper(nr2char(getchar()))
-    let char_code = char2nr(l:orig_char)
-    let l:cntrl_char = l:char_code - char2nr('@')
-    if l:cntrl_char > 31 || l:cntrl_char < 0
-      " Allow cancelling without an error message by pressing <esc>.
-      if char_code != 27
-        echoerr 'cntrl_char == ' . l:cntrl_char
-        echoerr "No control-" . l:orig_char
-      endif
-      return
-    endif
-    if chansend(b:vsh_job, nr2char(l:cntrl_char)) == 0
-      echoerr 'chansend() failed to send control character'
-    endif
-  endfunction
-
-  function vsh#vsh#SendPassword()
-    if !get(b:, 'vsh_job', 0)
-      echoerr 'No subprocess currently running!'
-      echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
-      return
-    endif
-    let password = inputsecret('Password: ')
-    if chansend(b:vsh_job, password . s:line_terminator) == 0
-      echoerr 'chansend() failed to send password'
-    endif
+  function s:channel_send(job_id, data)
+    return chansend(a:job_id, a:data)
   endfunction
   " }}}
 endif
@@ -794,7 +852,7 @@ endfunction
 
 " {{{ Integration with CWD of shell
 function vsh#vsh#WithPathSet(command)
-  if !get(b:, 'vsh_job', 0)
+  if getbufvar(bufnr(), 'vsh_job') == ''
     echoerr 'No subprocess currently running!'
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
@@ -803,7 +861,7 @@ function vsh#vsh#WithPathSet(command)
   if stored_dir[0] == '#' && isdirectory(stored_dir[1])
     let subprocess_cwd = stored_dir[1]
   else
-    let subprocess_cwd = py3eval('vsh_find_cwd(' . b:vsh_job . ')')
+    let subprocess_cwd = py3eval('vsh_find_cwd(' . s:vsh_get_jobid(b:vsh_job) . ')')
   endif
   " Can't remove the extra item in the path once we've done because we've
   " changed buffer. Use BufLeave to reset the path as soon as we leave this
@@ -842,12 +900,11 @@ function s:cd_to_cwd()
   if !l:completion_level
     let l:prev_wd = getcwd()
   endif
-  " Note: only neovim has :tcd
   " Choose the most general cd command that changes this windows cwd.
   " If we were to use :lcd unconditionally we would give the current window a
   " local directory if it didn't already have one.
   let l:cd_cmd = haslocaldir() ? 'lcd ' : haslocaldir(-1, 0) ? 'tcd ' : 'cd '
-  return [l:prev_wd, l:cd_cmd, py3eval('vsh_find_cwd(' . b:vsh_job . ')')]
+  return [l:prev_wd, l:cd_cmd, py3eval('vsh_find_cwd(' . s:vsh_get_jobid(b:vsh_job) . ')')]
 endfunction
 
 function vsh#vsh#NetrwBrowse()
@@ -1126,7 +1183,7 @@ endfunction
 
 function vsh#vsh#BOLOverride(mode)
   let curline = getline('.')
-	let matchstr = getbufvar('%', 'vsh_prompt', '')
+  let matchstr = getbufvar('%', 'vsh_prompt', '')
   if matchstr == '' || curline =~# matchstr
     if a:mode == 'v'
       return s:prompt_end(curline, 1, 0) . '|'
@@ -1195,11 +1252,11 @@ function s:create_color_groups(prompt)
   let colornumbers = ['Black', 'DarkRed', 'DarkGreen', 'Yellow',
         \ 'DarkBlue', 'DarkMagenta', 'DarkCyan']
   let index = 0
-	" We have the prompt here to ensure that fouled output from a pty doesn't
-	" colour the entire file below it.
-	" Ensure the prompt is still coloured as normal by only using it in a
-	" look-ahead pattern.
-	let suffix = 'm" end="\(^\(' . a:prompt . '\)\@=\|' . colorControl . '\)" contains=vshHide keepend'
+  " We have the prompt here to ensure that fouled output from a pty doesn't
+  " colour the entire file below it.
+  " Ensure the prompt is still coloured as normal by only using it in a
+  " look-ahead pattern.
+  let suffix = 'm" end="\(^\(' . a:prompt . '\)\@=\|' . colorControl . '\)" contains=vshHide keepend'
   while index < len(l:colornumbers)
     let syn_num = 30 + index
     let syn_name = 'vshColorMarkerfg' . index
