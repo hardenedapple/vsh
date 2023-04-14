@@ -24,9 +24,5 @@ discard_line="$(bind -q unix-line-discard 2>/dev/null)"
 "$1/vsh_tell_nvim_bindings.py" "$completions_binding" "$glob_binding" "$discard_line" "$VIM_BUFFER_NR"
 
 # Some things not yet implemented for original vim.
-if [ -z "$4" ]; then
-  export EDITOR="$1/vsh_editor_prog"
-else
-  export EDITOR="$1/vsh_origvim_editor_prog"
-fi
+export EDITOR="$1/vsh_editor_prog"
 exec "$3"

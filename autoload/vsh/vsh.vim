@@ -1053,10 +1053,25 @@ function vsh#vsh#EditFiles(filenames)
 endfunction
 
 function vsh#vsh#RestoreArgs()
+  " Running `args` re-edits all files.
+  " If any of those files are modified then vim raises an error.
+  " Any `vsh` buffer in the args list which was not modified would have its
+  " terminal state lost.
+  " Hence use `argdelete` and `argadd`.
   let curbuf = bufnr()
-  execute 'args ' . join(g:vsh_prev_args)
-  execute 'argument ' . g:vsh_prev_argid
+  " N.b. these commands do not :edit their arguments.
+  execute 'argdelete *'
+  execute 'argadd ' . join(g:vsh_prev_args)
+  " This one does.  Do not want to lose state in the vsh file (or any other
+  " special file for that matter) hence don't restore this part of state.
+  " I.e. that leaves the argument list a little messed up.
+  " TODO One option could be to use `arglocal` and `argglobal` to have a
+  " "temporary" argument list, but that would only affect the current window
+  " and I find that a little confusing.
+  " -- execute 'argument ' . g:vsh_prev_argid
   execute 'buffer ' . l:curbuf
+  unlet g:vsh_prev_args
+  unlet g:vsh_prev_argid
 endfunction
 " }}}
 

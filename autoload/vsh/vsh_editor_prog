@@ -2,25 +2,48 @@
 
 import os
 import sys
-try:
+
+if os.getenv('NVIM') or os.getenv('NVIM_LISTEN_ADDRESS'):
     import pynvim
-except ImportError:
-    print("Require neovim library.")
+    nvim_socket_path = os.getenv('NVIM')
+    if not nvim_socket_path:
+        nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
+    nvim = pynvim.attach('socket', path=nvim_socket_path)
 
-nvim_socket_path = os.getenv('NVIM')
-if not nvim_socket_path:
-    nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
-nvim = pynvim.attach('socket', path=nvim_socket_path)
+    filenames = [os.path.abspath(arg) for arg in sys.argv[1:]]
+    nvim.funcs.__getattr__('vsh#vsh#EditFiles')(filenames)
+    def restore():
+        nvim.funcs.__getattr__('vsh#vsh#RestoreArgs')()
+else:
+    import socket
+    import json
+    import re
+    origvim_socket_addr = os.getenv('VSH_VIM_LISTEN_ADDRESS')
+    m = re.match('localhost:(\d+)', origvim_socket_addr)
+    assert(m)
+    sock = socket.socket()
+    sock.connect(('localhost', int(m.groups()[0])))
 
-filenames = [os.path.abspath(arg) for arg in sys.argv[1:]]
-nvim.funcs.__getattr__('vsh#vsh#EditFiles')(filenames)
+    filenames = [os.path.abspath(arg) for arg in sys.argv[1:]]
+    message = ["call", "vsh#vsh#EditFiles", [filenames]]
+    message = json.dumps(message)
+    sock.send(message.encode('utf8'))
+    def restore():
+        message = ["call", "vsh#vsh#RestoreArgs", []]
+        message = json.dumps(message)
+        sock.send(message.encode('utf8'))
+
+
 # Wait until get told to finish -- with ^D is "complete", with ^C is not.
-# Because ^C gives a KeyboardInterrupt, the script exits with non-zero status,
-# which tells the process calling $EDITOR that the files were not edited
-# sucessfully.
+# Exiting with non-zero status, tells the process calling $EDITOR that the
+# files were not edited sucessfully.
 try:
     input('Press C-d for "successful" edit, C-c otherwise')
 except EOFError:
-    pass
+    ret = 0
+except KeyboardInterrupt:
+    ret = 1
 finally:
-    nvim.funcs.__getattr__('vsh#vsh#RestoreArgs')()
+    restore()
+
+sys.exit(ret)
