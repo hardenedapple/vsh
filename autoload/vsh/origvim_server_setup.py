@@ -23,32 +23,32 @@ import json
 import vim
 
 if len(sys.argv) > 1 and sys.argv[1] == 'testing':
-    def debug_print(*args, **kwargs):
+    def vsh_debug_print(*args, **kwargs):
         print(*args, **kwargs)
-    def set_vim_var(name, value):
+    def vsh_set_var(name, value):
         pass
-    def get_vim_dirarg():
+    def vsh_get_dir():
         return os.path.dirname(os.path.abspath(__file__))
     are_testing = True
 else:
-    def debug_print(*args, **kwargs):
+    def vsh_debug_print(*args, **kwargs):
         # with open('/home/matmal01/temp/vsh-vim-natural/dump-file', 'a') as outfile:
         #     print(*args, **kwargs, file=outfile)
         pass
-    def set_vim_var(name, value):
+    def vsh_set_var(name, value):
         vim.vars[name] = value
-    def get_vim_dirarg():
+    def vsh_get_dir():
         return sys.argv[0]
     are_testing = False
 
-def sock_recv_catch_err(sock):
+def vsh_sock_recv_catch(sock):
     try:
         buf = sock.recv(1024)
     except ConnectionResetError:
         buf = b''
     return buf
 
-def do_kill_child(pid):
+def vsh_kill_child(pid):
     # TODO Only send kill if this PID still exists.
     try:
         os.kill(pid, signal.SIGHUP)
@@ -66,10 +66,10 @@ listensock.listen(8)
 
 vimport = vimsock.getsockname()[1]
 listenport = listensock.getsockname()[1]
-debug_print('Vim socket port: ', vimport)
-debug_print('Listen socket port: ', listenport)
-set_vim_var('vsh_origvim_server_addr', 'localhost:' + str(vimport))
-set_vim_var('vsh_origvim_listen_addr', 'localhost:' + str(listenport))
+vsh_debug_print('Vim socket port: ', vimport)
+vsh_debug_print('Listen socket port: ', listenport)
+vsh_set_var('vsh_origvim_server_addr', 'localhost:' + str(vimport))
+vsh_set_var('vsh_origvim_listen_addr', 'localhost:' + str(listenport))
 
 pid = os.fork()
 if pid != 0:
@@ -77,13 +77,14 @@ if pid != 0:
     vimsock.close()
     # Close the child process when vim closes.
     import atexit
-    atexit.register(do_kill_child, pid)
+    atexit.register(vsh_kill_child, pid)
     # Advertise the PID to vim so that vim can send a signal if it wants.
-    set_vim_var('vsh_origvim_server_pid', pid)
+    vsh_set_var('vsh_origvim_server_pid', pid)
+    del vimsock, listensock, vimport, listenport
 else:
     vimsock.set_inheritable(True)
     listensock.set_inheritable(True)
-    scriptdir = get_vim_dirarg()
+    scriptdir = vsh_get_dir()
     scriptname = os.path.join(scriptdir, 'origvim_server.py')
     os.execv(scriptname,
              [scriptname, 'testing' if are_testing else 'x',
@@ -91,19 +92,19 @@ else:
 
 
 # XXX Manual Testing XXX
-def open_test_connection(vlisten, vport):
-    debug_print('  Opening new vim connection', end='')
-    message = sock_recv_catch_err(vlisten)
+def vsh_test_new_conn(vlisten, vport):
+    vsh_debug_print('  Opening new vim connection', end='')
+    message = vsh_sock_recv_catch(vlisten)
     # Not going to worry about split messages in this testing framework.
     # Just going to assert we see it.
-    debug_print(' -- seeing -- ', message, end='')
+    vsh_debug_print(' -- seeing -- ', message, end='')
     assert(b'NewChannel' in message)
     newv = socket.socket()
     newv.connect(('localhost', vport))
-    debug_print(' -- socket ', newv.fileno())
+    vsh_debug_print(' -- socket ', newv.fileno())
     return newv
 
-def run_connection_tests(vport):
+def vsh_test_run(vport):
     '''
     Printing out what vim should be seeing, so I can check things look like
     what they should.
@@ -129,28 +130,28 @@ def run_connection_tests(vport):
     vimmux = socket.socket()
     vimmux.connect(('localhost', vport))
     vimlistening = [vimmux]
-    debug_print('  Entering connection test loop')
+    vsh_debug_print('  Entering connection test loop')
     while vimlistening:
         readable, writeable, in_err = select.select(
                 vimlistening, [], vimlistening)
-        debug_print('  Another select round')
+        vsh_debug_print('  Another select round')
         for vimsock in readable:
-            debug_print('  Handling', vimsock.fileno())
+            vsh_debug_print('  Handling', vimsock.fileno())
             if vimsock == vimmux:
-                vimlistening.append(open_test_connection(vimsock, vport))
+                vimlistening.append(vsh_test_new_conn(vimsock, vport))
             else:
-                data = sock_recv_catch_err(vimsock)
+                data = vsh_sock_recv_catch(vimsock)
                 if not data:
                     vimlistening.remove(vimsock)
                     continue
-                debug_print('  Recv data on vim connection:', vimsock.fileno(), data)
+                vsh_debug_print('  Recv data on vim connection:', vimsock.fileno(), data)
                 if data == b'EXIT':
                     vimmux.send(b'anything should exit')
                 else:
                     ret = data + b'  received'
-                    debug_print('  Sending back: ', ret)
+                    vsh_debug_print('  Sending back: ', ret)
                     vimsock.send(ret)
 
 if pid != 0 and len(sys.argv) > 1 and sys.argv[1] == 'testing':
     import time
-    run_connection_tests(vimport)
+    vsh_test_run(vimport)
