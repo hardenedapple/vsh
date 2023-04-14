@@ -453,7 +453,9 @@ function vsh#vsh#StartSubprocess()
     let g:vsh_py_loaded = 1
   endif
 
-  if get(b:, 'vsh_job', 0)
+  call s:start_origvim_server()
+
+  if getbufvar(bufnr(), 'vsh_job') != ''
     echoerr 'Already a subprocess running for this buffer'
     return
   endif
@@ -760,23 +762,34 @@ if !has('nvim')
     else
       call system('kill -HUP' . g:vsh_origvim_server_pid)
     endif
-    unlet g:vsh_splitter_chan
-    unlet g:vsh_origvim_server_pid
-    unlet g:vsh_origvim_server_addr
   endfunction
 
   function s:vsh_get_jobid(job)
     return job_info(a:job)['process']
   endfunction
 
-  function s:start_subprocess()
+  function s:close_all_channels(channel)
+    " Don't really need to do anything with the channel -- it's getting closed.
+    for c in values(s:command_channels)
+      call ch_close(c)
+    endfor
+    unlet g:vsh_splitter_chan
+    unlet g:vsh_origvim_server_pid
+    unlet g:vsh_origvim_server_addr
+    unlet g:vsh_origvim_listen_addr
+  endfunction
+  function s:start_origvim_server()
     if !exists('g:vsh_origvim_server_addr')
       " Set python arguments so the script has the full path and hence can
       " invoke the origvim_server.py with said full path.
       exe 'python3 sys.argv = ["'.fnameescape(s:plugin_path).'"]'
       exe 'py3file ' . s:plugin_path . '/origvim_server_setup.py'
-      let g:vsh_splitter_chan = ch_open(g:vsh_origvim_server_addr)
+      let g:vsh_splitter_chan = ch_open(g:vsh_origvim_server_addr,
+            \ { 'close_cb': function('s:close_all_channels') } )
     endif
+  endfunction
+
+  function s:start_subprocess()
     let cwd = expand('%:p:h')
     let arguments = extend({
           \ 'cwd': cwd,
@@ -784,7 +797,6 @@ if !has('nvim')
                   \ 'VSH_VIM_LISTEN_ADDRESS':  g:vsh_origvim_listen_addr}
           \ },
           \  s:callbacks)
-    unlet g:vsh_origvim_listen_addr
     if has('unix')
       let start_script = s:plugin_path . '/vsh_shell_start'
       let job_obj = job_start(
@@ -844,6 +856,9 @@ else
 
   function s:vsh_get_jobid(job)
     return jobpid(a:job)
+  endfunction
+
+  function s:start_origvim_server()
   endfunction
 
   function s:start_subprocess()
@@ -1036,8 +1051,10 @@ function vsh#vsh#EditFiles(filenames)
 endfunction
 
 function vsh#vsh#RestoreArgs()
+  let curbuf = bufnr()
   execute 'args ' . join(g:vsh_prev_args)
   execute 'argument ' . g:vsh_prev_argid
+  execute 'buffer ' . l:curbuf
 endfunction
 " }}}
 
