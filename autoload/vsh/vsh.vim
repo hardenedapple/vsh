@@ -434,7 +434,7 @@ function vsh#vsh#ShowCompletions(glob)
   " NB: If your shell doesn't have readline, you could use something like
   " ['', "echo \n", ""] to get at least the glob expansion.
   let completions_cmds = get(b:, 'vsh_completions_cmd', ['?', 'g', ''])
-  let cmd_chars = completions_cmds[a:glob ? 1 : 0]
+  let cmd_chars = l:completions_cmds[a:glob ? 1 : 0]
   let retval = s:channel_send(b:vsh_job, l:command . cmd_chars . completions_cmds[2])
   if retval == 0
     echoerr 'Failed to tab complete output'
@@ -1022,11 +1022,10 @@ function vsh#vsh#RevertWD()
 endfunction
 
 function vsh#vsh#EditFiles(filenames)
-  " NOTE: This isn't a very robust method of keeping the users argument list
+  " NOTE: This isn't a hugely robust method of keeping the users argument list
   " around -- call it twice and the original argument list has been lost --
-  " but it works nicely enough. If the user really wanted to keep their
-  " argument list around they can just make sure to restore it between uses
-  " of $EDITOR in a vsh buffer.
+  " but it works nicely enough given that as soon as the "editing process" has
+  " finished vsh#vsh#RestoreArgs is called.
   let g:vsh_prev_argid = argidx() + 1
   let g:vsh_prev_args = argv()
   execute 'args ' . join(map(a:filenames, 'fnameescape(v:val)'))

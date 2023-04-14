@@ -22,3 +22,5 @@ try:
     input('Press C-d for "successful" edit, C-c otherwise')
 except EOFError:
     pass
+finally:
+    nvim.funcs.__getattr__('vsh#vsh#RestoreArgs')()

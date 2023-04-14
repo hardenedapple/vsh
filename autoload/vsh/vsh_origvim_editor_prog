@@ -21,3 +21,7 @@ try:
     input('Press C-d for "successful" edit, C-c otherwise')
 except EOFError:
     pass
+finally:
+    message = ["call", "vsh#vsh#RestoreArgs", []]
+    message = json.dumps(message)
+    sock.send(message.encode('utf8'))
