@@ -722,22 +722,65 @@ if !has('nvim')
         \ 'stoponexit': "hup",
         \ 'err_mode': 'raw',
         \ 'out_mode': 'raw',
-        \ 'env' : { 'TERM' : 'dumb' },
         \ }
   if has('unix')
     let s:callbacks['pty'] = 1
   endif
+
+  " TODO Honestly don't know if this is necessary.
+  " Concerned about garbage collection of channels otherwise.
+  " Will have to run tests to check if that is a real concern.
+  " At least this should give me some visibility into what's going on.
+  " I could even do a filter to add callbacks to the channels so I can view the
+  " information coming in.
+  let s:command_channels = {}
+  function s:remove_channel(channel)
+    call remove(s:command_channels, ch_info(a:channel)['id'])
+  endfunction
+  function vsh#vsh#NewChannel()
+    " Don't need to record this or anything.
+    " Vim will handle commands coming down this channel itself.
+    let chan = ch_open(g:vsh_origvim_server_addr, { 'close_cb': function('s:remove_channel') })
+    let s:command_channels[ch_info(l:chan)['id']] = l:chan
+    if ch_status(l:chan) != 'open'
+      echoerr 'Failed to open channel as requested by pyserver'
+    endif
+  endfunction
+
+  function vsh#vsh#CloseVimServer(force)
+    if !exists('g:vsh_splitter_chan') && a:force == 0
+      echoerr 'No splitter channel to send on'
+      return
+    else
+      call ch_sendraw(g:vsh_splitter_chan, 'XXX')
+    endif
+    if !exists('g:vsh_origvim_server_pid') && a:force != 0
+      echoerr 'No server to stop'
+      return
+    else
+      call system('kill -HUP' . g:vsh_origvim_server_pid)
+    endif
+  endfunction
 
   function s:vsh_get_jobid(job)
     return job_info(a:job)['process']
   endfunction
 
   function s:start_subprocess()
-    if !exists('g:vsh_origvim_server_port')
-      " TODO Something in python to start a channel to listen on.
+    if !exists('g:vsh_origvim_server_addr')
+      " Set python arguments so the script has the full path and hence can
+      " invoke the origvim_server.py with said full path.
+      exe 'python3 sys.argv = ["'.fnameescape(s:plugin_path).'"]'
+      exe 'py3file ' . s:plugin_path . '/origvim_server_setup.py'
+      let g:vsh_splitter_chan = ch_open(g:vsh_origvim_server_addr)
     endif
     let cwd = expand('%:p:h')
-    let arguments = extend({'cwd': cwd}, s:callbacks)
+    let arguments = extend({
+          \ 'cwd': cwd,
+          \ 'env': {'TERM': 'dumb',
+                  \ 'VSH_VIM_LISTEN_ADDRESS':  g:vsh_origvim_listen_addr}
+          \ },
+          \  s:callbacks)
     if has('unix')
       let start_script = s:plugin_path . '/vsh_shell_start'
       let job_obj = job_start(
