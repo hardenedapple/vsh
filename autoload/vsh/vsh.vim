@@ -760,6 +760,9 @@ if !has('nvim')
     else
       call system('kill -HUP' . g:vsh_origvim_server_pid)
     endif
+    unlet g:vsh_splitter_chan
+    unlet g:vsh_origvim_server_pid
+    unlet g:vsh_origvim_server_addr
   endfunction
 
   function s:vsh_get_jobid(job)
@@ -781,6 +784,7 @@ if !has('nvim')
                   \ 'VSH_VIM_LISTEN_ADDRESS':  g:vsh_origvim_listen_addr}
           \ },
           \  s:callbacks)
+    unlet g:vsh_origvim_listen_addr
     if has('unix')
       let start_script = s:plugin_path . '/vsh_shell_start'
       let job_obj = job_start(

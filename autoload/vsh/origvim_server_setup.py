@@ -50,7 +50,12 @@ def sock_recv_catch_err(sock):
 
 def do_kill_child(pid):
     # TODO Only send kill if this PID still exists.
-    os.kill(pid, signal.SIGHUP)
+    try:
+        os.kill(pid, signal.SIGHUP)
+    except ProcessLookupError:
+        # Process may have already been killed outside, don't flash an error on
+        # the screen.
+        pass
 
 vimsock = socket.socket()
 vimsock.bind(('localhost', 0))
