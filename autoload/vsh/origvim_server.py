@@ -58,6 +58,8 @@ def open_new_connection(lsock, vsock, vclient, connect_map):
     debug_print(' -- socket ', (tmp_l.fileno(), tmp_v.fileno()))
 
 def close_one_connection(lsock, connect_map):
+    # N.b. this works either way (being passed a vim socket and closing the
+    # listening socket) despite the naming.
     lfileno = lsock.fileno()
     vsock = connect_map[lfileno]
     vfileno = vsock.fileno()
@@ -73,39 +75,38 @@ def close_one_connection(lsock, connect_map):
     lsock.shutdown(socket.SHUT_RDWR)
     lsock.close()
 
+# Should get a HUP when the vim process closes, so don't need to worry
+# about closing.
+# Allow the vim instance to connect to us.
+# Socket structure is:
+#   - vimsock waits for any new connection from vim.
+#   - listensock waits for new connections from otherprocess.
+#   - vimclient is connected to vim and is for *this process* sending requests
+#     to vim.
+#   - We have a set of sockets in socket_mappings connecting "some process" to
+#     "some vim channel".  Any message on one side gets sent to the other.
+# Protocol:
+#   - No connection from vim on vimsock *unless* requested by sending
+#     something on vimclient.
+#   - New connection request on listensock
+#     => Accept request and obtain listen info
+#     => send "connect back to me" message on vimclient.
+#     => vim will attempt to connect to vimsock, wait for and accept.
+#     => Associate listen info and new vim channel together.
+#   - Message on a listen socket.
+#     => Send it to associated vim socket.
+#   - Close a listen socket.
+#     => Close associated vim socket.
+#   - Message on any vim socket.
+#     => Send to associated listen socket.
+#   - Close any vim socket.
+#     => Close associated listen socket.
+#   - Message on, or Close of vimclient
+#     => Close and exit.
 if __name__ == '__main__':
     _, vimport, listenport = sys.argv[1:]
     vimsock = socket.fromfd(int(vimport), socket.AF_INET, socket.SOCK_STREAM)
     listensock = socket.fromfd(int(listenport), socket.AF_INET, socket.SOCK_STREAM)
-    # Should get a HUP when the vim process closes, so don't need to worry
-    # about closing.
-    # Allow the vim instance to connect to us.
-    # Socket structure is:
-    #       - vimsock waits for any new connection from vim.
-    #       - listensock waits for new connections from otherprocess.
-    #       - vimclient connects to vim waiting on messages to open a new
-    #         channel.
-    #       - We have a set of sockets described in socket_mappings connecting
-    #         "some process" to "some vim channel".  Any message on one side
-    #         gets sent to the other.
-    # Protocol;
-    #   - No connection from vim on vimsock *unless* requested by sending
-    #     something on vimclient.
-    #   - New connection request on listensock
-    #     => Accept request and obtain listen info
-    #     => send "connect back to me" message on vimclient.
-    #     => vim will attempt to connect to vimsock, wait for and accept.
-    #     => Associate listen info and new vim channel together.
-    #   - Message on a listen socket.
-    #     => Send it to associated vim socket.
-    #   - Close a listen socket.
-    #     => Close associated vim socket.
-    #   - Message on any vim socket.
-    #     => Send to associated listen socket.
-    #   - Close any vim socket.
-    #     => Close associated listen socket.
-    #   - Message on vimclient
-    #     => Close and exit.
     vimclient, _ = vimsock.accept()
     listensock.setblocking(False)
     socket_mappings = {listensock.fileno(): vimsock}
