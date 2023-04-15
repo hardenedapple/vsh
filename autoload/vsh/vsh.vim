@@ -1047,7 +1047,7 @@ function vsh#vsh#EditFiles(filenames)
   " around -- call it twice and the original argument list has been lost --
   " but it works nicely enough given that as soon as the "editing process" has
   " finished vsh#vsh#RestoreArgs is called.
-  let g:vsh_prev_argid = argidx() + 1
+  let g:vsh_prev_argid = argidx()
   let g:vsh_prev_args = argv()
   execute 'args ' . join(map(a:filenames, 'fnameescape(v:val)'))
 endfunction
@@ -1059,16 +1059,27 @@ function vsh#vsh#RestoreArgs()
   " terminal state lost.
   " Hence use `argdelete` and `argadd`.
   let curbuf = bufnr()
-  " N.b. these commands do not :edit their arguments.
-  execute 'argdelete *'
-  execute 'argadd ' . join(g:vsh_prev_args)
-  " This one does.  Do not want to lose state in the vsh file (or any other
-  " special file for that matter) hence don't restore this part of state.
-  " I.e. that leaves the argument list a little messed up.
-  " TODO One option could be to use `arglocal` and `argglobal` to have a
-  " "temporary" argument list, but that would only affect the current window
-  " and I find that a little confusing.
-  " -- execute 'argument ' . g:vsh_prev_argid
+  " N.b. `args`, `argument`, `next`, and `prev` all `:edit` at least one file.
+  " In order to avoid re-editing something and losing state (e.g. in a vsh file
+  " killing the bash process and restarting) we use `argdelete` and `argadd`.
+  %argdelete
+  " While looking into writing this function I found that the `argidx()` seems
+  " to be per-window.  Hence it looks like we would only really want to adjust
+  " `argidx()` for the current window, and then we'd have to know that the
+  " current window is actually the vsh one.
+  " I think the likelyhood of this being the case is high -- Running EditFiles
+  " happens from the $EDITOR in a vsh file and that also calls RestoreArgs --
+  " but it's clearly not 100% robust.
+  " At least when this goes wrong all that happens is that your "current"
+  " argument is slightly different to what you may expect after having done
+  " something which is expected to change the argument list.
+  "
+  " `argadd` the list from where we were at the start, then `argadd` the
+  " "before" list before it..
+  execute 'argadd ' . join(g:vsh_prev_args[g:vsh_prev_argid:])
+  if g:vsh_prev_argid != 0
+    execute '0argadd ' . join(g:vsh_prev_args[:g:vsh_prev_argid - 1])
+  endif
   execute 'buffer ' . l:curbuf
   unlet g:vsh_prev_args
   unlet g:vsh_prev_argid
