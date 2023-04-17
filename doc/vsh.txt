@@ -33,9 +33,9 @@ Mappings                |vsh-mappings|
 Overview~
 
                         *vsh-overview*
-|Vsh| is a neovim plugin that behaves similarly to a terminal emulator, but
-allows easy editing, searching, and modifying output by using a neovim buffer
-on a simple text file as the middleman for input and output.
+|Vsh| is a plugin that behaves similarly to a terminal emulator, but allows
+easy editing, searching, and modifying output by using a vim buffer on a
+simple text file as the middleman for input and output.
 
 The benefits of |vsh| over the |:terminal| command are in retroactively
 modifying or removing output, easily rerunning commands with slight
@@ -68,10 +68,14 @@ https://github.com/Shougo/vimshell.vim
 http://www.vim.org/scripts/script.php?script_id=2771 .
 First, |vsh| is aimed around working with file-backed sessions that are saved
 and reused, to be updated as required while working.
-Second, |vsh| aims to allow re-running commands in place, so that
-modifications to a command can easily be re-run without leaving a trace of the
-initial command around.
+Second, |vsh| allows re-running commands in place moving commands around, and
+modifying them in-place, so that complex sessions can easily be re-run by
+re-starting at the top of the file.
 
+Combining the two means that a complex set of commands often get iteratively
+refined as time goes on eventually leaving something which can easily be
+turned into a script (for whatever REPL you were interacting with) in a few
+vim text-editing commands.
 
 ==============================================================================
 Running~
@@ -305,80 +309,39 @@ this plugin. It may be changed on a per buffer basis with
 ==============================================================================
 Tips and Tricks~
 
-If you often want to run many lines at once (but don't want to save this as a
-shell script) you can put markers around them and use |vsh-:Vrerun| to send
-them all at once. >
-    vshcmd: > cd ../ # Here, run .,/ENDBLOCK/Vrerun
-    vshcmd: > ls
-    vshcmd: > cd -   # ENDBLOCK
+Working with the Python REPL has some slight quirks related to the fact that
+Python denotes blocks with whitespace.  In Python scripts blank lines in the
+middle of functions are fine, but in the REPL a blank line finishes the
+definition of a function.
+
+In order to account for this sending text from a python buffer to a REPL we
+have alternate mappings for sending text defined for python buffers (see
+|vsh-send-python|).
+
+However handling python REPL's is still slightly awkward since a blank line
+needs to be sent in order to finish the relevant line.  This could be done by
+including a prompt without a command. >
+      vshcmd: > def testfunc():
+      vshcmd: >   print('hello world')
+      vshcmd: > 
+      ... ... >>> 
 <
-This can be even more useful with the following function and binding >
-    let g:command_prefix = 'vimcmd: '
-    function s:ParseCommand(line)
-      let come_here_prefix = substitute(g:command_prefix, ':', ';', '')
-      let come_and_stay_prefix = substitute(g:command_prefix, ':', '!', '')
+This requires there to be an apparently empty prompt in the file, and
+sometimes the single-space after the final prompt gets lost during editing
+(removing trailing whitespace) causing the line to no longer be treated as a
+command.
 
-      let l:command_start = match(a:line, g:command_prefix)
-      if l:command_start != -1
-        return [0, a:line[l:command_start + len(g:command_prefix):]]
-      end
-
-      let l:command_start = match(a:line, come_here_prefix)
-      if l:command_start != -1
-        return [1, a:line[l:command_start + len(g:command_prefix):]]
-      end
-
-      let l:command_start = match(a:line, come_and_stay_prefix)
-      if l:command_start != -1
-        return [2, a:line[l:command_start + len(g:command_prefix):]]
-      end
-
-      return [0, '']
-    endfunction
-
-    function RunCommand(val)
-      let orig_vcount = 0
-      if v:count == 0 || a:val
-        let line = getline('.')
-      else
-        let orig_vcount = v:count
-        let line = getline(orig_vcount)
-      endif
-
-      let commandLine = s:ParseCommand(l:line)
-      if l:commandLine[1] == ''
-        echom 'Cannot parse line ' . l:line . ' for command, require prefix -- "' . g:command_prefix . '"'
-      end
-
-      if l:commandLine[0] > 0 && orig_vcount
-        exe orig_vcount
-      end
-
-      execute l:commandLine[1]
-
-      if l:commandLine[0] > 1 && !a:val
-        exe "''"
-      end
-    endfunction
-
-    nnoremap <silent> <F2> :<C-u>call RunCommand(0)<CR>
+An alternative is to add the control character `^M` at the end of the last
+line of the function definition (entered with <C-v><C-m> or <C-v><CR>). >
+      vshcmd: > def testfunc():
+      vshcmd: >   print('hello world')
+      ... ... >>> 
 <
-So that in a buffer with >
-    vshcmd: > cd ../ # vimcmd! .,/ENDBLOCK/Vrerun
-    vshcmd: > ls
-    vshcmd: > cd -   # ENDBLOCK
-< you can just press <F2> on the first line to run the block of commands.
+This requires there to be control characters in the file, and they may get
+lost when copy-pasting across various programs.
 
-
-
-If you segmemnt the block with comments >
-    vshcmd: > # STARTBLOCK
-    vshcmd: > ls
-    vshcmd: > cd -
-    vshcmd: > # ENDBLOCK
-<
-then it can be run using the <F3> command, and the |ix| text object via
-|<F3>ix|.
+As it stands there is no answer without trade-off and the choice lies with the
+user.
 
 ==============================================================================
 Mappings~
@@ -405,10 +368,22 @@ CTRL-N           Move to the next command line.
                                 *vsh-prev-command* *vsh-CTRL-P*
 CTRL-P           Move to the previous command line.
 
+                                *vsh-[[* *vsh-]]* *vsh-][* *vsh-[]*
+[[,[],][,]]     Move [count] sections backwards or forwards, ending at the
+                start or end of a section corresponding to the command used.
+                These mappings are specialising the general motions under
+                these keys for vsh buffers.  See the vim help for |[[| and
+                associated keys for the logical command.
+                For `vsh` a section is defined as a number of lines beginning
+                with |b:vsh_prompt|, comments and commands are both included
+                in this.
+
                                 *vsh-i_M-CR* *vsh-exec-and-newprompt*
 i_<M-CR>        Run the current command, create a new prompt under the current
                 command, and leave the cursor in insert mode at the end of
                 that new prompt.
+                NOTE: only available in neovim, since in original vim this
+                would send <Esc><CR>.
 
                                 *vsh-<localleader>n* *vsh-newprompt*
 <localleader>n  Create a new prompt under the output of the current command
