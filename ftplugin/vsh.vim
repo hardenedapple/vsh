@@ -63,6 +63,7 @@ setlocal formatoptions-=t
 setlocal formatoptions-=c
 
 setlocal conceallevel=2
+setlocal concealcursor=nc
 setlocal formatoptions+=r
 setlocal formatoptions+=o
 
