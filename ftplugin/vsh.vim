@@ -76,4 +76,4 @@ setlocal iskeyword+=-
 call vsh#vsh#SetupMappings()
 
 let b:vsh_dir_store = get(g:, 'vsh_dir_store', 0)
-let b:undo_ftplugin = 'setlocal tabstop< comments< formatoptions< conceallevel< iskeyword< | call vsh#vsh#Undoftplugin()'
+let b:undo_ftplugin = 'setlocal tabstop< comments< formatoptions< conceallevel< concealcursor< iskeyword< | call vsh#vsh#Undoftplugin()'
