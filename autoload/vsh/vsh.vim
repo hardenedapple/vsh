@@ -1311,8 +1311,9 @@ function vsh#vsh#SetupMappings()
   command -buffer -range VmakeCmds execute 'keeppatterns ' . <line1> . ',' . <line2> . 's/^/' . b:vsh_prompt . '/'
   command -buffer VshPass call vsh#vsh#SendPassword()
   if !has('g:vsh_no_default_mappings')
-    for [mapmode, maptype, trigger, plugmap, final_expansion] in g:vsh_buffer_mappings_list
-      execute mapmode . 'map <buffer>' . trigger . plugmap
+    for [mapmode, overridevar, maptype, trigger, plugmap, final_expansion] in g:vsh_buffer_mappings_list
+      let final_trigger = get(g:, overridevar, trigger)
+      execute mapmode . 'map <buffer>' . final_trigger . plugmap
     endfor
   endif
   let b:vsh_alt_buffer = bufname('%')
@@ -1323,8 +1324,9 @@ function s:teardown_mappings()
   silent! delcommand -buffer VmakeCmds
   silent! delcommand -buffer VshPass
   if !has('g:vsh_no_default_mappings')
-    for [mapmode, maptype, trigger, plugmap, final_expansion] in g:vsh_buffer_mappings_list
-      execute 'silent! ' . mapmode . 'unmap <buffer>' . trigger
+    for [mapmode, overridevar, maptype, trigger, plugmap, final_expansion] in g:vsh_buffer_mappings_list
+      let final_trigger = get(g:, overridevar, trigger)
+      execute 'silent! ' . mapmode . 'unmap <buffer>' . final_trigger
     endfor
   endif
 endfunction
