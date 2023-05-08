@@ -1,4 +1,16 @@
-#!/usr/bin/env bash
+#!/bin/bash
+
+# It is appealing to use an interactive shell to run this script so that the
+# users bashrc can choose a different INPUTRC.  We suggest the user changing
+# their .inputrc config file to have a condition for `TERM=dumb` in it and
+# choosing `set editing-mode emacs` under that clause.  However we also want to
+# support users changing the INPUTRC environment variable in their bashrc (on
+# the principle that most people are more comfortable changing settings in
+# bashrc than anywhere else).
+#
+# However, on experiment it seems like that comes with downsides in error cases
+# which we do not think are worth the trade-off.
+# See github issue #32.
 
 # TODO Have to play around with these settings to find the most useful for vsh.
 # stty -echonl -icanon -iexten isig onocr
