@@ -1,7 +1,8 @@
 vshcmd: > # Hello there, this is a demo of the vsh plugin.
 vshcmd: > # Any lines beginning with 'vshcmd: >' are treated as commands.
 vshcmd: > # Lines like these that start with 'vshcmd: > #' are comments, they won't execute.
-vshcmd: > # We start a pseudo-terminal running bash, and directly attach to it.
+vshcmd: > # We start a pseudo-terminal running your 'shell' (as defined in vim
+vshcmd: > # and can be seen with `:set shell?`), and directly attach to it.
 vshcmd: > #
 vshcmd: > # You are expected to run commands In normal mode.  You can move down
 vshcmd: > # a prompt with 'CTRL-N' and up a prompt with 'CTRL-P'.

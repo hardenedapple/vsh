@@ -8,6 +8,10 @@ vshcmd: > #      across an SSH connection on which to condition our
 vshcmd: > #      configuration of things like `pagination` in bash and gdb
 vshcmd: > #      (most environment variables are cleared when connecting over
 vshcmd: > #      SSH).
+vshcmd: > #
+vshcmd: > # N.b. if you use a shell different than `bash` the below `grep`
+vshcmd: > # commands are not likely to help.  Hopefully you could convert the
+vshcmd: > # logical steps to work on the shell you use.
 vshcmd: > if [[ "$TERM" != "dumb" ]]; then
 vshcmd: >   echo '$TERM is not set to "dumb" -- this is set before starting VSH, so it is likely unset during your bash login'
 vshcmd: >   echo 'Recommend searching looking through your bashrc for anything setting TERM'
