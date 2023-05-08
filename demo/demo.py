@@ -5,6 +5,3 @@ def test_function():
 # to be copied back into a file to work with later.
 # There's an operator on <leader>vs by default that works on text objects you
 # want to work with.
-
-# import sys
-print(sys.args)
