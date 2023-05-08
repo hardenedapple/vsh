@@ -19,7 +19,6 @@ stty tabs -onlcr icanon -echo -onlcr iexten isig -echonl -crterase
 export PAGER=
 export MANPAGER="$1/vsh_man_pager"
 
-export VIM_BUFFER_NR="$2"
 # N.b. These variables are in the `vim` environment, but not the `nvim`
 # environment.  With these set some commands change their output to fit the
 # size of the terminal that is reported, I don't think it's a good idea to take
@@ -33,7 +32,7 @@ completions_binding="$(bind -q possible-completions 2>/dev/null)"
 glob_binding="$(bind -q glob-list-expansions 2>/dev/null)"
 discard_line="$(bind -q unix-line-discard 2>/dev/null)"
 # Just let any errors raise -- we'll see their stack in the buffer.
-"$1/vsh_tell_nvim_bindings.py" "$completions_binding" "$glob_binding" "$discard_line" "$VIM_BUFFER_NR"
+"$1/vsh_tell_nvim_bindings.py" "$completions_binding" "$glob_binding" "$discard_line" "$VSH_VIM_BUFFER"
 
 export EDITOR="$1/vsh_editor_prog"
-exec "$3"
+exec "$2"

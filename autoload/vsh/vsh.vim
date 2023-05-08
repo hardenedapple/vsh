@@ -796,13 +796,14 @@ if !has('nvim')
     let arguments = extend({
           \ 'cwd': cwd,
           \ 'env': {'TERM': 'dumb',
-                  \ 'VSH_VIM_LISTEN_ADDRESS':  g:vsh_origvim_listen_addr}
+                  \ 'VSH_VIM_LISTEN_ADDRESS':  g:vsh_origvim_listen_addr,
+                  \ 'VSH_VIM_BUFFER': bufnr('%')}
           \ },
           \  s:callbacks)
     if has('unix')
       let start_script = s:plugin_path . '/vsh_shell_start'
       let job_obj = job_start(
-            \ [start_script, s:plugin_path, bufnr('%'), &shell, "original vim"],
+            \ [start_script, s:plugin_path, &shell],
             \ arguments)
       let s:channel_buffer_mapping[job_getchannel(job_obj)] = bufnr('%')
     else
@@ -850,7 +851,6 @@ else
         \ 'on_stdout': function('s:insert_text'),
         \ 'on_stderr': function('s:insert_text'),
         \ 'on_exit': function('s:subprocess_closed'),
-        \ 'env' : { 'TERM' : 'dumb' },
         \ }
   if has('unix')
     let s:callbacks['pty'] = 1
@@ -869,11 +869,17 @@ else
     " macOS.
     " The question is, does has('unix') return true in that case?
     let cwd = expand('%:p:h')
-    let arguments = extend({'buffer': bufnr('%'), 'cwd': cwd}, s:callbacks)
+    let arguments = extend({
+          \ 'buffer': bufnr('%'),
+          \  'cwd': cwd,
+          \ 'env': {'TERM': 'dumb',
+                  \ 'VSH_VIM_BUFFER': bufnr('%')}
+          \ },
+          \s:callbacks)
     if has('unix')
       let start_script = s:plugin_path . '/vsh_shell_start'
       let job_id = jobstart(
-            \ [start_script, s:plugin_path, bufnr('%'), &shell],
+            \ [start_script, s:plugin_path, &shell],
             \ arguments)
     else
       " TODO Want to not echo the command I sent to Powershell.
