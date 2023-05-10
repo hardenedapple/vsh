@@ -86,7 +86,7 @@ vshcmd: >   print("python", file=outfile)
 vshcmd: >   print("import os", file=outfile)
 vshcmd: >   print("if os.getenv('TERM') == 'dumb':", file=outfile)
 vshcmd: >   print("  gdb.execute('set pagination off')", file=outfile)
-vshcmd: >   print("  gdb.execute('set width 0')", file=outfile)
+vshcmd: >   print("  gdb.execute('set width 100')", file=outfile)
 vshcmd: >   print("end", file=outfile)
 vshcmd: > exit()
 demo [22:23:52] $ 
