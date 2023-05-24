@@ -10,12 +10,16 @@ if vim.eval("has('nvim')") != '0':
         return vsh_buf.mark(markchar)
     def vsh_insert_text(data, insert_buf):
         return vsh_insert_text_1(data, insert_buf)
+    def vsh_append(data, linenum, insert_buf):
+        return insert_buf.append(data, linenum)
 else:
     import collections
     vsh_FuncStoreType = collections.namedtuple('vsh_FuncStoreType',
-                                               ['match', 'setpos'])
+                                               ['match', 'setpos',
+                                               'appendbufline'])
     vsh_FuncStore = vsh_FuncStoreType(vim.Function('match'),
-                                      vim.Function('setpos'))
+                                      vim.Function('setpos'),
+                                      vim.Function('appendbufline'))
     def vsh_insert_text(data, insert_buf):
         # I honestly don't know whether getting input from a pty gives me a
         # string with newlines in it or calls the callback for each string.
@@ -33,6 +37,8 @@ else:
         if tmp is None:
             return 0, 0
         return tmp
+    def vsh_append(data, linenum, insert_buf):
+        vsh_FuncStore.appendbufline(insert_buf.number, linenum, data)
 
 def vsh_outputlen(buf, curprompt):
     '''
@@ -83,7 +89,7 @@ def vsh_recalculate_input_position(vsh_buf, insert_mark):
     # The previous mark being deleted means the last line of the last output
     # was also deleted. Hence the current output should be on a different line
     # to what's there at the moment.
-    vsh_buf.append('', insert_line)
+    vsh_append('', insert_line, vsh_buf)
     vsh_FuncStore.setpos("'" + insert_mark, [vsh_buf.number, insert_line + 1, 0])
     return True
 
@@ -150,7 +156,7 @@ def vsh_insert_helper(data, vsh_buf):
     # As a backup, I also mark the current command prompt, so that I can
     # recalculate the position of the last line if needs be.
     if data:
-        vsh_buf.append(data, insert_line)
+        vsh_append(data, insert_line, vsh_buf)
     # This should fix issue #14 as soon as neovim issue #5713 is fixed
     vsh_FuncStore.setpos("'" + insert_mark,
                      [vsh_buf.number, len(data) + insert_line, 0])
