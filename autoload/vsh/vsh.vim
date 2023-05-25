@@ -373,7 +373,7 @@ function s:set_marks_at(position)
 endfunction
 
 function s:close_process()
-  if getbufvar(bufnr(), 'vsh_job') != ''
+  if getbufvar(bufnr('%'), 'vsh_job') != ''
     call s:channel_close(b:vsh_job)
     unlet b:vsh_job
   endif
@@ -389,7 +389,7 @@ function vsh#vsh#ClosedBuffer()
 endfunction
 
 function vsh#vsh#SendControlChar()
-  if getbufvar(bufnr(), 'vsh_job') == ''
+  if getbufvar(bufnr('%'), 'vsh_job') == ''
     echoerr 'No subprocess currently running!'
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
@@ -455,7 +455,7 @@ function vsh#vsh#StartSubprocess()
 
   call s:start_origvim_server()
 
-  if getbufvar(bufnr(), 'vsh_job') != ''
+  if getbufvar(bufnr('%'), 'vsh_job') != ''
     echoerr 'Already a subprocess running for this buffer'
     return
   endif
@@ -466,7 +466,7 @@ function vsh#vsh#StartSubprocess()
 endfunction
 
 function vsh#vsh#RunCommand(command_line, command)
-  if getbufvar(bufnr(), 'vsh_job') == ''
+  if getbufvar(bufnr('%'), 'vsh_job') == ''
     echoerr 'No subprocess currently running!'
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
@@ -924,7 +924,7 @@ endfunction
 
 " {{{ Integration with CWD of shell
 function vsh#vsh#WithPathSet(command)
-  if getbufvar(bufnr(), 'vsh_job') == ''
+  if getbufvar(bufnr('%'), 'vsh_job') == ''
     echoerr 'No subprocess currently running!'
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
@@ -960,7 +960,7 @@ function s:cd_to_cwd()
   " Return the current working directory of this vim window, the command to
   " use to switch the working directory, and the working directory of the
   " foreground process in the pty.
-  if getbufvar(bufnr(), 'vsh_job') == ''
+  if getbufvar(bufnr('%'), 'vsh_job') == ''
     echoerr 'No subprocess currently running!'
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
@@ -1064,7 +1064,7 @@ function vsh#vsh#RestoreArgs()
   " Any `vsh` buffer in the args list which was not modified would have its
   " terminal state lost.
   " Hence use `argdelete` and `argadd`.
-  let curbuf = bufnr()
+  let curbuf = bufnr('%')
   " N.b. `args`, `argument`, `next`, and `prev` all `:edit` at least one file.
   " In order to avoid re-editing something and losing state (e.g. in a vsh file
   " killing the bash process and restarting) we use `argdelete` and `argadd`.
