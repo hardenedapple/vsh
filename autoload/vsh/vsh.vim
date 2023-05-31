@@ -651,6 +651,18 @@ function vsh#vsh#SendPassword()
   endif
 endfunction
 
+function vsh#vsh#SendUnterminated()
+  if !get(b:, 'vsh_job', 0)
+    echoerr 'No subprocess currently running!'
+    echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
+    return
+  endif
+  let password = input('Text: ')
+  if s:channel_send(b:vsh_job, password) == 0
+    echoerr 's:channel_send() failed to send unterminated text'
+  endif
+endfunction
+
 function s:clear_vsh_vars(buffer, job)
   " Callback is run in the users current buffer, not the buffer that
   " the job is started in, so have to use getbufvar()/setbufvar().
@@ -1310,6 +1322,7 @@ function vsh#vsh#SetupMappings()
   command -buffer -range Vrerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:vsh_prompt . '/call vsh#vsh#ReplaceOutput()'
   command -buffer -range VmakeCmds execute 'keeppatterns ' . <line1> . ',' . <line2> . 's/^/' . b:vsh_prompt . '/'
   command -buffer VshPass call vsh#vsh#SendPassword()
+	command -buffer VshSendUnterminated call vsh#vsh#SendUnterminated()
   if !has('g:vsh_no_default_mappings')
     for [mapmode, overridevar, maptype, trigger, plugmap, final_expansion] in g:vsh_buffer_mappings_list
       let final_trigger = get(g:, overridevar, trigger)
@@ -1323,6 +1336,7 @@ function s:teardown_mappings()
   silent! delcommand -buffer Vrerun
   silent! delcommand -buffer VmakeCmds
   silent! delcommand -buffer VshPass
+  silent! delcommand -buffer VshSendUnterminated
   if !has('g:vsh_no_default_mappings')
     for [mapmode, overridevar, maptype, trigger, plugmap, final_expansion] in g:vsh_buffer_mappings_list
       let final_trigger = get(g:, overridevar, trigger)
