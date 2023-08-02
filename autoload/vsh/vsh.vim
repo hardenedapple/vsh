@@ -465,6 +465,15 @@ function vsh#vsh#StartSubprocess()
   call s:start_subprocess()
 endfunction
 
+function vsh#vsh#RestartSubprocess()
+	" This function is a user-facing helper for restarting the subprocess of a
+	" buffer.  This can be useful e.g. when the SSH session you're running over
+	" has lost its connection but not seen a reset -- if you don't care about the
+	" bash state in the local shell that has connected to the remote session.
+	call s:close_process()
+	call vsh#vsh#StartSubprocess()
+endfunction
+
 function vsh#vsh#RunCommand(command_line, command)
   if getbufvar(bufnr('%'), 'vsh_job') == ''
     echoerr 'No subprocess currently running!'

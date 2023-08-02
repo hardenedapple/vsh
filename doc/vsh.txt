@@ -356,6 +356,15 @@ lost when copy-pasting across various programs.
 As it stands there is no answer without trade-off and the choice lies with the
 user.
 
+            *vsh-restart-shell*  *vsh#vsh#RestartSubprocess()*
+Sometimes one may be working over SSH, and the connection may be lost.  Rather
+than wait for the timeout if you do not have any state in the local shell it
+might be sensible to simply restart the underlying shell for this buffer.
+
+This restart can be done by using |vsh#vsh#RestartSubprocess()|.  One can
+think of this as closing a terminal (while sending the appropriate SIGHUP to
+underlying processes) and opening a new one.
+
 ==============================================================================
 Mappings~
                             *vsh-mappings*
