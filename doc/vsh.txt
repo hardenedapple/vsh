@@ -306,9 +306,22 @@ this plugin. It may be changed on a per buffer basis with
 |vsh#vsh#SetPrompt()|, to change the default you can set
 |g:vsh_default_prompt| in your vimrc.
 
+
+   *g:vsh_no_default_mappings* *vsh-custom-bindings* *vsh-custom-mappings*
+Personalisation of mappings may be done in two different ways.  One may
+disable all default mappings by setting `g:vsh_no_default_mappings` to
+something non-zero before the VSH ftplugin is loaded (i.e. before reading any
+VSH file, which implies at early startup).  Alternatively, one may specify
+different mappings for given actions by setting `g:<override_var_name>` before
+loading the plugin/vsh.vim file (i.e. at early startup).  The override
+variables are the second item in each list entry in the mappings lists found
+in plugin/vsh.vim and the best documentation would be to read the values
+there.
+
 ==============================================================================
 Tips and Tricks~
 
+              *vsh-python-REPL*
 Working with the Python REPL has some slight quirks related to the fact that
 Python denotes blocks with whitespace.  In Python scripts blank lines in the
 middle of functions are fine, but in the REPL a blank line finishes the
