@@ -49,7 +49,9 @@ call vsh#vsh#SetPrompt(get(g:, 'vsh_default_prompt', 'vshcmd: > '))
 "   uniquely identifying the buffer?
 
 
-let g:vsh_closing_jobs = {}
+if !exists('g:vsh_closing_jobs')
+   let g:vsh_closing_jobs = {}
+endif
 if getbufvar(bufnr(), 'vsh_job') == ''
   call vsh#vsh#StartSubprocess()
   augroup VshBufferClose
