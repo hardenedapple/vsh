@@ -75,7 +75,6 @@ def read_ctrl_char(position, bind_str):
         return None, find_next_binding(position, bind_str)
     return chr(ctrl_ord), end_pos
 
-
 def find_command_from_output(bind_output):
     known_string = 'can be invoked via'
     string_pos = bind_output.find(known_string)
@@ -102,12 +101,12 @@ def find_command_from_output(bind_output):
     #   e  -> treat as an escape character
     #   C  -> treat as start of control character
     #   "  -> treat as normal quote character.
+    #   M  -> Treat as start of meta character (I *think* can just send escape)
     position = 1 
     bindings_len = len(bindings)
     while position < bindings_len:
         char = bindings[position]
         if char == '"' and not escape_next: return binding
-
         if char == '\\':
             if escape_next:
                 binding += '\\'
@@ -115,12 +114,15 @@ def find_command_from_output(bind_output):
             else: escape_next = True
         elif escape_next:
             if char == 'e': binding += '\x1b'
+            elif char == 'M':
+                position += 1  # To account for the `-` that should follow.
+                binding += '\x1b'
             elif char == 'C':
                 ctrl_char, position = read_ctrl_char(position, bindings)
                 binding += ctrl_char
             elif char == '"': binding += '"'
             # Should never happen -- the only escaped characters should be
-            # '\\', 'e', '"', and 'C'
+            # '\\', 'e', 'M', '"', and 'C'.
             else: raise ValueError
             escape_next = False
         else:
@@ -165,5 +167,14 @@ if __name__ == "__main__":
         sock.send(message)
         sock.shutdown(socket.SHUT_RDWR)
         sock.close()
+    elif os.getenv('VSH_EMACS_BUFFER'):
+        import subprocess as sp
+        import base64
+        lisp_arguments = [
+            '"' + base64.b64encode(bytes(x, 'utf8')).decode('utf8') + '"'
+            for x in completions_list]
+        sp.check_call(['emacsclient', '--suppress-output', '--eval',
+                       '(vsh--receive-readline-bindings {} {})'.format(
+                           sys.argv[4], ' '.join(lisp_arguments))])
     else:
         print('No vim to send info to!', file=sys.stderr)

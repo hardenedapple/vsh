@@ -26,13 +26,20 @@ export MANPAGER="$1/vsh_man_pager"
 unset COLUMNS
 unset LINES
 
+
+if [[ -n "$VSH_EMACS_BUFFER" ]]; then
+    export EDITOR="emacsclient"
+    vsh_buffer="$VSH_EMACS_BUFFER"
+else
+    export EDITOR="$1/vsh_editor_prog"
+    vsh_buffer="$VSH_VIM_BUFFER"
+fi
+
 # It's really awkward to find out what the bindings are programmatically
 # (or at least I don't know of a nice way to query the readline library).
 completions_binding="$(bind -q possible-completions 2>/dev/null)"
 glob_binding="$(bind -q glob-list-expansions 2>/dev/null)"
 discard_line="$(bind -q unix-line-discard 2>/dev/null)"
 # Just let any errors raise -- we'll see their stack in the buffer.
-"$1/vsh_tell_nvim_bindings.py" "$completions_binding" "$glob_binding" "$discard_line" "$VSH_VIM_BUFFER"
-
-export EDITOR="$1/vsh_editor_prog"
+"$1/vsh_tell_nvim_bindings.py" "$completions_binding" "$glob_binding" "$discard_line" "$vsh_buffer"
 exec "$2"

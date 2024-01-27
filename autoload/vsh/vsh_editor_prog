@@ -14,7 +14,7 @@ if os.getenv('NVIM') or os.getenv('NVIM_LISTEN_ADDRESS'):
     nvim.funcs.__getattr__('vsh#vsh#EditFiles')(filenames)
     def restore():
         nvim.funcs.__getattr__('vsh#vsh#RestoreArgs')()
-else:
+elif os.getenv('VSH_VIM_LISTEN_ADDRESS'):
     import socket
     import json
     import re
@@ -32,6 +32,9 @@ else:
         message = ["call", "vsh#vsh#RestoreArgs", []]
         message = json.dumps(message)
         sock.send(message.encode('utf8'))
+else:
+    print('No upper vsh process to communicate with!', file=sys.stderr)
+    sys.exit(1)
 
 
 # Wait until get told to finish -- with ^D is "complete", with ^C is not.

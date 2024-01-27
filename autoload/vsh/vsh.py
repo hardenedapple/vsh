@@ -121,6 +121,13 @@ def vsh_insert_helper(data, vsh_buf):
         # line number not a python buffer index.
         insert_line = len(vsh_buf)
 
+    # TODO It seems worth keeping some buffer-local variable around to indicate
+    # whether we've just started a command or not.  We could add a newline when
+    # we've not seen any output since the last "enter".  This would avoid the
+    # possibility of `vshcmd: > ` coming from output being treated as a prompt
+    # and hence some lines getting messed up.  This seems to be working for
+    # emacs, and it should be more robust.
+    #
     # If the insert position is not at the end of a command prompt, assume
     # we have already put some of the output from this command into the buffer.
     # In that case, we want to allow for flushing of output in the middle of a
