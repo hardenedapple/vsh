@@ -1,0 +1,618 @@
+Name: Next command 1
+Code: (lambda () (call-interactively 'vsh-next-command))
+Point-Char: |
+
+Checking each thing that could be feasibly be treated as a motion marker -- but
+that should not be treated as such -- is ignored.
+=-=
+|vshcmd: >
+vshcmd: > # echo Hello there
+vshcmd: >    # echo Hello there
+vshcmd: >    #echo Hello there
+vshcmd: >    echo Hello there
+=-=
+vshcmd: >
+vshcmd: > # echo Hello there
+vshcmd: >    # echo Hello there
+vshcmd: >    #echo Hello there
+vshcmd: >    |echo Hello there
+=-=-=
+
+Name: Next command 2
+No-After-Newline:
+No-Before-Newline:
+
+Moving when there is no next prompt moves to end of buffer.
+
+N.b. I'm using the no-newline things in order to be able to represent point
+going to the end of the buffer.
+=-=
+vshcmd: >    |echo Hello there
+
+=-=
+vshcmd: >    echo Hello there
+|
+=-=-=
+
+Name: Next command 3
+No-After-Newline:
+No-Before-Newline:
+
+Moves to end of buffer, including if there is output in the way.
+=-=
+vshcmd: > |echo Hello there
+Hello there, this is output
+
+=-=
+vshcmd: > echo Hello there
+Hello there, this is output
+|
+=-=-=
+
+Name: Next command 4
+No-After-Newline:
+No-Before-Newline:
+
+Checking special case when the prompt is the last line in the buffer.
+
+The decision to put the cursor at the start of the *current* command if moving
+forward and this line is at the very end of the file was mostly made because
+that was how the first function I wrote behaves and it doesn't seem like a
+problem.
+
+It would be nice to make the function behave the most logically consistent
+(something like always moving forwards), but for now this seems nice enough.
+=-=
+vshcmd: >    echo Hello there|
+=-=
+vshcmd: >    |echo Hello there
+=-=-=
+
+Name: Next command 5
+No-After-Newline:
+No-Before-Newline:
+
+=-=
+|Hello there, this is output
+vshcmd: > echo Hello there
+=-=
+Hello there, this is output
+vshcmd: > |echo Hello there
+=-=-=
+
+Name: Next command 6
+No-After-Newline:
+No-Before-Newline:
+
+=-=
+Hello there, this is output|
+vshcmd: > echo Hello there
+=-=
+Hello there, this is output
+vshcmd: > |echo Hello there
+=-=-=
+
+Name: Next command 7
+No-After-Newline:
+No-Before-Newline:
+
+=-=
+|vshcmd: > echo Hello there
+=-=
+vshcmd: > |echo Hello there
+=-=-=
+
+
+Name: Next command 8
+No-After-Newline:
+No-Before-Newline:
+
+=-=
+vs|hcmd: > echo Hello there
+Hello there, this is output
+
+=-=
+vshcmd: > |echo Hello there
+Hello there, this is output
+
+=-=-=
+
+Name: Next command 9
+=-=
+vshcmd: > |echo Hello there
+vshcmd: > echo Hello there
+=-=
+vshcmd: > echo Hello there
+vshcmd: > |echo Hello there
+=-=-=
+
+Name: Next command 10
+=-=
+vshcmd: > |
+vshcmd: > echo Hello there
+=-=
+vshcmd: > 
+vshcmd: > |echo Hello there
+=-=-=
+
+
+Name: Next command 11
+=-=
+|vshcmd: > # vshcmd: > ls
+vshcmd: > ls
+=-=
+vshcmd: > # vshcmd: > |ls
+vshcmd: > ls
+=-=-=
+
+Name: Next command 12
+=-=
+vshcmd: > |ls
+vshcmd: > # vshcmd: > ls
+=-=
+vshcmd: > ls
+vshcmd: > # vshcmd: > |ls
+=-=-=
+
+Name: Next command 13
+=-=
+|ls
+vshcmd: > # vshcmd: > ls
+=-=
+ls
+vshcmd: > # vshcmd: > |ls
+=-=-=
+
+
+Name: Next command 14
+=-=
+|vshcmd: > 
+vshcmd: > ls
+=-=
+vshcmd: > |
+vshcmd: > ls
+=-=-=
+
+Name: Next command 15
+=-=
+vshcmd: > |
+vshcmd: > ls
+=-=
+vshcmd: > 
+vshcmd: > |ls
+=-=-=
+
+Name: Next command 16
+=-=
+vshcmd: > l|
+vshcmd: > ls
+=-=
+vshcmd: > l
+vshcmd: > |ls
+=-=-=
+
+Name: Prev command 1
+Code: (lambda () (call-interactively 'vsh-prev-command))
+
+Checking each thing that could be feasibly be treated as a motion marker -- but
+that should not be treated as such -- is ignored.
+=-=
+vshcmd: >    echo Hello there
+vshcmd: >    #echo Hello there
+vshcmd: >    # echo Hello there
+vshcmd: > # echo Hello there
+|vshcmd: >
+=-=
+vshcmd: >    |echo Hello there
+vshcmd: >    #echo Hello there
+vshcmd: >    # echo Hello there
+vshcmd: > # echo Hello there
+vshcmd: >
+=-=-=
+
+Name: Prev command 2
+Moving when there is no prev prompt moves to start of buffer.
+=-=
+
+vshcmd: >    |echo Hello there
+=-=
+|
+vshcmd: >    echo Hello there
+=-=-=
+
+Name: Prev command 3
+Moves to start of buffer, including if there is output in the way.
+=-=
+
+Hello there, this is output
+vshcmd: > |echo Hello there
+=-=
+|
+Hello there, this is output
+vshcmd: > echo Hello there
+=-=-=
+
+Name: Prev command 4
+Checking special case when the prompt is the first line in the buffer.
+
+The decision to put the cursor at the start of the *current* command if moving
+forward and this line is at the very end of the file was mostly made because
+that was how the first function I wrote behaves and it doesn't seem like a
+problem.
+
+It would be nice to make the function behave the most logically consistent
+(something like always moving backards), but for now this seems nice enough.
+=-=
+|vshcmd: >    echo Hello there
+=-=
+vshcmd: >    |echo Hello there
+=-=-=
+
+Name: Prev command 5
+=-=
+vshcmd: > echo Hello there
+|Hello there, this is output
+=-=
+vshcmd: > |echo Hello there
+Hello there, this is output
+=-=-=
+
+Name: Prev command 6
+=-=
+vshcmd: > echo Hello there
+Hello there, this is output|
+=-=
+vshcmd: > |echo Hello there
+Hello there, this is output
+=-=-=
+
+Name: Prev command 7
+=-=
+|vshcmd: > echo Hello there
+=-=
+vshcmd: > |echo Hello there
+=-=-=
+
+
+Name: Prev command 8
+=-=
+vshcmd: > echo Hello there
+vs|hcmd: > echo Hello there
+=-=
+vshcmd: > |echo Hello there
+vshcmd: > echo Hello there
+=-=-=
+
+Name: Prev command 9
+=-=
+vshcmd: > echo Hello there
+vshcmd: > |echo Hello there
+=-=
+vshcmd: > |echo Hello there
+vshcmd: > echo Hello there
+=-=-=
+
+Name: Prev command 10
+=-=
+vshcmd: > echo Hello there
+vshcmd: > |
+=-=
+vshcmd: > |echo Hello there
+vshcmd: > 
+=-=-=
+
+
+Name: Prev command 11
+=-=
+|vshcmd: > # vshcmd: > ls
+vshcmd: > ls
+=-=
+vshcmd: > # vshcmd: > |ls
+vshcmd: > ls
+=-=-=
+
+Name: Prev command 12
+=-=
+vshcmd: > # vshcmd: > ls
+vshcmd: > |ls
+=-=
+vshcmd: > # vshcmd: > |ls
+vshcmd: > ls
+=-=-=
+
+Name: Prev command 13
+=-=
+vshcmd: > # vshcmd: > ls
+|ls
+=-=
+vshcmd: > # vshcmd: > |ls
+ls
+=-=-=
+
+Name: Prev command 14
+=-=
+vshcmd: > ls
+vshcmd: > l|s
+=-=
+vshcmd: > |ls
+vshcmd: > ls
+=-=-=
+
+Name: Prev command 15
+=-=
+vshcmd: > ls
+vshcmd: > |ls
+=-=
+vshcmd: > |ls
+vshcmd: > ls
+=-=-=
+
+Name: Prev command 16
+=-=
+vshcmd: > ls
+vshcmd: >| ls
+=-=
+vshcmd: > |ls
+vshcmd: > ls
+=-=-=
+
+Name: Mark command block 1
+Code: (lambda () (call-interactively 'vsh-mark-command-block)
+                 (goto-char (mark))
+                 (deactivate-mark))
+=-=
+vshcmd: > ls
+vshcmd: > ls|
+=-=
+|vshcmd: > ls
+vshcmd: > ls
+=-=-=
+
+Name: Mark command block 2
+=-=
+Test output line
+vshcmd: > ls
+vshcmd: > ls|
+=-=
+Test output line
+|vshcmd: > ls
+vshcmd: > ls
+=-=-=
+
+Name: Indent function 1
+Code: (lambda () (vsh-indent-function))
+=-=
+Output above
+|vshcmd: > ls
+=-=
+Output above
+|vshcmd: > ls
+=-=-=
+
+Name: Indent function 2
+=-=
+Output above
+|vshcmd: >    ls
+=-=
+Output above
+|vshcmd: >    ls
+=-=-=
+
+Name: Indent function 3
+=-=
+Output above
+vshcmd: > |   ls
+=-=
+Output above
+vshcmd: > |ls
+=-=-=
+
+Name: Indent function 4
+=-=
+Output above
+vshcmd: >    |ls
+=-=
+Output above
+vshcmd: > |ls
+=-=-=
+
+Name: Indent function 5
+=-=
+Output above
+vshcmd: >    l|s
+=-=
+Output above
+vshcmd: >    l|s
+=-=-=
+
+Name: Indent function 6
+=-=
+Output above
+vshcmd: >|
+=-=
+Output above
+vshcmd: > |
+=-=-=
+
+Name: Indent function 7
+=-=
+|Output above
+vshcmd: >
+=-=
+|Output above
+vshcmd: >
+=-=-=
+
+Name: Indent function 8
+=-=
+Out|put above
+vshcmd: >
+=-=
+Out|put above
+vshcmd: >
+=-=-=
+
+Name: Indent function 9
+=-=
+vshcmd: > Command above without indentation
+vshcmd: >   |Command below with indentation
+=-=
+vshcmd: > Command above without indentation
+vshcmd: >         |Command below with indentation
+=-=-=
+
+Name: Indent function 10
+=-=
+vshcmd: > Command above without indentation
+vshcmd: > |Command below without indentation
+=-=
+vshcmd: > Command above without indentation
+vshcmd: >         |Command below without indentation
+=-=-=
+
+Name: Indent function 11
+=-=
+vshcmd: >    Command above without indentation
+vshcmd: > |Command below without indentation
+=-=
+vshcmd: >    Command above without indentation
+vshcmd: >    |Command below without indentation
+=-=-=
+
+Name: Indent function 12
+=-=
+vshcmd: > Command above without indentation
+vshcmd: > Comm| below without indentation
+=-=
+vshcmd: > Command above without indentation
+vshcmd: > Comm    | below without indentation
+=-=-=
+
+Name: Indent function 13
+Does not get affected by a a line above that does not "match" the type of the
+current line.
+=-=
+vshcmd: > # Command above without indentation
+vshcmd: > Comm| below without indentation
+=-=
+vshcmd: > # Command above without indentation
+vshcmd: > Comm| below without indentation
+=-=-=
+
+Name: Indent function 14
+Similar, but for comments being the "active" line.
+=-=
+vshcmd: > Comm below without indentation
+vshcmd: > # |Command above without indentation
+=-=
+vshcmd: > Comm below without indentation
+vshcmd: > # |Command above without indentation
+=-=-=
+
+Name: Indent function 15
+Does not get affected by a line below it.
+=-=
+vshcmd: > Comm below without indentation
+vshcmd: > # |Comment below
+vshcmd: > #    Comment below
+=-=
+vshcmd: > Comm below without indentation
+vshcmd: > # |Comment below
+vshcmd: > #    Comment below
+=-=-=
+
+Name: Indent function 16
+Does not get affected by a line below it.
+=-=
+vshcmd: > |Command below
+vshcmd: > Comment below.
+=-=
+vshcmd: > |Command below
+vshcmd: > Comment below.
+=-=-=
+
+Name: Indent function 17
+=-=
+vshcmd: > # Command above without indentation
+vshcmd: > #   |Command below with indentation
+=-=
+vshcmd: > # Command above without indentation
+vshcmd: > #         |Command below with indentation
+=-=-=
+
+Name: Indent function 18
+=-=
+vshcmd: > # Command above without indentation
+vshcmd: > # |Command below without indentation
+=-=
+vshcmd: > # Command above without indentation
+vshcmd: > #         |Command below without indentation
+=-=-=
+
+Name: Indent function 19
+=-=
+vshcmd: > #    Command above without indentation
+vshcmd: > # |Command below without indentation
+=-=
+vshcmd: > #    Command above without indentation
+vshcmd: > #    |Command below without indentation
+=-=-=
+
+Name: Indent function 20
+=-=
+vshcmd: > # Command above without indentation
+vshcmd: > # Comm| below without indentation
+=-=
+vshcmd: > # Command above without indentation
+vshcmd: > # Comm    | below without indentation
+=-=-=
+
+Name: Indent function 21
+Whitespace before the hash does not change much.
+=-=
+vshcmd: > # Command above without indentation
+vshcmd: >    # Comm| below without indentation
+=-=
+vshcmd: > # Command above without indentation
+vshcmd: >    # Comm | below without indentation
+=-=-=
+
+Name: Indent function 22
+Requesting indentation when in prompt does nothing.
+=-=
+vshcmd: > # Command above without indentation
+vs|hcmd: >    # Comm below without indentation
+=-=
+vshcmd: > # Command above without indentation
+vs|hcmd: >    # Comm below without indentation
+=-=-=
+
+Name: Indent function 23
+Requesting indentation when in prompt does nothing.
+=-=
+vshcmd: > Command above without indentation
+vs|hcmd: >    Comm below without indentation
+=-=
+vshcmd: > Command above without indentation
+vs|hcmd: >    Comm below without indentation
+=-=-=
+
+Name: Indent function 24
+Requesting indentation when in prompt does nothing.
+=-=
+vshcmd: > Command above without indentation
+|vshcmd: >    Comm below without indentation
+=-=
+vshcmd: > Command above without indentation
+|vshcmd: >    Comm below without indentation
+=-=-=
+
+Name: Indent function 25
+Requesting indentation when in prompt does nothing.
+=-=
+vshcmd: > # Command above without indentation
+|vshcmd: > #   Comm below without indentation
+=-=
+vshcmd: > # Command above without indentation
+|vshcmd: > #   Comm below without indentation
+=-=-=
