@@ -629,7 +629,7 @@ argument."
   "Internal variable recording the value of `buffer-undo-list' at the time of
 last change upon which we would want output from underlying process to \"merge\"
 with into a single `undo' unit.")
-;; Working on this ...
+
 ;; Without doing anything special with the undo stuff:
 ;;    - At some point we introduce a `nil' after this function.
 ;;    - After that we record the `insert' again, under a new change.
@@ -674,6 +674,20 @@ with into a single `undo' unit.")
           ;; output ran after such a command.  This allows running multiple lines
           ;; with `vsh-execute-command' (or similar) before any output comes and
           ;; not having blank lines between the lines that were run.
+          ;;
+          ;; TODO I forgot the reason that the original vim plugin chose to
+          ;; always insert a newline when inserting just after a prompt:
+          ;;   - What happens when have deleted output since last output, but
+          ;;     not started another command?
+          ;;     We could add text at the end of the command in this situation
+          ;;     and hence sometimes messing up the command for later.
+          ;;     We could detect this by making decisions based on what the
+          ;;     line we would be inserting on looks like, but that means that
+          ;;     if a command happens to output a vshcmd line we will
+          ;;     artificially add a newline.
+          ;;     - Just a decision between the two imperfect solutions to make.
+          ;;       Currently we have a different decision between vim and emacs,
+          ;;       that's not great.  Should have a think on that later.
           (when vsh-new-output (insert-char ?\n) (setq-local vsh-new-output nil))
           (insert output)
           (if vsh-ignore-ansi-colors
@@ -696,6 +710,7 @@ with into a single `undo' unit.")
 ;; line before reading anything back (hence leaving all commands in the region
 ;; next to each other and all output from them underneath).
 
+(defconst vsh-install-dir (file-name-directory load-file-name))
 ;; Decided to make this interactive so can run with `M-x'.  Mainly for when
 ;; I've done something silly in the underlying process and want to fix it.
 (defun vsh-start-process ()
@@ -706,11 +721,9 @@ with into a single `undo' unit.")
   ;; directory (which is what we want).
   ;; `process-environment' just needs to include that the terminal is dumb and
   ;; some mechanism via which to communicate back to emacs.
-  (let* ((process-environment process-environment)
-         (vsh-install-dir (file-name-directory load-file-name))
+  (let ((process-environment process-environment)
          (shell-start-stub
-          (expand-file-name "../autoload/vsh/vsh_shell_start" load-file-name))
-         (shell-start-dir (expand-file-name "../autoload/vsh" load-file-name)))
+          (expand-file-name "vsh_shell_start" vsh-install-dir)))
     ;; Copy current environment, then extend (to ensure things like $PATH and
     ;; $HOME are kept in the environment for the underlying process.
     (setenv "TERM" "dumb")
@@ -727,7 +740,7 @@ with into a single `undo' unit.")
                  ;; Alternatively I wonder whether I could just include the
                  ;; vsh.el file in the same repo as the vim plugin.  That way the
                  ;; shell scripts etc are all the same.
-                 :command (list shell-start-stub shell-start-dir "bash")
+                 :command (list shell-start-stub vsh-install-dir "bash")
                  :connection-type 'pty
                  :noquery t
                  :filter 'vsh--process-filter
@@ -1132,24 +1145,37 @@ Entry to this mode runs the hooks on `vsh-mode-hook'."
   (make-local-variable 'vsh--undo-list-at-last-insertion)
   (unless (or (not vsh-may-start-server)
               ;; Need to check this is `fboundp' because `server-start'
-              ;; autoloads the server package.
+              ;; autoloads the server package so if the server has not been
+              ;; started then `server-running-p' may not be available.
               (and (fboundp 'server-running-p) (server-running-p)))
     ;; Attempt to make different server name if there is already one running.
     ;; Should only happen when there is two different emacs sessions running a
     ;; server.  When this happens `emacsclient' is given the relevant address
     ;; for this particular emacs session via the `EMACS_SOCKET_NAME' environment
     ;; variable.
+    ;;
+    ;; Currently the different attempts mean there is a warning raised for each
+    ;; attempt.  This is ugly, I can suppress the warning with
+    ;; `warning-suppress-log-types' on the `server' symbol, but that would
+    ;; *also* mean that the warning about being on FAT32 and its insecurity
+    ;; against tampering would be suppressed.
+    ;; Similar for `warning-suppress-types', but that at least logs the warning
+    ;; (without popping up the *Warnings* window).
+    ;; As it happens the FAT32 warning doesn't change based on `server-name',
+    ;; so I choose to ignore these warnings for the second/third/etc run and let
+    ;; the first warning pop up.
+    ;;
+    ;; I don't think this will be happening often, when it does happen it's
+    ;; worth the user being alerted that something strange is happening.
     (server-start)
-    (let ((suffix-count 0))
+    (let ((suffix-count 0)
+          (warning-suppress-list '((server))))
       (while (not server-mode)
         (setq server-name (format "vsh-server-%d" suffix-count))
         (incf suffix-count)
         (server-start)))))
 
-;; N.b. once I get around to properly packaging this, this should be prefixed by
-;; an autoload magic comment.
-(add-to-list 'auto-mode-alist '("\\.vsh\\'" . vsh-mode))
-
+;;;###autoload (add-to-list 'auto-mode-alist '("\\.vsh\\'" . vsh-mode))
 
 (provide 'vsh)
 
