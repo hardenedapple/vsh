@@ -568,7 +568,7 @@ vshcmd: > # Comm    | below without indentation
 =-=-=
 
 Name: Indent function 21
-Whitespace before the hash does not change much.
+Whitespace before the hash does not change behaviour.
 =-=
 vshcmd: > # Command above without indentation
 vshcmd: >    # Comm| below without indentation
@@ -615,4 +615,13 @@ vshcmd: > # Command above without indentation
 =-=
 vshcmd: > # Command above without indentation
 |vshcmd: > #   Comm below without indentation
+=-=-=
+
+Name: Indent function 26
+=-=
+vshcmd: > # Command above without indentation
+vshcmd: > # |
+=-=
+vshcmd: > # Command above without indentation
+vshcmd: > #         |
 =-=-=
