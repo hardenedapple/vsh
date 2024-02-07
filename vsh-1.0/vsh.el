@@ -244,8 +244,6 @@ to send to readline processes in underlying terminal for
   "Has this current buffers process been initialised.")
 
 ;; TODO
-;;   - Determine repository layout (i.e. is this emacs file going in the
-;;     originally vim repository).
 ;;   - Add tests
 ;;     - start of segment, end of segment.
 ;;     - start of block, end of block.
@@ -265,6 +263,7 @@ to send to readline processes in underlying terminal for
 ;;   - Think about what buffer-local symbols need to be marked as
 ;;     `permanent-local' so they are not removed on changing major mode (see
 ;;     "(elisp) Creating Buffer-Local").
+;;   - Update the GDB integration code to handle emacs.
 ;;   - Add the `python' text sending functions.
 ;;     - Python REPL treats newlines different to the python interpreter when
 ;;       reading a file.  Vim version of VSH introduces a function to send from
@@ -283,9 +282,9 @@ to send to readline processes in underlying terminal for
 ;;   - Documentation
 ;;     - Document the functions and variables in this file.
 ;;     - Write adjustments for emacs in the demo VSH files in the VSH repo.
-;;   - Understand autoload things.
 ;;   - Allow buffer-local or user-specified prompt.
 ;;   - Maybe do something about the `repeat-mode' stuff.
+;;     - E.g. something like "C-c C-n" can be `repeat-mode'ed with C-n.
 ;;   - Handle `case-fold-search' (ensure it doesn't change things)
 
 (defun vsh-prompt (&optional buffer)
@@ -340,7 +339,6 @@ whitespace stripped."
   ;; This could happen in emacs too -- but even if we didn't have the same
   ;; problem, we'd want to keep the format of a file meaning the same thing
   ;; between the two text editors.
-  ;; (string-join (list "^" (vsh-prompt buffer)))
   )
 
 (defun vsh-command-regexp (&optional buffer)
@@ -400,10 +398,6 @@ command\"."
 
 (defun vsh-next-command (&optional count)
   "Move to the next vsh prompt."
-  ;; TODO ??? Would be nice to handle that "next command" with cursor at the
-  ;; very start of a command (e.g. on the `s' of `vshcmd') takes us to the start
-  ;; of *this* command.  On the other hand, it's not too important, and seems a
-  ;; little tricky to implement.  I don't think I chose that in vim on purpose.
   (interactive "p")
   ;; Move to the next vsh prompt (as defined by `vsh-motion-marker').
   ;; If there is no next prompt then move to the end/start of the buffer
@@ -429,13 +423,17 @@ command\"."
   ;; When searching *backwards* the special case is in order to handle the
   ;; possibility that we are *after* a motion marker and hence would like to
   ;; move to the previous one.
+  ;; TODO???? It's worth wondering whether "backwards" should move us to the
+  ;; start of the command if we're currently somewhere in the middle of the
+  ;; command.  This isn't what we do with vim, it *feels* wrong at the moment,
+  ;; but it makes the logical definition of what this command does more coherent
+  ;; (moves to previous point that is the start of a command).
   (when (and (< count 0)
              (save-excursion
                   (re-search-backward (vsh-motion-marker)
                                       (line-beginning-position)
                                       t)))
     (decf count))
-  ;; (when (< count 0) (ignore-errors (backward-char)))
   (if (re-search-forward (vsh-motion-marker) nil 'to-end-on-error count)
       ;; We have moved our point, but because there is no lookahead regexp in elisp
       ;; we may have moved it one character further than we wanted to (the character
@@ -533,6 +531,7 @@ argument."
         (vsh--move-to-end-of-block (vsh-split-regexp) t)
         (re-search-forward (vsh-split-regexp) nil 'move-to-end)))))
 (defun vsh-beginning-of-block (count)
+  "Move to first line of command block."
   (interactive "p")
   (vsh--beginning-of-block-fn count)
   (vsh-bol))
@@ -549,16 +548,18 @@ argument."
         (vsh--move-to-end-of-block (vsh-split-regexp) nil)
         (re-search-backward (vsh-split-regexp) nil 'move-to-end)))))
 (defun vsh-end-of-block (count)
+  "Move to last line of command block."
   (interactive "p")
   (vsh--end-of-block-fn count)
   (vsh-bol))
 
 (defun vsh-make-cmd (rbeg rend)
+  "Turn lines in the given region into commands."
   (interactive "r")
   (let ((rbeg (save-excursion (goto-char rbeg) (line-beginning-position))))
     (replace-regexp-in-region "^" (vsh-prompt) rbeg rend)))
 
-(defun vsh-save-or-activate-command (save)
+(defun vsh--save-or-activate-command (save)
   (save-excursion
     (end-of-line)
     (re-search-backward (vsh-split-regexp) nil 'eof-on-missing)
@@ -573,10 +574,10 @@ argument."
           (message "Output is not currently Saved"))))))
 (defun vsh-save-command ()
   (interactive)
-  (vsh-save-or-activate-command t))
+  (vsh--save-or-activate-command t))
 (defun vsh-activate-command ()
   (interactive)
-  (vsh-save-or-activate-command nil))
+  (vsh--save-or-activate-command nil))
 
 (defun vsh-new-prompt ()
   (interactive)
@@ -687,7 +688,9 @@ with into a single `undo' unit.")
           ;;     artificially add a newline.
           ;;     - Just a decision between the two imperfect solutions to make.
           ;;       Currently we have a different decision between vim and emacs,
-          ;;       that's not great.  Should have a think on that later.
+          ;;       that's not great.  Should probably make the two more
+          ;;       consistent, will procrastinate on making the decision for the
+          ;;       moment.
           (when vsh-new-output (insert-char ?\n) (setq-local vsh-new-output nil))
           (insert output)
           (if vsh-ignore-ansi-colors
@@ -698,11 +701,6 @@ with into a single `undo' unit.")
           (setq-local vsh--undo-list-at-last-insertion buffer-undo-list)
           (undo-boundary))))
     (unless vsh-buffer-initialised (setq-local vsh-buffer-initialised t))))
-
-;; To think about:
-;; I don't think I need to call `accept-process-output'?
-;; My expectation is that it would be better to wait until emacs is waiting on
-;; the user to be handling output.
 
 ;; I don't think I need to call `accept-process-output' since I usually do very
 ;; little and return to the user-input loop.  In fact *not* calling it is useful
@@ -734,12 +732,6 @@ with into a single `undo' unit.")
     (let ((proc (make-process
                  :name "vsh-proc"
                  :buffer (current-buffer)
-                 ;; TODO Going to have to ship a copy of this shell script.
-                 ;; Maybe a shared subrepo in order to ensure consistency between
-                 ;; the vim and emacs versions.
-                 ;; Alternatively I wonder whether I could just include the
-                 ;; vsh.el file in the same repo as the vim plugin.  That way the
-                 ;; shell scripts etc are all the same.
                  :command (list shell-start-stub vsh-install-dir "bash")
                  :connection-type 'pty
                  :noquery t
@@ -750,7 +742,7 @@ with into a single `undo' unit.")
                  ;;  newline to the start of output if we are inserting a
                  ;;  new-output, but since this is a rare event and is likely to
                  ;;  happen after there has been some output anyway.
-                 ;; :sentinel vsh--process-sentinel
+                 ;; :sentinel ? vsh--process-sentinel ?
                  )))
       ;; When insert *at* the process mark, marker will advance.
       (set-marker-insertion-type (process-mark proc) t)
@@ -985,8 +977,10 @@ the CWD of the underlying process."
 
 (defvar vsh-mode-map
   (let ((map (make-sparse-keymap)))
-    ;; This is a bit of a question-mark.
-    ;; On the one hand, RET is something that I can imagine 
+    ;; This RET mapping is a bit of a question-mark.
+    ;; On the one hand I rely on the "insert comment" behaviour to ensure
+    ;; prompts are inserted on newline.  On the other hand I have a suspicion
+    ;; that the user would have overridden this mapping reasonably often.
     (define-key map (kbd "RET") 'comment-indent-new-line)
     (define-key map (kbd "C-c C-n") 'vsh-next-command)
     (define-key map (kbd "C-c C-p") 'vsh-prev-command)
@@ -1119,13 +1113,6 @@ type of line as the one above (i.e. either a comment or a command)."
   (setq-local beginning-of-defun-function 'vsh--beginning-of-block-fn)
   (setq-local end-of-defun-function 'vsh--end-of-block-fn))
 
-;;; TODO
-;; I notice that vimrc-mode puts the derived mode and the `auto-mode-alist'
-;; setting under `autoload' comments.  I guess this is probably what I would
-;; want to do.  I naively copied that in this file, but it didn't seem to work
-;; as expected.
-;; For the moment ignoring this thing, working with the base functionality.
-;; Will have a look into what it is and whether I want it later.
 ;;;###autoload
 (define-derived-mode vsh-mode fundamental-mode "Vsh"
   "Major mode for interacting with VSH files.
