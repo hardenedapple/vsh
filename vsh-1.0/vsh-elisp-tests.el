@@ -201,29 +201,27 @@ Inserts the following local variables in the scope for `body' to use:
         ;; - Special line at start of block.
         ;; - Special line in the middle of block.
         ;; - Special line at end of block.
-        (cl-flet* ((test-mark-and-point (inc-comments position &optional type)
-                     (should (eq 1 1)))
-                   (test-mark-and-point-twice (position &optional type)
-                     (test-mark-and-point nil cur-pos type)
-                     (test-mark-and-point t   cur-pos type))
-                   (test-no-extra-line (cur-pos line)
-                     (test-mark-and-point-twice cur-pos 'none))
-                   (test-line-at-end-block (cur-pos line)
+        (cl-flet* ((test-mark-and-point (inc-comments position linetype type)
+                     (case type))
+                   (test-mark-and-point-twice (position linetype type)
+                     (test-mark-and-point nil cur-pos linetype type)
+                     (test-mark-and-point t   cur-pos linetype type))
+                   (test-line-at-end-block (cur-pos line linetype)
                      ;; Assuming that `block-end' has `marker-insertion-type' `t'.
                      (let ((orig-end (marker-position block-end)))
                        (goto-char block-end)
                        (insert (string-join (list line "\n")))
-                       (test-mark-and-point-twice cur-pos 'end)
+                       (test-mark-and-point-twice cur-pos linetype 'end)
                        (delete-region orig-end block-end)))
-                   (test-line-at-block-start (cur-pos line)
+                   (test-line-at-block-start (cur-pos line linetype)
                      ;; Assuming `block-start' has `marker-insertion-type' `nil'.
                      (let ((offset (1+ (length line))))
                        (goto-char block-start)
                        (insert (string-join (list line "\n")))
-                       (test-mark-and-point-twice (+ cur-pos offset) 'start)
+                       (test-mark-and-point-twice (+ cur-pos offset) linetype 'start)
                        (delete-region block-start (+ (marker-position block-start)
                                                      offset))))
-                   (test-line-at-block-mid (cur-pos line)
+                   (test-line-at-block-mid (cur-pos line linetype)
                      ;; Assuming `block-mid' has `marker-insertion-type' `nil'.
                      (let* ((offset (1+ (length line)))
                             (alt-pos (if (< cur-pos (marker-position block-mid))
@@ -231,7 +229,7 @@ Inserts the following local variables in the scope for `body' to use:
                                        (+ cur-pos offset))))
                        (goto-char block-mid)
                        (insert (string-join (list "\n" line)))
-                       (test-mark-and-point-twice alt-pos 'mid)
+                       (test-mark-and-point-twice alt-pos linetype 'mid)
                        (delete-region block-mid (+ (marker-position block-mid)
                                                    offset)))))
           (dolist (bottom-insert-text (list "" prompt-at-bottom))
@@ -244,25 +242,29 @@ Inserts the following local variables in the scope for `body' to use:
               ;; N.b. start-output-start has marker type `nil' so that will move
               ;; forwards.
               (insert top-insert-text)
-              (dolist (linespec (take 1 vsh--internal-testing-lines))
-                (let ((line (caddr linespec)))
-                  (dolist (func (list #'test-no-extra-line
-                                      #'test-line-at-end-block
-                                      #'test-line-at-block-start
-                                      #'test-line-at-block-mid))
-                    (message "##\n%s" (buffer-string))
-                    (dolist (cur-pos
-                             (list (marker-position block-start)
-                                   ;; End of block (but still on last command).
-                                   (1- (marker-position block-end))
-                                   ;; Random position in output after block.
-                                   ;; *or* in line inserted after block.
-                                   (+ (marker-position block-end)
-                                      (random (- (marker-position end-output-end)
-                                                 (marker-position block-end))))
-                                   (marker-position end-output-end)))
-                      ;; This loop handles testing including and without the prompt at the end
-                      ;; of the file.
-                      (funcall func cur-pos line)))))
+              (let ((position-list
+                     (list (marker-position block-start)
+                           ;; End of block (but still on last command).
+                           (1- (marker-position block-end))
+                           ;; Random position in output after block.
+                           ;; *or* in line inserted after block.
+                           (+ (marker-position block-end)
+                              (random (- (marker-position end-output-end)
+                                         (marker-position block-end))))
+                           (marker-position end-output-end))))
+                (dolist (cur-pos position-list)
+                  (test-mark-and-point-twice cur-pos 'ignored 'none)
+                  (message "##\n%s" (buffer-string)))
+                (dolist (func (list #'test-line-at-end-block
+                                    #'test-line-at-block-start
+                                    #'test-line-at-block-mid))
+                  (dolist (cur-pos position-list)
+                    (dolist (linespec (take 1 vsh--internal-testing-lines))
+                      (let ((line (caddr linespec))
+                            (linetype (cadddr linespec)))
+                        (message "##\n%s" (buffer-string))
+                        ;; This loop handles testing including and without the prompt at the end
+                        ;; of the file.
+                        (funcall func cur-pos line linetype))))))
               (delete-region (point-min) start-output-start))
             (delete-region end-output-end (point-max))))))))
