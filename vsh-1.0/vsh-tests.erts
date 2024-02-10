@@ -356,29 +356,6 @@ vshcmd: > |ls
 vshcmd: > ls
 =-=-=
 
-Name: Mark command block 1
-Code: (lambda () (call-interactively 'vsh-mark-command-block)
-                 (goto-char (mark))
-                 (deactivate-mark))
-=-=
-vshcmd: > ls
-vshcmd: > ls|
-=-=
-|vshcmd: > ls
-vshcmd: > ls
-=-=-=
-
-Name: Mark command block 2
-=-=
-Test output line
-vshcmd: > ls
-vshcmd: > ls|
-=-=
-Test output line
-|vshcmd: > ls
-vshcmd: > ls
-=-=-=
-
 Name: Indent function 1
 Code: (lambda () (vsh-indent-function))
 =-=
@@ -624,4 +601,98 @@ vshcmd: > # |
 =-=
 vshcmd: > # Command above without indentation
 vshcmd: > #         |
+=-=-=
+
+Name: Mark segment 1
+Code: (lambda () (call-interactively 'vsh-mark-segment)
+                 (goto-char (mark))
+                 (deactivate-mark))
+=-=
+vshcmd: > Command
+text
+output
+|from
+above
+command
+=-=
+vshcmd: > Command
+|text
+output
+from
+above
+command
+=-=-=
+
+Name: Mark segment 2
+=-=
+vshcm|d: > Command
+text
+output
+from
+above
+command
+=-=
+vshcmd: > Command
+|text
+output
+from
+above
+command
+=-=-=
+
+Name: Mark segment 3
+=-=
+vshcmd: > Command|
+text
+output
+from
+above
+command
+=-=
+vshcmd: > Command
+|text
+output
+from
+above
+command
+=-=-=
+
+Name: Mark segment 4
+=-=
+|vshcmd: > Command
+text
+output
+from
+above
+command
+=-=
+vshcmd: > Command
+|text
+output
+from
+above
+command
+=-=-=
+
+Name: Mark command block 1
+Code: (lambda () (call-interactively 'vsh-mark-command-block)
+                 (goto-char (mark))
+                 (deactivate-mark))
+=-=
+vshcmd: > ls
+vshcmd: > ls|
+=-=
+|vshcmd: > ls
+vshcmd: > ls
+=-=-=
+
+Name: Mark command block 2
+=-=
+Test output line
+vshcmd: > ls
+vshcmd: > ls|
+=-=
+Test output line
+|vshcmd: > ls
+vshcmd: > ls
 =-=-=

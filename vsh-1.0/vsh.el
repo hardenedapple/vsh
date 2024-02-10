@@ -250,6 +250,9 @@ to send to readline processes in underlying terminal for
 ;;     - Much of the other commands are related to sending commands to
 ;;       underlying process -- seem somewhat difficult to test the main purpose,
 ;;       and the bits that
+;;   - Documentation
+;;     - Document the functions and variables in this file.
+;;     - Write adjustments for emacs in the demo VSH files in the VSH repo.
 ;;   - Ensure that `comment-indent-new-line' gives us a hash comment when
 ;;     invoked on a comment and gives us a command when invoked on a command.
 ;;     - As it stands it always gives the command prefix rather than
@@ -279,9 +282,6 @@ to send to readline processes in underlying terminal for
 ;;     - I wonder whether it's also useful to make the hook for our filter
 ;;       function hook so we can add actions to it as and when needed (see
 ;;       `comint-output-filter-functions').
-;;   - Documentation
-;;     - Document the functions and variables in this file.
-;;     - Write adjustments for emacs in the demo VSH files in the VSH repo.
 ;;   - Allow buffer-local or user-specified prompt.
 ;;   - Maybe do something about the `repeat-mode' stuff.
 ;;     - E.g. something like "C-c C-n" can be `repeat-mode'ed with C-n.
@@ -566,11 +566,11 @@ argument."
     (beginning-of-line)
     (cond
      (save (if (looking-at-p (vsh-command-regexp))
-               (insert (vsh--comment-marker))
+               (insert (vsh--comment-header))
              (message "Output is not Active")))
-     (t (if (looking-at (rx (group-n 2 (literal (vsh--comment-marker)))
+     (t (if (looking-at (rx (group-n 4 (literal (vsh--comment-header)))
                             (regexp (vsh--command-marker))))
-            (delete-region (match-beginning 1) (match-end 1))
+            (delete-region (match-beginning 4) (match-end 4))
           (message "Output is not currently Saved"))))))
 (defun vsh-save-command ()
   (interactive)
@@ -1090,7 +1090,9 @@ type of line as the one above (i.e. either a comment or a command)."
   ;; To be honest not really sure on a lot of these
   ;; what `indent-relative' decides.
   (let ((position-info (vsh--line-beginning-position)))
+    ;; Only indent special lines.
     (when (and (not (eql (car position-info) (line-beginning-position)))
+               ;; Only indent if after the prompt.
                (<= (cdr position-info) (point)))
       (let ((current-line (vsh--current-line))
             (prev-line (vsh--current-line -1))
@@ -1100,7 +1102,9 @@ type of line as the one above (i.e. either a comment or a command)."
                      (string-match-p comment-regexp prev-line))
                 (and (string-match-p command-regexp current-line)
                      (string-match-p command-regexp prev-line)))
+            ;; Indent-relative indents according to line above.
             (indent-relative nil t)
+          ;; Only do "just one space" if in middle of whitespace.
           (when (<= (point) (car position-info))
             (just-one-space)))))))
 (defun vsh--initialise-settings ()
