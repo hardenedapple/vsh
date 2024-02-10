@@ -159,3 +159,104 @@ Inserts the following local variables in the scope for `body' to use:
                 (set-marker output-end (1- (marker-position output-end)))
                 (delete-region output-end (point-max))))))))))
 
+(ert-deftest vsh-mark-command-block ()
+  "Testing `vsh-mark-command-block' for different setups."
+  ;; Test variants:
+  ;;   - Always start with output surrounding a command block (both top and
+  ;;     bottom).
+  ;;   - With and without prompt at top.
+  ;;   - With and without prompt at bottom.
+  ;;   - With "testing line" in middle of block, at start of block, at end of
+  ;;     block.
+  ;; Want a cross-product of the three sets of variants.
+  (let ((basic-block "vshcmd: > ls\nvshcmd: > ls\n")
+        (output-block "test\noutput\nlines")
+        (prompt-at-bottom "\nvshcmd: > bottom-command")
+        (prompt-at-top "vshcmd: > top-command\n"))
+    (with-temp-buffer
+      (let ((start-output-start (point-marker))
+            (block-start (point-marker))
+            (block-end (point-marker))
+            (end-output-end (point-marker))
+            (block-mid (point-marker)))
+        ;; Set up the buffer with initial text in it.
+        ;; Also ensure each marker is at the relevant points.
+        (cl-flet ((insert-at-marker (marker &rest text)
+                    (set-marker-insertion-type marker t)
+                    (goto-char marker)
+                    (dolist (textchunk text)
+                      (insert textchunk))
+                    (set-marker-insertion-type marker nil)))
+          (insert-at-marker end-output-end output-block)
+          (insert-at-marker block-end basic-block)
+          (set-marker block-mid (length "vshcmd: > ls\n"))
+          (insert-at-marker block-start output-block "\n"))
+        ;; Ensure that markers have the marker insertion type that I want.
+        ;; Everything has `marker-insertion-type' of `nil' at the moment
+        ;; (because that's the default from `point-marker' and we didn't change
+        ;; anything with the insertion above.
+        (set-marker-insertion-type block-end t)
+        (set-marker-insertion-type start-output-start t)
+        ;; Function handles the variants of:
+        ;; - Special line at start of block.
+        ;; - Special line in the middle of block.
+        ;; - Special line at end of block.
+        (cl-flet* ((test-mark-and-point (inc-comments position &optional type)
+                     (should (eq 1 1)))
+                   (run-tests (cur-pos line)
+                     (test-mark-and-point nil cur-pos 'none)
+                     (test-mark-and-point t   cur-pos 'none)
+                     ;; Assuming that `block-end' has `marker-insertion-type' `t'.
+                     (let ((orig-end (marker-position block-end)))
+                       (goto-char block-end)
+                       (insert (string-join (list line "\n")))
+                       (test-mark-and-point nil cur-pos 'end)
+                       (test-mark-and-point t   cur-pos 'end)
+                       (delete-region orig-end block-end))
+                     ;; Assuming `block-start' has `marker-insertion-type' `nil'.
+                     (let ((offset (1+ (length line))))
+                       (goto-char block-start)
+                       (insert (string-join (list line "\n")))
+                       (test-mark-and-point nil (+ cur-pos offset) 'start)
+                       (test-mark-and-point t   (+ cur-pos offset) 'start)
+                       (delete-region block-start (+ (marker-position block-start)
+                                                     offset)))
+                     ;; Assuming `block-mid' has `marker-insertion-type' `nil'.
+                     (let* ((offset (1+ (length line)))
+                            (alt-pos (if (< cur-pos (marker-position block-mid))
+                                         cur-pos
+                                       (+ cur-pos offset))))
+                       (goto-char block-mid)
+                       (insert (string-join (list line "\n")))
+                       (test-mark-and-point nil alt-pos 'mid)
+                       (test-mark-and-point t   alt-pos 'mid)
+                       (delete-region block-mid (+ (marker-position block-mid)
+                                                   offset)))))
+          (dolist (bottom-insert-text (list "" prompt-at-bottom))
+            (end-of-buffer)
+            ;; N.b. end-output-end has marker type `nil' so that will not move
+            ;; if it points to the end of the buffer.
+            (insert bottom-insert-text)
+            (dolist (top-insert-text (list "" prompt-at-top))
+              (beginning-of-buffer)
+              ;; N.b. start-output-start has marker type `nil' so that will move
+              ;; forwards.
+              (insert top-insert-text)
+              (dolist (linespec (take 2 vsh--internal-testing-lines))
+                (let ((line (caddr linespec)))
+                  (message "##\n%s" (buffer-string))
+                  (dolist (cur-pos
+                           (list (marker-position block-start)
+                                 ;; End of block (but still on last command).
+                                 (1- (marker-position block-end))
+                                 ;; Random position in output after block.
+                                 ;; *or* in line inserted after block.
+                                 (+ (marker-position block-end)
+                                    (random (- (marker-position end-output-end)
+                                               (marker-position block-end))))
+                                 (marker-position end-output-end)))
+                    ;; This loop handles testing including and without the prompt at the end
+                    ;; of the file.
+                    (run-tests cur-pos line))))
+              (delete-region (point-min) start-output-start))
+            (delete-region end-output-end (point-max))))))))
