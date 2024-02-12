@@ -202,33 +202,34 @@ Inserts the following local variables in the scope for `body' to use:
         ;; - Special line in the middle of block.
         ;; - Special line at end of block.
         (cl-flet* ((test-mark-and-point (inc-comments position linetype type)
-                     (case type))
+                     (cl-case type))
                    (test-mark-and-point-twice (position linetype type)
                      (test-mark-and-point nil position linetype type)
                      (test-mark-and-point t   position linetype type))
-                   
-                   (test-in-output-at-start (cur-pos top-insert-text)
-                     (let ((start-point (funcall cur-pos)))
+                   ;; To avoid any confusion about random points.
+                   (random-point (limit) (1+ (random (1- limit))))
+                   (test-in-output-at-start (cur-pos)
+                     (let* ((start-point (funcall cur-pos)))
+                       (should (not (= start-point 0)))
                        (goto-char start-point)
                        (deactivate-mark t)
                        (vsh-mark-command-block nil)
                        (cond
                         ((< start-point (marker-position block-start))
-                         (if (eql (length top-insert-text) 0)
-                             (should (and (eql (point) (mark))
-                                          (eql (point) start-point)
-                                          (not mark-active)))
-                           ;; 1+ because point starts at 1 and counts forwards.
-                           (should (and (eql (point) (1+ (length top-insert-text)))
-                                        (eql (mark) (point-min))
+                         (if (eql (point-min) (marker-position start-output-start))
+                             (progn (should (= (point) (mark)))
+                                    (should (= (point) start-point))
+                                    (should (not mark-active)))
+                           (should (and (= (point) (marker-position start-output-start))
+                                        (= (mark) (point-min))
                                         mark-active))))
                         ((<= start-point (marker-position end-output-end))
-                         (should (and (eql (point) (marker-position block-end))
-                                      (eql (mark) (marker-position block-start))
+                         (should (and (= (point) (marker-position block-end))
+                                      (= (mark) (marker-position block-start))
                                       mark-active)))
                         ((> start-point (marker-position end-output-end))
-                         (should (and (eql (mark) (1+ (marker-position end-output-end)))
-                                      (eql (point (point-max)))
+                         (should (and (= (mark) (1+ (marker-position end-output-end)))
+                                      (= (point (point-max)))
                                       mark-active))))))
                    
                    (test-line-at-end-block (cur-pos line linetype)
@@ -272,7 +273,7 @@ Inserts the following local variables in the scope for `body' to use:
                       ;; Somewhere in the text above the main block.
                       ;; Region should surround `top-insert-text' if that has
                       ;; been inserted, otherwise should not be active.
-                      (lambda () (random (marker-position block-start)))
+                      (lambda () (random-point (marker-position block-start)))
                       ;; Very start of block -- should surround block, adjusted
                       ;; according to possibly inserted line.
                       (lambda () (marker-position block-start))
@@ -294,7 +295,7 @@ Inserts the following local variables in the scope for `body' to use:
                       ;; line added should surround that.
                       (lambda () (marker-position end-output-end)))))
                 (dolist (cur-pos position-list)
-                  (test-in-output-at-start cur-pos top-insert-text))
+                  (test-in-output-at-start cur-pos))
                 (dolist (func (list #'test-line-at-end-block
                                     #'test-line-at-block-start
                                     #'test-line-at-block-mid))
