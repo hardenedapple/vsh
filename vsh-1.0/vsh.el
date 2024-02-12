@@ -868,6 +868,13 @@ single-key commands and ignoring null bytes."
     (process-send-string proc string)))
 
 (defun vsh--receive-readline-bindings (buffer-hash pos-compl glob-expan line-discard)
+  "Function called by vsh_tell_emacs_bindings.py to tell emacs what bindings are
+mapped to the readline functions we care about.
+
+Could also be used by the user to change the control keys we send
+to underlying process when attempting to use readline
+completions.  Though there's also nothing stopping the user from
+updating `vsh-completions-keys' directly."
   (let ((p (base64-decode-string pos-compl))
         (g (base64-decode-string glob-expan))
         (l (base64-decode-string line-discard)))
