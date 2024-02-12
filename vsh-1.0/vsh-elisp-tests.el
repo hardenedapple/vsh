@@ -254,6 +254,11 @@ Inserts the following local variables in the scope for `body' to use:
                        (insert (string-join (list line "\n")))
                        (test-buffer-partial-line
                         cur-pos
+                        ;; N.b. essentially same as existing `test-region' in
+                        ;; the `test-buffer-partial-line' case where we've
+                        ;; started inside the block and this is an output line.
+                        ;; Only difference is that we use `orig-end' instead of
+                        ;; the `block-end' marker.
                         (lambda (start-point inc-comments)
                           (test-region orig-end (marker-position block-start) t))
                         linetype)
@@ -267,6 +272,14 @@ Inserts the following local variables in the scope for `body' to use:
                               (+ (marker-position block-start) offset)))
                          (test-buffer-partial-line
                           cur-pos
+                          ;; N.b. essentially same as existing clause for if
+                          ;; `start-point' is before `block-start' marker is
+                          ;; `test-buffer-partial-line' plus some combination of
+                          ;; the clause where we are in the block.
+                          ;; Difference between this and the first two `cond'
+                          ;; clauses in `test-buffer-partial-line' is that we
+                          ;; use `orig-block-start' instead of `block-start'
+                          ;; marker.
                           (lambda (start-point inc-comments)
                             (if (< start-point orig-block-start)
                                 (if (eql (point-min)
@@ -289,6 +302,11 @@ Inserts the following local variables in the scope for `body' to use:
                        ;; not count as part of a block.
                        (test-buffer-partial-line
                         cur-pos
+                        ;; This is notably different to the above two cases in
+                        ;; that it can not be seen as an adjusted case of
+                        ;; `test-buffer-partial-line'.  This because it splits
+                        ;; the block in two rather than changing the points
+                        ;; surrounding the existing block.
                         (lambda (start-point inc-comments)
                           (if (< start-point (+ (marker-position block-mid)
                                                 offset))
