@@ -159,6 +159,11 @@ Inserts the following local variables in the scope for `body' to use:
                 (set-marker output-end (1- (marker-position output-end)))
                 (delete-region output-end (point-max))))))))))
 
+(defun test-region (point-pos mark-pos activep)
+  (should (= (point) point-pos))
+  (should (= (mark) mark-pos))
+  (should (eq mark-active activep)))
+
 (ert-deftest vsh-mark-command-block ()
   "Testing `vsh-mark-command-block' for different setups."
   ;; Test variants:
@@ -202,13 +207,7 @@ Inserts the following local variables in the scope for `body' to use:
         ;; - Special line at start of block.
         ;; - Special line in the middle of block.
         ;; - Special line at end of block.
-        (cl-flet* (;; Function used to check we have surrounded the entire
-                   ;; command block.
-                   (test-region (point-pos mark-pos activep)
-                     (should (= (point) point-pos))
-                     (should (= (mark) mark-pos))
-                     (should (eq mark-active activep)))
-                   ;; To avoid any confusion about random points.
+        (cl-flet* (;; To avoid any confusion about random points.
                    (random-point (limit) (1+ (random (1- limit))))
                    ;; Basic testing function -- parametrised across a function
                    ;; determining what to test when inside the block.
@@ -246,7 +245,7 @@ Inserts the following local variables in the scope for `body' to use:
                    (test-buffer-without-special-line (cur-pos)
                      ;; Lie about linetype in order to get behaviour we want.
                      (test-buffer-partial-line cur-pos nil 'command))
-                   
+
                    (test-line-at-end-block (cur-pos line linetype)
                      ;; Assuming that `block-end' has `marker-insertion-type' `t'.
                      (let ((orig-end (marker-position block-end)))
@@ -263,6 +262,7 @@ Inserts the following local variables in the scope for `body' to use:
                           (test-region orig-end (marker-position block-start) t))
                         linetype)
                        (delete-region orig-end block-end)))
+
                    (test-line-at-block-start (cur-pos line linetype)
                      ;; Assuming `block-start' has `marker-insertion-type' `nil'.
                      (let ((offset (1+ (length line))))
@@ -293,6 +293,7 @@ Inserts the following local variables in the scope for `body' to use:
                                            t)))
                           linetype)
                          (delete-region block-start orig-block-start))))
+
                    (test-line-at-block-mid (cur-pos line linetype)
                      ;; Assuming `block-mid' has `marker-insertion-type' `nil'.
                      (let ((offset (1+ (length line))))
@@ -300,26 +301,26 @@ Inserts the following local variables in the scope for `body' to use:
                        (insert (string-join (list line "\n")))
                        ;; Only time we need to handle is when this line should
                        ;; not count as part of a block.
-                       (test-buffer-partial-line
-                        cur-pos
-                        ;; This is notably different to the above two cases in
-                        ;; that it can not be seen as an adjusted case of
-                        ;; `test-buffer-partial-line'.  This because it splits
-                        ;; the block in two rather than changing the points
-                        ;; surrounding the existing block.
-                        (lambda (start-point inc-comments)
-                          (if (< start-point (+ (marker-position block-mid)
-                                                offset))
-                              (test-region (marker-position block-mid)
-                                           (marker-position block-start)
-                                           t)
-                            (test-region (marker-position block-end)
-                                         (+ (marker-position block-mid)
-                                            offset)
-                                         t)))
-                        linetype)
-                       (delete-region block-mid (+ (marker-position block-mid)
-                                                   offset)))))
+                       (let ((end-inserted-line
+                              (+ (marker-position block-mid) offset)))
+                         (test-buffer-partial-line
+                          cur-pos
+                          ;; This is notably different to the above two cases in
+                          ;; that it can not be seen as an adjusted case of
+                          ;; `test-buffer-partial-line'.  This because it splits
+                          ;; the block in two rather than changing the points
+                          ;; surrounding the existing block.
+                          (lambda (start-point inc-comments)
+                            (if (< start-point end-inserted-line)
+                                (test-region (marker-position block-mid)
+                                             (marker-position block-start)
+                                             t)
+                              (test-region (marker-position block-end)
+                                           end-inserted-line
+                                           t)))
+                          linetype)
+                        (delete-region block-mid end-inserted-line)))))
+          ;; Actual loop of tests.
           (dolist (bottom-insert-text (list "" prompt-at-bottom))
             (end-of-buffer)
             ;; N.b. end-output-end has marker type `nil' so that will not move
