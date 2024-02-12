@@ -204,8 +204,33 @@ Inserts the following local variables in the scope for `body' to use:
         (cl-flet* ((test-mark-and-point (inc-comments position linetype type)
                      (case type))
                    (test-mark-and-point-twice (position linetype type)
-                     (test-mark-and-point nil cur-pos linetype type)
-                     (test-mark-and-point t   cur-pos linetype type))
+                     (test-mark-and-point nil position linetype type)
+                     (test-mark-and-point t   position linetype type))
+                   
+                   (test-in-output-at-start (cur-pos top-insert-text)
+                     (let ((start-point (funcall cur-pos)))
+                       (goto-char start-point)
+                       (deactivate-mark t)
+                       (vsh-mark-command-block nil)
+                       (cond
+                        ((< start-point (marker-position block-start))
+                         (if (eql (length top-insert-text) 0)
+                             (should (and (eql (point) (mark))
+                                          (eql (point) start-point)
+                                          (not mark-active)))
+                           ;; 1+ because point starts at 1 and counts forwards.
+                           (should (and (eql (point) (1+ (length top-insert-text)))
+                                        (eql (mark) (point-min))
+                                        mark-active))))
+                        ((<= start-point (marker-position end-output-end))
+                         (should (and (eql (point) (marker-position block-end))
+                                      (eql (mark) (marker-position block-start))
+                                      mark-active)))
+                        ((> start-point (marker-position end-output-end))
+                         (should (and (eql (mark) (1+ (marker-position end-output-end)))
+                                      (eql (point (point-max)))
+                                      mark-active))))))
+                   
                    (test-line-at-end-block (cur-pos line linetype)
                      ;; Assuming that `block-end' has `marker-insertion-type' `t'.
                      (let ((orig-end (marker-position block-end)))
@@ -243,18 +268,33 @@ Inserts the following local variables in the scope for `body' to use:
               ;; forwards.
               (insert top-insert-text)
               (let ((position-list
-                     (list (marker-position block-start)
-                           ;; End of block (but still on last command).
-                           (1- (marker-position block-end))
-                           ;; Random position in output after block.
-                           ;; *or* in line inserted after block.
-                           (+ (marker-position block-end)
-                              (random (- (marker-position end-output-end)
-                                         (marker-position block-end))))
-                           (marker-position end-output-end))))
+                     (list
+                      ;; Somewhere in the text above the main block.
+                      ;; Region should surround `top-insert-text' if that has
+                      ;; been inserted, otherwise should not be active.
+                      (lambda () (random (marker-position block-start)))
+                      ;; Very start of block -- should surround block, adjusted
+                      ;; according to possibly inserted line.
+                      (lambda () (marker-position block-start))
+                      ;; Middle of block.  Region should surround block adjusted
+                      ;; according to possibly inserted line.
+                      (lambda () (+ (marker-position block-start)
+                                    (random (- (marker-position block-end)
+                                               (marker-position block-start)))))
+                      ;; End of block (but still on last command).
+                      ;; Should surround block, adjusted according to possibly
+                      ;; inserted line.
+                      (lambda () (1- (marker-position block-end)))
+                      ;; Random position in output after block.
+                      (lambda () (+ (marker-position block-end)
+                                    (random (- (marker-position end-output-end)
+                                               (marker-position block-end)))))
+                      ;; Very end of buffer.
+                      ;; Surround block unless bottom line was added, if bottom
+                      ;; line added should surround that.
+                      (lambda () (marker-position end-output-end)))))
                 (dolist (cur-pos position-list)
-                  (test-mark-and-point-twice cur-pos 'ignored 'none)
-                  (message "##\n%s" (buffer-string)))
+                  (test-in-output-at-start cur-pos top-insert-text))
                 (dolist (func (list #'test-line-at-end-block
                                     #'test-line-at-block-start
                                     #'test-line-at-block-mid))
@@ -262,9 +302,9 @@ Inserts the following local variables in the scope for `body' to use:
                     (dolist (linespec (take 1 vsh--internal-testing-lines))
                       (let ((line (caddr linespec))
                             (linetype (cadddr linespec)))
-                        (message "##\n%s" (buffer-string))
-                        ;; This loop handles testing including and without the prompt at the end
-                        ;; of the file.
-                        (funcall func cur-pos line linetype))))))
+                        ;; Currently deciding where to run tests from (i.e. what
+                        ;; positions), how to send that information, and how to
+                        ;; actually test that.
+                        (funcall func (funcall cur-pos) line linetype))))))
               (delete-region (point-min) start-output-start))
             (delete-region end-output-end (point-max))))))))
