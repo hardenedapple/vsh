@@ -189,7 +189,8 @@ Inserts the following local variables in the scope for `body' to use:
                     (set-marker-insertion-type marker nil)))
           (insert-at-marker end-output-end output-block)
           (insert-at-marker block-end basic-block)
-          (set-marker block-mid (length "vshcmd: > ls\n"))
+          ;; 1+ to account for points starting at 1.
+          (set-marker block-mid (1+ (length "vshcmd: > ls\n")))
           (insert-at-marker block-start output-block "\n"))
         ;; Ensure that markers have the marker insertion type that I want.
         ;; Everything has `marker-insertion-type' of `nil' at the moment
@@ -201,14 +202,8 @@ Inserts the following local variables in the scope for `body' to use:
         ;; - Special line at start of block.
         ;; - Special line in the middle of block.
         ;; - Special line at end of block.
-        (cl-flet* ((test-mark-and-point (inc-comments position linetype type)
-                     (cl-case type))
-                   (test-mark-and-point-twice (position linetype type)
-                     (test-mark-and-point nil position linetype type)
-                     (test-mark-and-point t   position linetype type))
-                   ;; Function used to check we have surrounded the entire
+        (cl-flet* (;; Function used to check we have surrounded the entire
                    ;; command block.
-                   (test-marked-entire-command-block (&rest _ignored))
                    (test-region (point-pos mark-pos activep)
                      (should (= (point) point-pos))
                      (should (= (mark) mark-pos))
@@ -220,9 +215,7 @@ Inserts the following local variables in the scope for `body' to use:
                    ;; N.b. one wonders whether always testing what happens
                    ;; outside of the block when the block itself changes is
                    ;; completely worth it.
-                   (test-buffer-partial-line (cur-pos inside-block-test
-                                                      &optional mark-all
-                                                      mark-all-if-comment)
+                   (test-buffer-partial-line (cur-pos inside-block-test linetype)
                      (let* ((start-point (funcall cur-pos)))
                        (should (not (= start-point 0)))
                        (dolist (inc-comments (list nil t))
@@ -232,25 +225,27 @@ Inserts the following local variables in the scope for `body' to use:
                          (cond
                           ((< start-point (marker-position block-start))
                            (if (eql (point-min) (marker-position start-output-start))
-                               (progn (should (= (point) (mark)))
-                                      (should (= (point) start-point))
-                                      (should (not mark-active)))
-                             (should (and (= (point) (marker-position start-output-start))
-                                          (= (mark) (point-min))
-                                          mark-active))))
+                               (test-region (mark) start-point nil)
+                             (test-region (marker-position start-output-start)
+                                          (point-min)
+                                          t)))
                           ((<= start-point (marker-position end-output-end))
-                           (if (or mark-all (and inc-comments mark-all-if-comment))
-                               (should (and (= (point) (marker-position block-end))
-                                            (= (mark) (marker-position block-start))
-                                            mark-active))
+                           (if (or (eq linetype 'command)
+                                   (and inc-comments
+                                        (memq linetype '(comment saved-command
+                                                                 empty-comment))))
+                               (test-region (marker-position block-end)
+                                            (marker-position block-start)
+                                            t)
                              (funcall inside-block-test start-point inc-comments)))
                           ((> start-point (marker-position end-output-end))
-                           (should (and (= (mark) (1+ (marker-position end-output-end)))
-                                        (= (point (point-max)))
-                                        mark-active)))))))
+                           (test-region (point-max)
+                                        (1+ (marker-position end-output-end))
+                                        t))))))
 
                    (test-buffer-without-special-line (cur-pos)
-                     (test-buffer-partial-line cur-pos nil t t))
+                     ;; Lie about linetype in order to get behaviour we want.
+                     (test-buffer-partial-line cur-pos nil 'command))
                    
                    (test-line-at-end-block (cur-pos line linetype)
                      ;; Assuming that `block-end' has `marker-insertion-type' `t'.
@@ -260,61 +255,51 @@ Inserts the following local variables in the scope for `body' to use:
                        (test-buffer-partial-line
                         cur-pos
                         (lambda (start-point inc-comments)
-                          (should (and (= (point) orig-end)
-                                       (= (mark) (marker-position block-start))
-                                       mark-active)))
-                        (eq linetype 'command)
-                        (memq linetype '(comment saved-command empty-comment)))
+                          (test-region orig-end (marker-position block-start) t))
+                        linetype)
                        (delete-region orig-end block-end)))
                    (test-line-at-block-start (cur-pos line linetype)
                      ;; Assuming `block-start' has `marker-insertion-type' `nil'.
                      (let ((offset (1+ (length line))))
                        (goto-char block-start)
                        (insert (string-join (list line "\n")))
-                       (test-buffer-partial-line
-                        cur-pos
-                        ;; When output:
-                        ;;  - Check if start-point is on inserted line.
-                        ;;    - If not, is in main block => highlight main block.
-                        ;;  - Check whether top-line inserted.
-                        ;;    - If not, no motion and no active mark.
-                        ;;  - Else mark top line.
-                        ;;
-                        ;; When comment:
-                        ;;  - Check if `inc-comments' passed.
-                        ;;    - If not, do same as with output.
-                        ;;  - Else mark whole block.
-                        ;;
-                        ;; However, the comment when `inc-comments' passed is
-                        ;; handled already.  Hence don't need to specify that
-                        ;; case.
-                        (lambda (start-point inc-comments)
-                          (if (< start-point
-                                 (+ (marker-position block-start) offset))
-                              (if (eql (point-min) (marker-position start-output-start))
-                                  (progn (should (= (point) (mark)))
-                                         (should (= (point) start-point))
-                                         (should (not mark-active)))
-                                (should (and (= (point) (marker-position start-output-start))
-                                             (= (mark) (point-min))
-                                             mark-active)))
-                            (should (and (= (point) (marker-position block-end))
-                                         (= (mark) (+ (marker-position block-start) offset))
-                                         mark-active))))
-                        (eq linetype 'command)
-                        (memq linetype '(comment saved-command empty-comment)))
-                       (test-mark-and-point-twice (+ (funcall cur-pos) offset) linetype 'start)
-                       (delete-region block-start (+ (marker-position block-start)
-                                                     offset))))
+                       (let ((orig-block-start
+                              (+ (marker-position block-start) offset)))
+                         (test-buffer-partial-line
+                          cur-pos
+                          (lambda (start-point inc-comments)
+                            (if (< start-point orig-block-start)
+                                (if (eql (point-min)
+                                         (marker-position start-output-start))
+                                    (test-region (mark) start-point nil)
+                                  (test-region (marker-position start-output-start)
+                                               (point-min)
+                                               t))
+                              (test-region (marker-position block-end)
+                                           orig-block-start
+                                           t)))
+                          linetype)
+                         (delete-region block-start orig-block-start))))
                    (test-line-at-block-mid (cur-pos line linetype)
                      ;; Assuming `block-mid' has `marker-insertion-type' `nil'.
-                     (let* ((offset (1+ (length line)))
-                            (alt-pos (if (< (funcall cur-pos) (marker-position block-mid))
-                                         (funcall cur-pos)
-                                       (+ (funcall cur-pos) offset))))
+                     (let ((offset (1+ (length line))))
                        (goto-char block-mid)
-                       (insert (string-join (list "\n" line)))
-                       (test-mark-and-point-twice alt-pos linetype 'mid)
+                       (insert (string-join (list line "\n")))
+                       ;; Only time we need to handle is when this line should
+                       ;; not count as part of a block.
+                       (test-buffer-partial-line
+                        cur-pos
+                        (lambda (start-point inc-comments)
+                          (if (< start-point (+ (marker-position block-mid)
+                                                offset))
+                              (test-region (marker-position block-mid)
+                                           (marker-position block-start)
+                                           t)
+                            (test-region (marker-position block-end)
+                                         (+ (marker-position block-mid)
+                                            offset)
+                                         t)))
+                        linetype)
                        (delete-region block-mid (+ (marker-position block-mid)
                                                    offset)))))
           (dolist (bottom-insert-text (list "" prompt-at-bottom))
@@ -359,7 +344,7 @@ Inserts the following local variables in the scope for `body' to use:
                                     #'test-line-at-block-start
                                     #'test-line-at-block-mid))
                   (dolist (cur-pos position-list)
-                    (dolist (linespec (take 1 vsh--internal-testing-lines))
+                    (dolist (linespec vsh--internal-testing-lines)
                       (let ((line (caddr linespec))
                             (linetype (cadddr linespec)))
                         ;; Currently deciding where to run tests from (i.e. what
