@@ -505,12 +505,13 @@ Command block is defined as either a sequence of lines all starting with
 `vsh-command-regexp' depending on the value of the provided `inc-comments'
 argument."
   (save-excursion
-    (beginning-of-line)
-    (let ((regex (if inc-comments (vsh-split-regexp) (vsh-command-regexp))))
-      (if (and (not (looking-at-p regex))
-               (not (re-search-backward regex nil t)))
-          (point)
-        (vsh--move-to-end-of-block regex forwards)))))
+    (let ((orig-point (point)))
+      (beginning-of-line)
+     (let ((regex (if inc-comments (vsh-split-regexp) (vsh-command-regexp))))
+       (if (and (not (looking-at-p regex))
+                (not (re-search-backward regex nil t)))
+           orig-point
+         (vsh--move-to-end-of-block regex forwards))))))
 
 (defun vsh-mark-command-block (inc-comments)
   "Mark the entire command block around the current position."
