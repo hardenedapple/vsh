@@ -1,9 +1,1 @@
-#!/usr/bin/env bash
-
-# Simple MANPAGER program that just removes special formatting and prints the
-# text to the screen.
-# nroff encodes bold and underlines using backspaces.
-# Use 'col -b' to remove backspaces and characters just before them.
-# Use cat to buffer the text, so the nvim instance doesn't have too many
-# interrupts (this is the main cause of slowness).
-col -b | cat
+../autoload/vsh/vsh_man_pager
