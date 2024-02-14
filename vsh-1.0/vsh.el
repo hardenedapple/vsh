@@ -262,7 +262,8 @@ to send to readline processes in underlying terminal for
 ;;     to be comments according to `newcomment.el'.
 ;;   - Error handling
 ;;     - Alert when attempting to interact with an underlying process and the
-;;       underlying process has been terminated.
+;;       underlying process has been terminated.  I guess `user-error' would be
+;;       the function to use here.
 ;;   - Think about what buffer-local symbols need to be marked as
 ;;     `permanent-local' so they are not removed on changing major mode (see
 ;;     "(elisp) Creating Buffer-Local").
@@ -583,8 +584,13 @@ argument."
 (defun vsh-new-prompt ()
   (interactive)
   (goto-char (vsh--segment-bound t nil))
-  (insert (vsh-prompt) "\n")
-  (backward-char))
+  ;; Chance that we reach the end of the buffer and there is no newline at the
+  ;; end of the buffer.  In this case we want a newline just before the prompt.
+  ;; Otherwise we want a newline at the end.
+  (let ((was-bol (bolp)))
+    (unless was-bol (insert "\n"))
+    (insert (vsh-prompt))
+    (when was-bol (insert "\n") (backward-char))))
 
 ;; Implementing start of block *backwards*:
 ;; 1) Get to any block using re-search-backward.
