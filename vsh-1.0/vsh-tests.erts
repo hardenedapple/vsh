@@ -696,3 +696,15 @@ Test output line
 |vshcmd: > ls
 vshcmd: > ls
 =-=-=
+
+Name: Automatic command insertion 1
+Code: (lambda () (let ((vsh-may-start-server nil)
+                       (vsh-mode-hook '(vsh--initialise-settings vsh--setup-colors)))
+                   (vsh-mode)
+                   (call-interactively 'comment-indent-new-line)))
+=-=
+vshcmd: > |ls
+=-=
+vshcmd: > 
+vshcmd: > |ls
+=-=-=
