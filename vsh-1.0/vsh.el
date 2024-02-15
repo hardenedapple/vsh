@@ -244,6 +244,7 @@ to send to readline processes in underlying terminal for
   "Has this current buffers process been initialised.")
 
 ;; TODO
+;;   - Address compilation errors.
 ;;   - Add tests
 ;;     - start of segment, end of segment.
 ;;     - start of block, end of block.
@@ -288,7 +289,7 @@ to send to readline processes in underlying terminal for
 ;;     - E.g. something like "C-c C-n" can be `repeat-mode'ed with C-n.
 ;;   - Handle `case-fold-search' (ensure it doesn't change things)
 
-(defun vsh-prompt (&optional buffer)
+(defun vsh-prompt (&optional _buffer)
   "String defining command prefix.
 
 Will eventually return the vsh prompt for the relevant buffer.
@@ -297,7 +298,7 @@ buffers, so this is essentially a literal."
   vsh-default-prompt)
 
 ;;; Defining the different line types:
-(defun vsh--command-header (&optional buffer) (vsh-prompt))
+(defun vsh--command-header (&optional _buffer) (vsh-prompt))
 (defun vsh--comment-header (&optional buffer)
   "String defining comment prefix."
   (string-join (list (vsh-prompt buffer) "# ")))
@@ -434,7 +435,7 @@ command\"."
                   (re-search-backward (vsh-motion-marker)
                                       (line-beginning-position)
                                       t)))
-    (decf count))
+    (cl-decf count))
   (if (re-search-forward (vsh-motion-marker) nil 'to-end-on-error count)
       ;; We have moved our point, but because there is no lookahead regexp in elisp
       ;; we may have moved it one character further than we wanted to (the character
@@ -526,10 +527,10 @@ argument."
     (if (> count 0)
         (progn
           (beginning-of-line)
-          (dotimes (loop-counter count)
+          (dotimes (_loop-counter count)
             (re-search-backward (vsh-split-regexp) nil 'move-to-end)
             (vsh--move-to-end-of-block (vsh-split-regexp) nil)))
-      (dotimes (loop-counter (abs count))
+      (dotimes (_loop-counter (abs count))
         (vsh--move-to-end-of-block (vsh-split-regexp) t)
         (re-search-forward (vsh-split-regexp) nil 'move-to-end)))))
 (defun vsh-beginning-of-block (count)

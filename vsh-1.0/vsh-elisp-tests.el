@@ -81,28 +81,28 @@ Inserts the following local variables in the scope for `body' to use:
 
 (ert-deftest vsh-activate-deactivate-test ()
   "Testing `vsh-save-command' and `vsh-activate-command' on lines."
-  (cl-flet ((test-activate (linetype)
+  (cl-flet ((test-activate (linetype text)
               (vsh-activate-command)
               (cl-case linetype
                 (saved-command
                  (should
                   (equal (buffer-string)
-                         (substring line (length (vsh--comment-header))))))
-                (t (should (equal (buffer-string) line)))))
-            (test-save (linetype)
+                         (substring text (length (vsh--comment-header))))))
+                (t (should (equal (buffer-string) text)))))
+            (test-save (linetype text)
               (vsh-save-command)
               (cl-case linetype
                 (command
                  (should
                   (equal (buffer-string)
-                         (string-join (list (vsh--comment-header) line)))))
-                (t (should (equal (buffer-string) line))))))
+                         (string-join (list (vsh--comment-header) text)))))
+                (t (should (equal (buffer-string) text))))))
     (vsh--test-on-linespecs
-     (test-activate linetype)
-     (test-save linetype)
+     (test-activate linetype line)
+     (test-save linetype line)
      (reset-test)
-     (test-save linetype)
-     (test-activate linetype))))
+     (test-save linetype line)
+     (test-activate linetype line))))
 
 (ert-deftest vsh-mark-segment ()
   "Testing `vsh-mark-segment' for different lines."
