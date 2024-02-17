@@ -278,6 +278,10 @@ Inserts the following local variables in the scope for `body' to use:
             (delete-region end-output-end (point-max))))))))
 
 
+(defun vsh--counts-as-block (linetype inc-comments)
+  (or (eq linetype 'command)
+      (and inc-comments
+           (memq linetype '(comment saved-command empty-comment)))))
 (ert-deftest vsh-mark-command-block ()
   "Testing `vsh-mark-command-block' for different setups."
   (cl-flet*
@@ -288,28 +292,30 @@ Inserts the following local variables in the scope for `body' to use:
        ;; completely worth it.
        (test-buffer-partial-line
          (cur-pos inside-block-test linetype
-          start-output-start block-start block-mid block-end end-output-end)
-         (let ((start-point (funcall cur-pos)))
+                  start-output-start block-start block-mid block-end
+                  end-output-end &optional block-start-fn)
+         (let ((start-point (funcall cur-pos))
+               (block-start-fn
+                (or block-start-fn
+                    (lambda (inc-comments) (marker-position block-start)))))
            (should (not (= start-point 0)))
            (dolist (inc-comments (list nil t))
              (goto-char start-point)
              (deactivate-mark t)
              (vsh-mark-command-block inc-comments)
              (cond
-              ((< start-point (marker-position block-start))
+              ((< start-point (funcall block-start-fn inc-comments))
                (if (eql (point-min) (marker-position start-output-start))
                    (test-region (mark) start-point nil)
                  (test-region (marker-position start-output-start)
                               (point-min)
                               t)))
               ((<= start-point (marker-position end-output-end))
-               (if (or (eq linetype 'command)
-                       (and inc-comments
-                            (memq linetype '(comment saved-command empty-comment))))
+               (if (vsh--counts-as-block linetype inc-comments)
                    (test-region (marker-position block-end)
                                 (marker-position block-start)
                                 t)
-                 (funcall inside-block-test start-point inc-comments)))
+                 (funcall inside-block-test start-point)))
               ((> start-point (marker-position end-output-end))
                (test-region (point-max)
                             (1+ (marker-position end-output-end))
@@ -325,7 +331,8 @@ Inserts the following local variables in the scope for `body' to use:
 
        (test-line-at-block-end
          (cur-pos line linetype
-          start-output-start block-start block-mid block-end end-output-end)
+                  start-output-start block-start block-mid block-end
+                  end-output-end)
          ;; Assuming that `block-end' has `marker-insertion-type' `t'.
          (let ((orig-end (marker-position block-end)))
            (goto-char block-end)
@@ -337,7 +344,7 @@ Inserts the following local variables in the scope for `body' to use:
             ;; started inside the block and this is an output line.
             ;; Only difference is that we use `orig-end' instead of
             ;; the `block-end' marker.
-            (lambda (start-point inc-comments)
+            (lambda (start-point)
               (test-region orig-end (marker-position block-start) t))
             linetype
             start-output-start block-start block-mid block-end end-output-end)
@@ -345,7 +352,7 @@ Inserts the following local variables in the scope for `body' to use:
 
        (test-line-at-block-start
          (cur-pos line linetype
-          start-output-start block-start block-mid block-end end-output-end)
+                  start-output-start block-start block-mid block-end end-output-end)
          ;; Assuming `block-start' has `marker-insertion-type' `nil'.
          (let ((offset (1+ (length line))))
            (goto-char block-start)
@@ -362,24 +369,21 @@ Inserts the following local variables in the scope for `body' to use:
               ;; clauses in `test-buffer-partial-line' is that we
               ;; use `orig-block-start' instead of `block-start'
               ;; marker.
-              (lambda (start-point inc-comments)
-                (if (< start-point orig-block-start)
-                    (if (eql (point-min)
-                             (marker-position start-output-start))
-                        (test-region (mark) start-point nil)
-                      (test-region (marker-position start-output-start)
-                                   (point-min)
-                                   t))
-                  (test-region (marker-position block-end)
-                               orig-block-start
-                               t)))
+              (lambda (start-point)
+                (test-region (marker-position block-end)
+                             orig-block-start
+                             t))
               linetype
-              start-output-start block-start block-mid block-end end-output-end)
+              start-output-start block-start block-mid block-end end-output-end
+              (lambda (inc-comments)
+                (if (vsh--counts-as-block linetype inc-comments)
+                    (marker-position block-start)
+                  orig-block-start)))
              (delete-region block-start orig-block-start))))
 
        (test-line-at-block-mid
          (cur-pos line linetype
-          start-output-start block-start block-mid block-end end-output-end)
+                  start-output-start block-start block-mid block-end end-output-end)
          ;; Assuming `block-mid' has `marker-insertion-type' `nil'.
          (let ((offset (1+ (length line))))
            (goto-char block-mid)
@@ -394,7 +398,7 @@ Inserts the following local variables in the scope for `body' to use:
               ;; `test-buffer-partial-line'.  This because it splits
               ;; the block in two rather than changing the points
               ;; surrounding the existing block.
-              (lambda (start-point inc-comments)
+              (lambda (start-point)
                 (if (< start-point end-inserted-line)
                     (test-region (marker-position block-mid)
                                  (marker-position block-start)
