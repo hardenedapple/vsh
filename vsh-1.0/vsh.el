@@ -526,13 +526,28 @@ argument."
   (let ((count (or count 1)))
     (if (> count 0)
         (progn
-          (beginning-of-line)
+          ;; Want to move to the very start of the top prompt.
+          ;; All prompt lines start at the beginning of the line.
+          ;; We can not search for something and include a match at the current
+          ;; position.  One thing that we could do is search backwards then
+          ;; search forwards, but for our particular case we know that all
+          ;; prompts start at the beginning of a line and do not continue past
+          ;; the end of the line.  Hence can simply move to the end of the line.
+          ;; Don't want to do this when at the start of a line since in that
+          ;; case we could be moving over an entire prompt and matching the
+          ;; prompt after current point.
+          (unless (bolp) (end-of-line))
           (dotimes (_loop-counter count)
             (re-search-backward (vsh-split-regexp) nil 'move-to-end)
             (vsh--move-to-end-of-block (vsh-split-regexp) nil)))
-      (dotimes (_loop-counter (abs count))
-        (vsh--move-to-end-of-block (vsh-split-regexp) t)
-        (re-search-forward (vsh-split-regexp) nil 'move-to-end)))))
+      (let ((last-found nil))
+        (dotimes (_loop-counter (abs count))
+          (vsh--move-to-end-of-block (vsh-split-regexp) t)
+          (setq last-found (re-search-forward (vsh-split-regexp) nil 'move-to-end)))
+        ;; Not particularly necessary because `beginning-of-defun' calls this function
+        ;; *then* calls `beginning-of-line'.  However it makes this function always
+        ;; end up at the very start of a function.
+        (when last-found (beginning-of-line))))))
 (defun vsh-beginning-of-block (count)
   "Move to first line of command block."
   (interactive "p")
