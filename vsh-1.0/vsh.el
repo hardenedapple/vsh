@@ -371,18 +371,19 @@ command\"."
       (regexp (vsh--command-marker buffer))))
 
 (defun vsh--current-line (&optional count)
-  (if count
-      (save-excursion (forward-line count) (vsh--current-line))
-    (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+  (setq count (if (and count (<= count 0)) (1+ count) count))
+  (buffer-substring-no-properties (line-beginning-position count)
+                                  (line-end-position count)))
 
-(defun vsh--line-beginning-position ()
+(defun vsh--line-beginning-position (&optional count)
   (let* ((funclist (list #'vsh-command-regexp #'vsh-motion-marker
                          #'vsh-comment-regexp #'vsh-blank-comment-regexp))
+         (count (if (and count (<= count 0)) (1+ count) count))
          (match (cl-find-if (lambda (fn)
-                              (string-match (funcall fn) (vsh--current-line)))
+                              (string-match (funcall fn) (vsh--current-line count)))
                             funclist)))
-    (cons (+ (line-beginning-position) (if match (match-end 2) 0))
-          (+ (line-beginning-position) (if match (match-end 1) 0)))))
+    (cons (+ (line-beginning-position count) (if match (match-end 2) 0))
+          (+ (line-beginning-position count) (if match (match-end 1) 0)))))
 (defun vsh-bol ()
   "Move to beginning of command line or comment if this line is not output."
   (interactive)
