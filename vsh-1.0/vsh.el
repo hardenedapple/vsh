@@ -798,7 +798,7 @@ with into a single `undo' unit.")
   (get-buffer-process (or buffer (current-buffer))))
 
 (defun vsh--delete-and-send (text-to-send proc)
-  (kill-region (vsh--segment-bound nil) (vsh--segment-bound t))
+  (delete-region (vsh--segment-bound nil) (vsh--segment-bound t))
   (vsh--set-markers proc)
   (setq-local vsh-new-output t)
   (setq-local vsh--undo-list-at-last-insertion buffer-undo-list)
