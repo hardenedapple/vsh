@@ -697,11 +697,28 @@ Test output line
 vshcmd: > ls
 =-=-=
 
+Name: Mark command block 3
+This to remind myself of this bug (more obvious than just having a TODO in vsh.el).
+=-=
+vshcmd: > ls
+test output line
+vshcmd: > # Commen|t
+vshcmd: > ls
+test output line
+=-=
+vshcmd: > ls
+test output line
+|vshcmd: > # Comment
+vshcmd: > ls
+test output line
+=-=-=
+
 Name: Automatic command insertion 1
 Code: (lambda () (let ((vsh-may-start-server nil)
                        (vsh-mode-hook '(vsh--initialise-settings vsh--setup-colors)))
                    (vsh-mode)
                    (call-interactively 'comment-indent-new-line)))
+Similar to above, this to remind myself of this bug.
 =-=
 vshcmd: > |ls
 =-=

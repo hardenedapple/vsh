@@ -456,8 +456,8 @@ Inserts the following local variables in the scope for `body' to use:
        (test-motion-func (cur-pos element-list motion-func)
          (let ((start-point (funcall cur-pos))
                (element-list (remove-duplicates element-list)))
+           ;; (message "###\nPoint: %d\n%s" start-point (buffer-string))
            (should (not (= start-point 0)))
-           (message "Point: %d\n" start-point)
            (goto-char start-point)
            (funcall motion-func 1)
            (should (eq (point) (back-motion-next-pt start-point element-list)))
@@ -480,24 +480,27 @@ Inserts the following local variables in the scope for `body' to use:
                 (min (1+ (marker-position end-output-end)) (point-max))
                 (point-max))))
 
+       (get-end-of-buffer-prompt-pos ()
+         ;; Want end of the prompt on the last line *if* there is a
+         ;; prompt on that last line.  Otherwise do want `point-max'
+         (let ((prompt-start (vsh--prompt-at-line (point-max))))
+           (if (> prompt-start
+                  (save-excursion (end-of-buffer)
+                                  (line-beginning-position)))
+               prompt-start
+             (point-max))))
+
        (test-beg-of-block-cmd (cur-pos element-list)
          (test-motion-func cur-pos element-list #'vsh-beginning-of-block))
        (test-basic-buffer-block-cmd
          (cur-pos start-output-start block-start block-mid block-end end-output-end)
-         (message "###\n%s\n" (buffer-string))
          (test-beg-of-block-cmd
           cur-pos
           (list (point-min)
                 (vsh--prompt-at-line (point-min))
                 (vsh--prompt-at-line block-start)
-                ;; Want end of the prompt on the last line *if* there is a
-                ;; prompt on that last line.  Otherwise do not want anything.
-                (let ((prompt-start (vsh--prompt-at-line (point-max))))
-                  (if (> prompt-start
-                         (save-excursion (end-of-buffer)
-                                         (line-beginning-position)))
-                      prompt-start
-                    (point-max)))))))
+                (get-end-of-buffer-prompt-pos)
+                (point-max)))))
     (vsh--with-standard-blocks
      (lambda (&rest args)
        (apply #'test-basic-buffer-block-motion args)
@@ -510,6 +513,14 @@ Inserts the following local variables in the scope for `body' to use:
              (marker-position block-start)
              (min (1+ (marker-position end-output-end)) (point-max))
              (point-max))))
+     (vsh--block-test-end
+      (test-beg-of-block-cmd
+       cur-pos
+       (list (point-min)
+             (vsh--prompt-at-line (point-min))
+             (vsh--prompt-at-line block-start)
+             (get-end-of-buffer-prompt-pos)
+             (point-max))))
 
      (vsh--block-test-start
       (test-beg-of-block-fn
@@ -517,8 +528,18 @@ Inserts the following local variables in the scope for `body' to use:
        (list (point-min)
              (if (eq linetype 'output)
                  orig-block-start
-                 (marker-position block-start))
+               (marker-position block-start))
              (min (1+ (marker-position end-output-end)) (point-max))
+             (point-max))))
+     (vsh--block-test-start
+      (test-beg-of-block-cmd
+       cur-pos
+       (list (point-min)
+             (vsh--prompt-at-line (point-min))
+             (if (eq linetype 'output)
+                 (vsh--prompt-at-line orig-block-start)
+               (vsh--prompt-at-line block-start))
+             (get-end-of-buffer-prompt-pos)
              (point-max))))
 
      (vsh--block-test-mid

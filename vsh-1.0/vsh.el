@@ -378,10 +378,10 @@ command\"."
 (defun vsh--line-beginning-position (&optional count)
   (let* ((funclist (list #'vsh-command-regexp #'vsh-motion-marker
                          #'vsh-comment-regexp #'vsh-blank-comment-regexp))
-         (count (if (and count (<= count 0)) (1+ count) count))
          (match (cl-find-if (lambda (fn)
                               (string-match (funcall fn) (vsh--current-line count)))
-                            funclist)))
+                            funclist))
+         (count (if (and count (<= count 0)) (1+ count) count)))
     (cons (+ (line-beginning-position count) (if match (match-end 2) 0))
           (+ (line-beginning-position count) (if match (match-end 1) 0)))))
 (defun vsh-bol ()
@@ -524,6 +524,7 @@ argument."
   (when (/= (point) (mark t)) (activate-mark)))
 
 (defun vsh--beginning-of-block-fn (&optional count)
+  "Function to use for `beginning-of-defun' in `vsh-mode' buffers."
   (let ((count (or count 1)))
     (if (> count 0)
         (progn
@@ -550,10 +551,39 @@ argument."
         ;; end up at the very start of a function.
         (when last-found (beginning-of-line))))))
 (defun vsh-beginning-of-block (count)
-  "Move to first line of command block."
+  "Move backwards to first prompt of command block."
   (interactive "p")
-  (vsh--beginning-of-block-fn count)
-  (vsh-bol))
+  (if (> count 0)
+      (progn
+        ;; `re-search-backward' does very nearly what we want again.
+        ;; Don't want to match the `vsh-split-marker' on current line if we are
+        ;; at or before the `vsh-bol' position.
+        (when (<= (point) (car (vsh--line-beginning-position)))
+          (beginning-of-line))
+        (let (last-found)
+          (dotimes (_loop-counter count)
+            (setq last-found (re-search-backward (vsh-split-regexp) nil 'move-to-end))
+            (vsh--move-to-end-of-block (vsh-split-regexp) nil))
+          (when last-found (vsh-bol))))
+    ;; If we are at the very start of this command block and hence our
+    ;; "beginning of block" is actually the end of the prompt on this line we
+    ;; need to avoid using `vsh--move-to-end-of-block'.
+    ;; This happens when:
+    ;; - Current point is before bol on this line (i.e. on a command line)
+    ;;   and ...
+    (when (and (< (point) (car (vsh--line-beginning-position)))
+               ;; ... we are at the top of the current command block.
+               ;; (i.e. either at start of buffer or an output line above us).
+               (or (= (point-min) (line-beginning-position))
+                   (= (line-beginning-position 0)
+                      (car (vsh--line-beginning-position -1)))))
+      (cl-incf count)
+      (vsh-bol))
+    (let ((last-found nil))
+      (dotimes (_loop-counter (abs count))
+        (vsh--move-to-end-of-block (vsh-split-regexp) t)
+        (setq last-found (re-search-forward (vsh-split-regexp) nil 'move-to-end)))
+      (when last-found (vsh-bol)))))
 
 (defun vsh--end-of-block-fn (&optional count interactive)
   (let ((count (or count 1)))
