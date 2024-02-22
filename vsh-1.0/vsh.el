@@ -244,7 +244,7 @@ to send to readline processes in underlying terminal for
   "Has this current buffers process been initialised.")
 
 ;; TODO
-;;   - Address compilation errors.
+;;   - Address compilation warnings.
 ;;   - Add tests
 ;;     - start of segment, end of segment.
 ;;     - start of block, end of block.
@@ -954,6 +954,19 @@ the CWD of the underlying process."
   (vsh-with-current-directory
    (funcall-interactively #'vsh--complete-file-name-func arg)))
 
+(defun vsh-use-as-compile-errors (rbeg rend)
+  (interactive "r")
+  (vsh-with-current-directory
+   (let ((output-string (buffer-substring-no-properties rbeg rend)))
+     (with-current-buffer
+         (get-buffer-create
+          (compilation-buffer-name "vsh-compile-items" t nil))
+       (fundamental-mode)
+       (let ((inhibit-read-only t))
+         (erase-buffer)
+         (insert output-string))
+       (compilation-mode)
+       (display-buffer (current-buffer) '(nil (allow-no-window . t)))))))
 
 (defun vsh-send-region (rbeg rend &optional buffer)
   "Send region to the underlying process."
