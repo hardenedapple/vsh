@@ -1,3 +1,4 @@
+;; vsh-elisp-tests.el  --- Generated tests for vsh.el -*- lexical-binding: t; -*-
 (require 'vsh)
 ;; TODO (Maybe) ???
 ;;   Feels a little bit of a waste to test on *every* point in the line.
@@ -278,13 +279,59 @@ Inserts the following local variables in the scope for `body' to use:
             (delete-region end-output-end (point-max))))))))
 
 
+(defun vsh--block-test-basic (base-func)
+  (lambda
+    (cur-pos start-output-start block-start block-mid block-end end-output-end)
+    ;; Lie about linetype in order to get behaviour we want.
+    (funcall base-func
+             cur-pos nil 'command start-output-start block-start block-mid
+             block-end end-output-end)))
+(defmacro vsh--block-test-end (testcall)
+  `(lambda
+    (cur-pos line linetype
+             start-output-start block-start block-mid block-end
+             end-output-end)
+    ;; Assuming that `block-end' has `marker-insertion-type' `t'.
+    (let ((orig-end (marker-position block-end)))
+      (goto-char block-end)
+      (insert (string-join (list line "\n")))
+      ,testcall
+      (delete-region orig-end block-end))))
+
+(defmacro vsh--block-test-start (call-sexp)
+  `(lambda
+    (cur-pos line linetype
+             start-output-start block-start block-mid block-end end-output-end)
+    ;; Assuming `block-start' has `marker-insertion-type' `nil'.
+    (let ((offset (1+ (length line))))
+      (goto-char block-start)
+      (insert (string-join (list line "\n")))
+      (let ((orig-block-start
+             (+ (marker-position block-start) offset)))
+        ,call-sexp
+        (delete-region block-start orig-block-start)))))
+
+(defmacro vsh--block-test-mid (call-sexp)
+  `(lambda
+    (cur-pos line linetype
+             start-output-start block-start block-mid block-end end-output-end)
+    ;; Assuming `block-mid' has `marker-insertion-type' `nil'.
+    (let ((offset (1+ (length line))))
+      (goto-char block-mid)
+      (insert (string-join (list line "\n")))
+      ;; Only time we need to handle is when this line should
+      ;; not count as part of a block.
+      (let ((end-inserted-line (+ (marker-position block-mid) offset)))
+        ,call-sexp
+        (delete-region block-mid end-inserted-line)))))
+
 (defun vsh--counts-as-block (linetype inc-comments)
   (or (eq linetype 'command)
       (and inc-comments
            (memq linetype '(comment saved-command empty-comment)))))
 (ert-deftest vsh-mark-command-block ()
   "Testing `vsh-mark-command-block' for different setups."
-  (cl-flet*
+  (cl-flet
       (;; Basic testing function -- parametrised across a function
        ;; determining what to test when inside the block.
        ;; N.b. one wonders whether always testing what happens
@@ -319,98 +366,168 @@ Inserts the following local variables in the scope for `body' to use:
               ((> start-point (marker-position end-output-end))
                (test-region (point-max)
                             (1+ (marker-position end-output-end))
-                            t))))))
-
-       (test-buffer-without-special-line
-         (cur-pos
-          start-output-start block-start block-mid block-end end-output-end)
-         ;; Lie about linetype in order to get behaviour we want.
-         (test-buffer-partial-line cur-pos nil 'command
-                                   start-output-start block-start block-mid
-                                   block-end end-output-end))
-
-       (test-line-at-block-end
-         (cur-pos line linetype
-                  start-output-start block-start block-mid block-end
-                  end-output-end)
-         ;; Assuming that `block-end' has `marker-insertion-type' `t'.
-         (let ((orig-end (marker-position block-end)))
-           (goto-char block-end)
-           (insert (string-join (list line "\n")))
-           (test-buffer-partial-line
-            cur-pos
-            ;; N.b. essentially same as existing `test-region' in
-            ;; the `test-buffer-partial-line' case where we've
-            ;; started inside the block and this is an output line.
-            ;; Only difference is that we use `orig-end' instead of
-            ;; the `block-end' marker.
-            (lambda (start-point)
-              (test-region orig-end (marker-position block-start) t))
-            linetype
-            start-output-start block-start block-mid block-end end-output-end)
-           (delete-region orig-end block-end)))
-
-       (test-line-at-block-start
-         (cur-pos line linetype
-                  start-output-start block-start block-mid block-end end-output-end)
-         ;; Assuming `block-start' has `marker-insertion-type' `nil'.
-         (let ((offset (1+ (length line))))
-           (goto-char block-start)
-           (insert (string-join (list line "\n")))
-           (let ((orig-block-start
-                  (+ (marker-position block-start) offset)))
-             (test-buffer-partial-line
-              cur-pos
-              ;; N.b. essentially same as existing clause for if
-              ;; `start-point' is before `block-start' marker is
-              ;; `test-buffer-partial-line' plus some combination of
-              ;; the clause where we are in the block.
-              ;; Difference between this and the first two `cond'
-              ;; clauses in `test-buffer-partial-line' is that we
-              ;; use `orig-block-start' instead of `block-start'
-              ;; marker.
-              (lambda (start-point)
-                (test-region (marker-position block-end)
-                             orig-block-start
-                             t))
-              linetype
-              start-output-start block-start block-mid block-end end-output-end
-              (lambda (inc-comments)
-                (if (vsh--counts-as-block linetype inc-comments)
-                    (marker-position block-start)
-                  orig-block-start)))
-             (delete-region block-start orig-block-start))))
-
-       (test-line-at-block-mid
-         (cur-pos line linetype
-                  start-output-start block-start block-mid block-end end-output-end)
-         ;; Assuming `block-mid' has `marker-insertion-type' `nil'.
-         (let ((offset (1+ (length line))))
-           (goto-char block-mid)
-           (insert (string-join (list line "\n")))
-           ;; Only time we need to handle is when this line should
-           ;; not count as part of a block.
-           (let ((end-inserted-line (+ (marker-position block-mid) offset)))
-             (test-buffer-partial-line
-              cur-pos
-              ;; This is notably different to the above two cases in
-              ;; that it can not be seen as an adjusted case of
-              ;; `test-buffer-partial-line'.  This because it splits
-              ;; the block in two rather than changing the points
-              ;; surrounding the existing block.
-              (lambda (start-point)
-                (if (< start-point end-inserted-line)
-                    (test-region (marker-position block-mid)
-                                 (marker-position block-start)
-                                 t)
-                  (test-region (marker-position block-end)
-                               end-inserted-line
-                               t)))
-              linetype
-              start-output-start block-start block-mid block-end end-output-end)
-             (delete-region block-mid end-inserted-line)))))
+                            t)))))))
     (vsh--with-standard-blocks
-     #'test-buffer-without-special-line
-     #'test-line-at-block-end
-     #'test-line-at-block-start
-     #'test-line-at-block-mid)))
+     (vsh--block-test-basic #'test-buffer-partial-line)
+
+     (vsh--block-test-end
+      (test-buffer-partial-line
+       cur-pos
+       ;; N.b. essentially same as existing `test-region' in
+       ;; the `test-buffer-partial-line' case where we've
+       ;; started inside the block and this is an output line.
+       ;; Only difference is that we use `orig-end' instead of
+       ;; the `block-end' marker.
+       (lambda (start-point)
+         (test-region orig-end (marker-position block-start) t))
+       linetype
+       start-output-start block-start block-mid block-end end-output-end))
+
+     (vsh--block-test-start
+      (test-buffer-partial-line
+       cur-pos
+       (lambda (start-point)
+         (test-region (marker-position block-end)
+                      orig-block-start
+                      t))
+       linetype
+       start-output-start block-start block-mid block-end end-output-end
+       (lambda (inc-comments)
+         (if (vsh--counts-as-block linetype inc-comments)
+             (marker-position block-start)
+           orig-block-start))))
+
+     (vsh--block-test-mid
+      (test-buffer-partial-line
+       cur-pos
+       ;; This is notably different to the above two cases because it
+       ;; splits the block in two rather than changing the points
+       ;; surrounding the existing block.
+       (lambda (start-point)
+         (if (< start-point end-inserted-line)
+             (test-region (marker-position block-mid)
+                          (marker-position block-start)
+                          t)
+           (test-region (marker-position block-end)
+                        end-inserted-line
+                        t)))
+       linetype
+       start-output-start block-start block-mid block-end end-output-end)))))
+
+
+(defun vsh--prompt-at-line (line-marker)
+  (save-excursion (goto-char line-marker) (vsh-bol) (point)))
+(defun vsh--test-end-of-prompt (linestart)
+  (should (eql (point)
+               (save-excursion
+                 (goto-char linestart)
+                 (if (not (bolp))
+                     0
+                   (vsh-bol)
+                   (point))))))
+
+;; Idea here is to set "points" to move to, then test the general rule that "if
+;; less than or equal to one point in this list, then will move to the next
+;; point".
+(ert-deftest vsh-defun-motions ()
+  "Testing different command-block motions."
+  (cl-flet*
+      ((back-motion-next-pt (pt element-list)
+         ;;  First point is at the very start of the buffer.
+         ;;  |vshcmd: > |here is a point
+         ;;  test
+         ;;  vshcmd: > |here is another point
+         ;;  |  <-- last point is at the very end of the buffer
+         ;;  Requirement here is that `element-list' is in order (so  we know
+         ;;  that the first position we start out *greater* than we will move
+         ;;  to).
+         (let ((prev (point-min)))
+           (while element-list
+             (if (<= pt (car element-list))
+                 (setq element-list nil)
+               (setq prev (car element-list))
+               (setq element-list (cdr element-list))))
+           prev))
+       (fore-motion-next-pt (pt element-list)
+         ;; Assumption here that we again have `element-list' in order.
+         (or (cl-find-if (lambda (x) (< pt x)) element-list)
+             (point-max)))
+
+       (test-motion-func (cur-pos element-list motion-func)
+         (let ((start-point (funcall cur-pos))
+               (element-list (remove-duplicates element-list)))
+           (should (not (= start-point 0)))
+           (message "Point: %d\n" start-point)
+           (goto-char start-point)
+           (funcall motion-func 1)
+           (should (eq (point) (back-motion-next-pt start-point element-list)))
+           (goto-char start-point)
+           (funcall motion-func -1)
+           (should (eq (point) (fore-motion-next-pt start-point element-list)))))
+
+       (test-beg-of-block-fn (cur-pos element-list)
+         (test-motion-func cur-pos element-list #'vsh--beginning-of-block-fn))
+       (test-basic-buffer-block-motion
+         (cur-pos start-output-start block-start block-mid block-end end-output-end)
+         (test-beg-of-block-fn
+          cur-pos
+          (list (point-min)
+                (marker-position block-start)
+                ;; Either `end-output-end' has a prompt after it and we would
+                ;; want to end up at the beginning of that prompt, or it's
+                ;; essentially `point-max' and we would want to end up at
+                ;; `point-max'.
+                (min (1+ (marker-position end-output-end)) (point-max))
+                (point-max))))
+
+       (test-beg-of-block-cmd (cur-pos element-list)
+         (test-motion-func cur-pos element-list #'vsh-beginning-of-block))
+       (test-basic-buffer-block-cmd
+         (cur-pos start-output-start block-start block-mid block-end end-output-end)
+         (message "###\n%s\n" (buffer-string))
+         (test-beg-of-block-cmd
+          cur-pos
+          (list (point-min)
+                (vsh--prompt-at-line (point-min))
+                (vsh--prompt-at-line block-start)
+                ;; Want end of the prompt on the last line *if* there is a
+                ;; prompt on that last line.  Otherwise do not want anything.
+                (let ((prompt-start (vsh--prompt-at-line (point-max))))
+                  (if (> prompt-start
+                         (save-excursion (end-of-buffer)
+                                         (line-beginning-position)))
+                      prompt-start
+                    (point-max)))))))
+    (vsh--with-standard-blocks
+     (lambda (&rest args)
+       (apply #'test-basic-buffer-block-motion args)
+       (apply #'test-basic-buffer-block-cmd args))
+
+     (vsh--block-test-end
+      (test-beg-of-block-fn
+       cur-pos
+       (list (point-min)
+             (marker-position block-start)
+             (min (1+ (marker-position end-output-end)) (point-max))
+             (point-max))))
+
+     (vsh--block-test-start
+      (test-beg-of-block-fn
+       cur-pos
+       (list (point-min)
+             (if (eq linetype 'output)
+                 orig-block-start
+                 (marker-position block-start))
+             (min (1+ (marker-position end-output-end)) (point-max))
+             (point-max))))
+
+     (vsh--block-test-mid
+      (test-beg-of-block-fn
+       cur-pos
+       (list (point-min)
+             (marker-position block-start)
+             (if (eq linetype 'output)
+                 end-inserted-line
+               (marker-position block-start))
+             (min (1+ (marker-position end-output-end)) (point-max))
+             (point-max)))))))
