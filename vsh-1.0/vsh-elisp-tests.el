@@ -151,7 +151,7 @@ Inserts the following local variables in the scope for `body' to use:
                                            (marker-position output-start))))))
                 (test-mark-and-point nil cur-pos)
                 (test-mark-and-point t cur-pos)
-                (end-of-buffer)
+                (goto-char (point-max))
                 ;; Then try again with the prompt at the bottom.
                 (insert prompt-at-bottom)
                 (set-marker output-end (1+ (marker-position output-end)))
@@ -224,12 +224,12 @@ Inserts the following local variables in the scope for `body' to use:
                   (random-point (limit) (1+ (random (1- limit)))))
           ;; Actual loop of tests.
           (dolist (bottom-insert-text (list "" prompt-at-bottom))
-            (end-of-buffer)
+            (goto-char (point-max))
             ;; N.b. end-output-end has marker type `nil' so that will not move
             ;; if it points to the end of the buffer.
             (insert bottom-insert-text)
             (dolist (top-insert-text (list "" prompt-at-top))
-              (beginning-of-buffer)
+              (goto-char (point-min))
               ;; N.b. start-output-start has marker type `nil' so that will move
               ;; forwards.
               (insert top-insert-text)
@@ -437,7 +437,7 @@ Inserts the following local variables in the scope for `body' to use:
       (point-max)))
 (defun vsh--test-motion-func (cur-pos element-list motion-func &optional backwards)
   (let ((start-point (funcall cur-pos))
-        (element-list (remove-duplicates element-list)))
+        (element-list (cl-remove-duplicates element-list)))
     ;; (message "###\nPoint: %d\nElement-list: %s\nFunction: %s\nBackwards: %s\n%s"
     ;;          start-point element-list motion-func backwards (buffer-string))
     (should (not (= start-point 0)))
@@ -451,7 +451,7 @@ Inserts the following local variables in the scope for `body' to use:
 (defmacro vsh--motion-oracle (&rest body)
   `(let (ret last-line-prompt temp-var)
      (save-excursion
-       (beginning-of-buffer)
+       (goto-char (point-min))
        (while (not (eobp))
          ,@body
          (forward-line)))

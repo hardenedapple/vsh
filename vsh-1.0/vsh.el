@@ -581,7 +581,7 @@ argument."
          (setq last-found (re-search-forward (vsh-split-regexp) nil 'move-to-end)))
        (when last-found (vsh-bol))))))
 
-(defun vsh--end-of-block-fn (&optional count interactive)
+(defun vsh--end-of-block-fn (&optional count _interactive)
   (let ((count (or count 1)))
     (if (> count 0)
         (unless (eobp)
@@ -590,7 +590,7 @@ argument."
           ;; searching forward for a split regexp would end up in the next
           ;; block.
           (unless (eolp) (beginning-of-line))
-          (dotimes (loop-counter count)
+          (dotimes (_loop-counter count)
             (re-search-forward (vsh-split-regexp) nil 'move-to-end)
             (vsh--move-to-end-of-block (vsh-split-regexp) t))
           ;; When there is an end of the current block (i.e. when not reach the
@@ -599,7 +599,7 @@ argument."
           ;; `vsh--move-to-end-of-block' has left us at the end of the buffer.
           (unless (eobp) (backward-char)))
       (unless (bobp)
-        (dotimes (loop-counter (abs count))
+        (dotimes (_loop-counter (abs count))
           (vsh--move-to-end-of-block (vsh-split-regexp) nil)
           (when (re-search-backward (vsh-split-regexp) nil 'move-to-end)
             (end-of-line)))))))
@@ -620,7 +620,7 @@ argument."
                        (not (string-match (vsh-split-regexp) (vsh--current-line 1)))))
           (cl-decf count)
           (vsh-bol))
-        (dotimes (loop-counter count)
+        (dotimes (_loop-counter count)
           (setq re-matched (re-search-forward (vsh-split-regexp) nil 'move-to-end))
           (vsh--move-to-end-of-block (vsh-split-regexp) t))
         ;; When there is an end of the current block (i.e. when not reach the
@@ -636,7 +636,7 @@ argument."
                      (not (string-match (vsh-split-regexp) (vsh--current-line 1)))))
         (cl-incf count)
         (vsh-bol))
-      (dotimes (loop-counter (abs count))
+      (dotimes (_loop-counter (abs count))
         (vsh--move-to-end-of-block (vsh-split-regexp) nil)
         (when (re-search-backward (vsh-split-regexp) nil 'move-to-end)
           (vsh-bol))))))
@@ -1276,7 +1276,7 @@ Entry to this mode runs the hooks on `vsh-mode-hook'."
           (warning-suppress-list '((server))))
       (while (not server-mode)
         (setq server-name (format "vsh-server-%d" suffix-count))
-        (incf suffix-count)
+        (cl-incf suffix-count)
         (server-start)))))
 
 ;;;###autoload (add-to-list 'auto-mode-alist '("\\.vsh\\'" . vsh-mode))
