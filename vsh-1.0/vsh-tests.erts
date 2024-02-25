@@ -65,7 +65,7 @@ It would be nice to make the function behave the most logically consistent
 =-=
 vshcmd: >    echo Hello there|
 =-=
-vshcmd: >    |echo Hello there
+vshcmd: >    echo Hello there|
 =-=-=
 
 Name: Next command 5
@@ -233,19 +233,10 @@ vshcmd: > echo Hello there
 =-=-=
 
 Name: Prev command 4
-Checking special case when the prompt is the first line in the buffer.
-
-The decision to put the cursor at the start of the *current* command if moving
-forward and this line is at the very end of the file was mostly made because
-that was how the first function I wrote behaves and it doesn't seem like a
-problem.
-
-It would be nice to make the function behave the most logically consistent
-(something like always moving backards), but for now this seems nice enough.
 =-=
 |vshcmd: >    echo Hello there
 =-=
-vshcmd: >    |echo Hello there
+|vshcmd: >    echo Hello there
 =-=-=
 
 Name: Prev command 5
@@ -268,9 +259,9 @@ Hello there, this is output
 
 Name: Prev command 7
 =-=
-|vshcmd: > echo Hello there
-=-=
 vshcmd: > |echo Hello there
+=-=
+|vshcmd: > echo Hello there
 =-=-=
 
 
@@ -307,7 +298,7 @@ Name: Prev command 11
 |vshcmd: > # vshcmd: > ls
 vshcmd: > ls
 =-=
-vshcmd: > # vshcmd: > |ls
+|vshcmd: > # vshcmd: > ls
 vshcmd: > ls
 =-=-=
 
@@ -334,8 +325,8 @@ Name: Prev command 14
 vshcmd: > ls
 vshcmd: > l|s
 =-=
-vshcmd: > |ls
 vshcmd: > ls
+vshcmd: > |ls
 =-=-=
 
 Name: Prev command 15

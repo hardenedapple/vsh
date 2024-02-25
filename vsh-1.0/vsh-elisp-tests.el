@@ -414,141 +414,130 @@ Inserts the following local variables in the scope for `body' to use:
        linetype
        start-output-start block-start block-mid block-end end-output-end)))))
 
+(defun vsh--back-motion-next-pt (pt element-list)
+  ;;  First point is at the very start of the buffer.
+  ;;  |vshcmd: > |here is a point
+  ;;  test
+  ;;  vshcmd: > |here is another point
+  ;;  |  <-- last point is at the very end of the buffer
+  ;;  Requirement here is that `element-list' is in order (so  we know
+  ;;  that the first position we start out *greater* than we will move
+  ;;  to).
+  (let ((prev (point-min)))
+    (while element-list
+      (if (<= pt (car element-list))
+          (setq element-list nil)
+        (setq prev (car element-list))
+        (setq element-list (cdr element-list))))
+    prev))
 
-(defun vsh--prompt-at-line (line-marker)
-  (save-excursion (goto-char line-marker) (vsh-bol) (point)))
-(defun vsh--test-end-of-prompt (linestart)
-  (should (eql (point)
-               (save-excursion
-                 (goto-char linestart)
-                 (if (not (bolp))
-                     0
-                   (vsh-bol)
-                   (point))))))
+(defun vsh--fore-motion-next-pt (pt element-list)
+  ;; Assumption here that we again have `element-list' in order.
+  (or (cl-find-if (lambda (x) (< pt x)) element-list)
+      (point-max)))
+(defun vsh--test-motion-func (cur-pos element-list motion-func &optional backwards)
+  (let ((start-point (funcall cur-pos))
+        (element-list (remove-duplicates element-list)))
+    ;; (message "###\nPoint: %d\nElement-list: %s\nFunction: %s\nBackwards: %s\n%s"
+    ;;          start-point element-list motion-func backwards (buffer-string))
+    (should (not (= start-point 0)))
+    (goto-char start-point)
+    (funcall motion-func (if backwards 1 -1))
+    (should (eq (point) (vsh--back-motion-next-pt start-point element-list)))
+    (goto-char start-point)
+    (funcall motion-func (if backwards -1 1))
+    (should (eq (point) (vsh--fore-motion-next-pt start-point element-list)))))
 
-;; Idea here is to set "points" to move to, then test the general rule that "if
-;; less than or equal to one point in this list, then will move to the next
-;; point".
-(ert-deftest vsh-defun-motions ()
-  "Testing different command-block motions."
+(defmacro vsh--motion-oracle (&rest body)
+  `(let (ret last-line-prompt temp-var)
+     (save-excursion
+       (beginning-of-buffer)
+       (while (not (eobp))
+         ,@body
+         (forward-line)))
+     (cons (point-min) (nreverse (cons (point-max) ret)))))
+
+(ert-deftest vsh-motion-oracle-tests ()
+  "Testing different motions.
+
+Motions tested are:
+  - `vsh--beginning-of-block-fn'
+  - `vsh-beginning-of-block'
+  - `vsh--end-of-block-fn'
+  - `vsh-end-of-block'
+  - `vsh-prev-command'
+  - `vsh-next-command'"
   (cl-flet*
-      ((back-motion-next-pt (pt element-list)
-         ;;  First point is at the very start of the buffer.
-         ;;  |vshcmd: > |here is a point
-         ;;  test
-         ;;  vshcmd: > |here is another point
-         ;;  |  <-- last point is at the very end of the buffer
-         ;;  Requirement here is that `element-list' is in order (so  we know
-         ;;  that the first position we start out *greater* than we will move
-         ;;  to).
-         (let ((prev (point-min)))
-           (while element-list
-             (if (<= pt (car element-list))
-                 (setq element-list nil)
-               (setq prev (car element-list))
-               (setq element-list (cdr element-list))))
-           prev))
-       (fore-motion-next-pt (pt element-list)
-         ;; Assumption here that we again have `element-list' in order.
-         (or (cl-find-if (lambda (x) (< pt x)) element-list)
-             (point-max)))
+      ((beginning-of-block-fn-points ()
+         (vsh--motion-oracle
+          (if (not (looking-at-p (vsh-split-regexp)))
+              (setq last-line-prompt nil)
+            (when (not last-line-prompt)
+              (setq ret (cons (point) ret)))
+            (setq last-line-prompt t))))
 
-       (test-motion-func (cur-pos element-list motion-func)
-         (let ((start-point (funcall cur-pos))
-               (element-list (remove-duplicates element-list)))
-           ;; (message "###\nPoint: %d\n%s" start-point (buffer-string))
-           (should (not (= start-point 0)))
-           (goto-char start-point)
-           (funcall motion-func 1)
-           (should (eq (point) (back-motion-next-pt start-point element-list)))
-           (goto-char start-point)
-           (funcall motion-func -1)
-           (should (eq (point) (fore-motion-next-pt start-point element-list)))))
+       (beginning-of-block-points ()
+         (vsh--motion-oracle
+          (if (not (looking-at-p (vsh-split-regexp)))
+              (setq last-line-prompt nil)
+            (when (not last-line-prompt)
+              (setq ret (cons (car (vsh--line-beginning-position))
+                              ret)))
+            (setq last-line-prompt t))))
 
-       (test-beg-of-block-fn (cur-pos element-list)
-         (test-motion-func cur-pos element-list #'vsh--beginning-of-block-fn))
-       (test-basic-buffer-block-motion
-         (cur-pos start-output-start block-start block-mid block-end end-output-end)
-         (test-beg-of-block-fn
-          cur-pos
-          (list (point-min)
-                (marker-position block-start)
-                ;; Either `end-output-end' has a prompt after it and we would
-                ;; want to end up at the beginning of that prompt, or it's
-                ;; essentially `point-max' and we would want to end up at
-                ;; `point-max'.
-                (min (1+ (marker-position end-output-end)) (point-max))
-                (point-max))))
+       (end-of-block-fn-points ()
+         (vsh--motion-oracle
+          (if (looking-at-p (vsh-split-regexp))
+              (setq last-line-prompt t)
+            (when last-line-prompt
+              (setq ret (cons (1- (point)) ret)))
+            (setq last-line-prompt nil))))
 
-       (get-end-of-buffer-prompt-pos ()
-         ;; Want end of the prompt on the last line *if* there is a
-         ;; prompt on that last line.  Otherwise do want `point-max'
-         (let ((prompt-start (vsh--prompt-at-line (point-max))))
-           (if (> prompt-start
-                  (save-excursion (end-of-buffer)
-                                  (line-beginning-position)))
-               prompt-start
-             (point-max))))
+       (end-of-block-points ()
+         (vsh--motion-oracle
+          (if (looking-at-p (vsh-split-regexp))
+              (if (= (line-end-position) (point-max))
+                  (setq ret (cons (car (vsh--line-beginning-position)) ret))
+                (setq temp-var (car (vsh--line-beginning-position))
+                      last-line-prompt t))
+            (when last-line-prompt
+              (setq ret (cons temp-var ret)))
+            (setq last-line-prompt nil))))
 
-       (test-beg-of-block-cmd (cur-pos element-list)
-         (test-motion-func cur-pos element-list #'vsh-beginning-of-block))
-       (test-basic-buffer-block-cmd
-         (cur-pos start-output-start block-start block-mid block-end end-output-end)
-         (test-beg-of-block-cmd
-          cur-pos
-          (list (point-min)
-                (vsh--prompt-at-line (point-min))
-                (vsh--prompt-at-line block-start)
-                (get-end-of-buffer-prompt-pos)
-                (point-max)))))
-    (vsh--with-standard-blocks
-     (lambda (&rest args)
-       (apply #'test-basic-buffer-block-motion args)
-       (apply #'test-basic-buffer-block-cmd args))
+       (get-command-prompt-starts ()
+         (vsh--motion-oracle
+          (when (looking-at (vsh-motion-marker))
+            (setq ret (cons (match-end 2) ret)))))
 
-     (vsh--block-test-end
-      (test-beg-of-block-fn
-       cur-pos
-       (list (point-min)
-             (marker-position block-start)
-             (min (1+ (marker-position end-output-end)) (point-max))
-             (point-max))))
-     (vsh--block-test-end
-      (test-beg-of-block-cmd
-       cur-pos
-       (list (point-min)
-             (vsh--prompt-at-line (point-min))
-             (vsh--prompt-at-line block-start)
-             (get-end-of-buffer-prompt-pos)
-             (point-max))))
-
-     (vsh--block-test-start
-      (test-beg-of-block-fn
-       cur-pos
-       (list (point-min)
-             (if (eq linetype 'output)
-                 orig-block-start
-               (marker-position block-start))
-             (min (1+ (marker-position end-output-end)) (point-max))
-             (point-max))))
-     (vsh--block-test-start
-      (test-beg-of-block-cmd
-       cur-pos
-       (list (point-min)
-             (vsh--prompt-at-line (point-min))
-             (if (eq linetype 'output)
-                 (vsh--prompt-at-line orig-block-start)
-               (vsh--prompt-at-line block-start))
-             (get-end-of-buffer-prompt-pos)
-             (point-max))))
-
-     (vsh--block-test-mid
-      (test-beg-of-block-fn
-       cur-pos
-       (list (point-min)
-             (marker-position block-start)
-             (if (eq linetype 'output)
-                 end-inserted-line
-               (marker-position block-start))
-             (min (1+ (marker-position end-output-end)) (point-max))
-             (point-max)))))))
+       (test-beg-block-fn (cur-pos) (vsh--test-motion-func
+                                     cur-pos (beginning-of-block-fn-points)
+                                     #'vsh--beginning-of-block-fn 'backwards))
+       (test-beg-block-cmd (cur-pos) (vsh--test-motion-func
+                                      cur-pos (beginning-of-block-points)
+                                      #'vsh-beginning-of-block 'backwards))
+       (test-end-block-fn (cur-pos) (vsh--test-motion-func
+                                      cur-pos (end-of-block-fn-points)
+                                      #'vsh--end-of-block-fn))
+       (test-end-block-cmd (cur-pos) (vsh--test-motion-func
+                                     cur-pos (end-of-block-points)
+                                     #'vsh-end-of-block))
+       (test-prev-cmd (cur-pos) (vsh--test-motion-func
+                                 cur-pos (get-command-prompt-starts)
+                                 #'vsh-prev-command 'backwards))
+       (test-next-cmd (cur-pos) (vsh--test-motion-func
+                                 cur-pos (get-command-prompt-starts)
+                                 #'vsh-next-command)))
+    (let (ret
+          (func-tester-list
+           (list #'test-beg-block-fn #'test-beg-block-cmd
+                 #'test-end-block-fn #'test-end-block-cmd
+                 #'test-prev-cmd #'test-next-cmd)))
+      (dolist (func-tester func-tester-list)
+        (setq ret (cons (vsh--block-test-end (funcall func-tester cur-pos)) ret))
+        (setq ret (cons (vsh--block-test-start (funcall func-tester cur-pos)) ret))
+        (setq ret (cons (vsh--block-test-mid (funcall func-tester cur-pos)) ret)))
+      (setq ret (cons (lambda (cur-pos &rest _args)
+                        (dolist (func-tester func-tester-list)
+                          (funcall func-tester cur-pos)))
+                      ret))
+      (apply #'vsh--with-standard-blocks ret))))

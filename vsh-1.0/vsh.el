@@ -371,17 +371,16 @@ command\"."
       (regexp (vsh--command-marker buffer))))
 
 (defun vsh--current-line (&optional count)
-  (setq count (if (and count (<= count 0)) (1+ count) count))
+  (setq count (when count (1+ count)))
   (buffer-substring-no-properties (line-beginning-position count)
                                   (line-end-position count)))
-
 (defun vsh--line-beginning-position (&optional count)
   (let* ((funclist (list #'vsh-command-regexp #'vsh-motion-marker
                          #'vsh-comment-regexp #'vsh-blank-comment-regexp))
          (match (cl-find-if (lambda (fn)
                               (string-match (funcall fn) (vsh--current-line count)))
                             funclist))
-         (count (if (and count (<= count 0)) (1+ count) count)))
+         (count (when count (1+ count))))
     (cons (+ (line-beginning-position count) (if match (match-end 2) 0))
           (+ (line-beginning-position count) (if match (match-end 1) 0)))))
 (defun vsh-bol ()
@@ -402,7 +401,7 @@ command\"."
 (defun vsh-next-command (&optional count)
   "Move to the next vsh prompt."
   (interactive "p")
-  ;; Move to the next vsh prompt (as defined by `vsh-motion-marker').
+  ;; Move to the next vsh prompt start (as defined by `vsh-motion-marker').
   ;; If there is no next prompt then move to the end/start of the buffer
   ;; (depending on direction).
   ;; If the first/last line of the buffer is a prompt and we have moved there,
@@ -419,34 +418,29 @@ command\"."
   ;; behaviour.
   (when (and (> count 0)
              (not (bolp))
-             (save-excursion (beginning-of-line)
-                             (looking-at (vsh-motion-marker)))
-             (> (match-end 2) (point)))
+             (string-match (vsh-motion-marker) (vsh--current-line))
+             (> (+ (line-beginning-position) (match-end 2))
+                (point)))
     (beginning-of-line))
   ;; When searching *backwards* the special case is in order to handle the
-  ;; possibility that we are *after* a motion marker and hence would like to
-  ;; move to the previous one.
-  ;; TODO???? It's worth wondering whether "backwards" should move us to the
-  ;; start of the command if we're currently somewhere in the middle of the
-  ;; command.  This isn't what we do with vim, it *feels* wrong at the moment,
-  ;; but it makes the logical definition of what this command does more coherent
-  ;; (moves to previous point that is the start of a command).
+  ;; possibility that we are *after* a motion marker and would move to where we
+  ;; are.  This happens to only be the case when the command is empty because
+  ;; otherwise the motion marker would not match before our point (there is a
+  ;; "match either end of line or non-whitespace character" bit of the regexp
+  ;; and that would not match where we move to  -- "end of whitespace" -- unless
+  ;; at the end of line).
   (when (and (< count 0)
-             (save-excursion
-                  (re-search-backward (vsh-motion-marker)
-                                      (line-beginning-position)
-                                      t)))
+             (string-match (vsh-motion-marker) (vsh--current-line))
+             (= (match-end 0) (match-end 2))
+             (= (+ (line-beginning-position) (match-end 0))
+                (point)))
     (cl-decf count))
-  (if (re-search-forward (vsh-motion-marker) nil 'to-end-on-error count)
+  (when (re-search-forward (vsh-motion-marker) nil 'to-end-on-error count)
       ;; We have moved our point, but because there is no lookahead regexp in elisp
       ;; we may have moved it one character further than we wanted to (the character
       ;; we checked to ensure it was not a hash indicating a comment).
       ;; Hence just go directly to the relevant character we need.
-      (goto-char (match-end 2))
-    ;; This clause handles ensuring that `point' ends up at the start of the
-    ;; prompt if the line at the start/end of the buffer is a command.
-    (if (string-match (vsh-motion-marker) (vsh--current-line))
-        (goto-char (+ (line-beginning-position) (match-end 2))))))
+      (goto-char (match-end 2))))
 
 (defun vsh-prev-command (&optional count)
   "Move to the previous vsh prompt."
@@ -478,20 +472,21 @@ Segment is defined as a command plus the entire output directly under it."
   (activate-mark))
 
 (defun vsh--move-to-end-of-block (regex forwards)
-  (beginning-of-line)
-  (let ((not-moved 1))
-    (while (and (looking-at-p regex)
-                (= 0 (setq not-moved (forward-line (if forwards 1 -1))))))
-    ;; If failed to move backwards, that means the first line of this file
-    ;; is a command and we are at the start of the buffer.
-    ;; We will not fail to move forwards, because `forward-line' will leave
-    ;; us at the end of the buffer before this happens.  When the last line
-    ;; in a buffer is a command we will end up at the very end of the buffer
-    ;; at the end of the current line.  Check for this in order to include
-    ;; the entire last line.
-    (when (and (= not-moved 0) (/= (point) (point-max)))
-      (forward-line (if forwards 0 1)))
-    (point)))
+  (when (string-match regex (vsh--current-line))
+    (beginning-of-line)
+    (let ((not-moved 1))
+      (while (and (looking-at-p regex)
+                  (= 0 (setq not-moved (forward-line (if forwards 1 -1))))))
+      ;; If failed to move backwards, that means the first line of this file
+      ;; is a command and we are at the start of the buffer.
+      ;; We will not fail to move forwards, because `forward-line' will leave
+      ;; us at the end of the buffer before this happens.  When the last line
+      ;; in a buffer is a command we will end up at the very end of the buffer
+      ;; at the end of the current line.  Check for this in order to include
+      ;; the entire last line.
+      (when (and (= not-moved 0) (/= (point) (point-max)))
+        (forward-line (if forwards 0 1)))))
+  (point))
 
 ;; Go upwards until find a split marker.
 ;;   - If no split marker found, return current point.
@@ -527,7 +522,7 @@ argument."
   "Function to use for `beginning-of-defun' in `vsh-mode' buffers."
   (let ((count (or count 1)))
     (if (> count 0)
-        (progn
+        (unless (bobp)
           ;; Want to move to the very start of the top prompt.
           ;; All prompt lines start at the beginning of the line.
           ;; We can not search for something and include a match at the current
@@ -542,19 +537,20 @@ argument."
           (dotimes (_loop-counter count)
             (re-search-backward (vsh-split-regexp) nil 'move-to-end)
             (vsh--move-to-end-of-block (vsh-split-regexp) nil)))
-      (let ((last-found nil))
-        (dotimes (_loop-counter (abs count))
-          (vsh--move-to-end-of-block (vsh-split-regexp) t)
-          (setq last-found (re-search-forward (vsh-split-regexp) nil 'move-to-end)))
-        ;; Not particularly necessary because `beginning-of-defun' calls this function
-        ;; *then* calls `beginning-of-line'.  However it makes this function always
-        ;; end up at the very start of a function.
-        (when last-found (beginning-of-line))))))
+      (unless (eobp)
+        (let ((last-found nil))
+          (dotimes (_loop-counter (abs count))
+            (vsh--move-to-end-of-block (vsh-split-regexp) t)
+            (setq last-found (re-search-forward (vsh-split-regexp) nil 'move-to-end)))
+          ;; Not particularly necessary because `beginning-of-defun' calls this function
+          ;; *then* calls `beginning-of-line'.  However it makes this function always
+          ;; end up at the very start of a function.
+          (when last-found (beginning-of-line)))))))
 (defun vsh-beginning-of-block (count)
   "Move backwards to first prompt of command block."
   (interactive "p")
   (if (> count 0)
-      (progn
+      (unless (bobp)
         ;; `re-search-backward' does very nearly what we want again.
         ;; Don't want to match the `vsh-split-marker' on current line if we are
         ;; at or before the `vsh-bol' position.
@@ -565,42 +561,85 @@ argument."
             (setq last-found (re-search-backward (vsh-split-regexp) nil 'move-to-end))
             (vsh--move-to-end-of-block (vsh-split-regexp) nil))
           (when last-found (vsh-bol))))
-    ;; If we are at the very start of this command block and hence our
-    ;; "beginning of block" is actually the end of the prompt on this line we
-    ;; need to avoid using `vsh--move-to-end-of-block'.
-    ;; This happens when:
-    ;; - Current point is before bol on this line (i.e. on a command line)
-    ;;   and ...
-    (when (and (< (point) (car (vsh--line-beginning-position)))
-               ;; ... we are at the top of the current command block.
-               ;; (i.e. either at start of buffer or an output line above us).
-               (or (= (point-min) (line-beginning-position))
-                   (= (line-beginning-position 0)
-                      (car (vsh--line-beginning-position -1)))))
-      (cl-incf count)
-      (vsh-bol))
-    (let ((last-found nil))
-      (dotimes (_loop-counter (abs count))
-        (vsh--move-to-end-of-block (vsh-split-regexp) t)
-        (setq last-found (re-search-forward (vsh-split-regexp) nil 'move-to-end)))
-      (when last-found (vsh-bol)))))
+    (unless (eobp)
+      ;; If we are at the very start of this command block and hence our
+      ;; "beginning of block" is actually the end of the prompt on this line we
+      ;; need to avoid using `vsh--move-to-end-of-block'.
+      ;; This happens when:
+      ;; - Current point is before bol on this line (i.e. on a command line)
+      ;;   and ...
+      (when (and (< (point) (car (vsh--line-beginning-position)))
+                 ;; ... we are at the top of the current command block.
+                 ;; (i.e. either at start of buffer or an output line above us).
+                 (or (= (point-min) (line-beginning-position))
+                     (not (string-match (vsh-split-regexp) (vsh--current-line -1)))))
+        (cl-incf count)
+        (vsh-bol))
+     (let ((last-found nil))
+       (dotimes (_loop-counter (abs count))
+         (vsh--move-to-end-of-block (vsh-split-regexp) t)
+         (setq last-found (re-search-forward (vsh-split-regexp) nil 'move-to-end)))
+       (when last-found (vsh-bol))))))
 
 (defun vsh--end-of-block-fn (&optional count interactive)
   (let ((count (or count 1)))
     (if (> count 0)
-        (progn
+        (unless (eobp)
+          ;; Want to move to the very end of the last special line in this
+          ;; block.  If we are on the very last line in the current block, then
+          ;; searching forward for a split regexp would end up in the next
+          ;; block.
+          (unless (eolp) (beginning-of-line))
           (dotimes (loop-counter count)
             (re-search-forward (vsh-split-regexp) nil 'move-to-end)
             (vsh--move-to-end-of-block (vsh-split-regexp) t))
-          (backward-char))
-      (dotimes (loop-counter (abs count))
-        (vsh--move-to-end-of-block (vsh-split-regexp) nil)
-        (re-search-backward (vsh-split-regexp) nil 'move-to-end)))))
+          ;; When there is an end of the current block (i.e. when not reach the
+          ;; end of the buffer) `vsh--move-to-end-of-block' has left us one char
+          ;; past the end.  When we are not in the end of a block then
+          ;; `vsh--move-to-end-of-block' has left us at the end of the buffer.
+          (unless (eobp) (backward-char)))
+      (unless (bobp)
+        (dotimes (loop-counter (abs count))
+          (vsh--move-to-end-of-block (vsh-split-regexp) nil)
+          (when (re-search-backward (vsh-split-regexp) nil 'move-to-end)
+            (end-of-line)))))))
 (defun vsh-end-of-block (count)
   "Move to last line of command block."
   (interactive "p")
-  (vsh--end-of-block-fn count)
-  (vsh-bol))
+  (if (> count 0)
+      (unless (eobp)
+        ;; Want to move to the start of last special line in this block.  If
+        ;; we are on the very last line in the current block, then searching
+        ;; forward for a split regexp would end up in the next block.
+        ;;
+        ;; When this is the last line in a block and we are before the `vsh-bol'
+        ;; point then we should "spend" one count on moving to the `vsh-bol'
+        ;; point.
+        (when (and (< (point) (car (vsh--line-beginning-position)))
+                   (or (= (point-max) (line-end-position))
+                       (not (string-match (vsh-split-regexp) (vsh--current-line 1)))))
+          (cl-decf count)
+          (vsh-bol))
+        (dotimes (loop-counter count)
+          (setq re-matched (re-search-forward (vsh-split-regexp) nil 'move-to-end))
+          (vsh--move-to-end-of-block (vsh-split-regexp) t))
+        ;; When there is an end of the current block (i.e. when not reach the
+        ;; end of the buffer) `vsh--move-to-end-of-block' has left us one char
+        ;; past the end.  When we are not in the end of a block then
+        ;; `vsh--move-to-end-of-block' has left us at the end of the buffer.
+        (unless (or (= count 0) (eobp)) (backward-char))
+        (when re-matched (vsh-bol)))
+    (unless (bobp)
+      (when (and (string-match (vsh-split-regexp) (vsh--current-line))
+                 (> (point) (car (vsh--line-beginning-position)))
+                 (or (= (point-max) (line-end-position))
+                     (not (string-match (vsh-split-regexp) (vsh--current-line 1)))))
+        (cl-incf count)
+        (vsh-bol))
+      (dotimes (loop-counter (abs count))
+        (vsh--move-to-end-of-block (vsh-split-regexp) nil)
+        (when (re-search-backward (vsh-split-regexp) nil 'move-to-end)
+          (vsh-bol))))))
 
 (defun vsh-make-cmd (rbeg rend)
   "Turn lines in the given region into commands."
