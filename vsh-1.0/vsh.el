@@ -589,20 +589,24 @@ argument."
           ;; block.  If we are on the very last line in the current block, then
           ;; searching forward for a split regexp would end up in the next
           ;; block.
-          (unless (eolp) (beginning-of-line))
+          (beginning-of-line)
           (dotimes (_loop-counter count)
             (re-search-forward (vsh-split-regexp) nil 'move-to-end)
-            (vsh--move-to-end-of-block (vsh-split-regexp) t))
-          ;; When there is an end of the current block (i.e. when not reach the
-          ;; end of the buffer) `vsh--move-to-end-of-block' has left us one char
-          ;; past the end.  When we are not in the end of a block then
-          ;; `vsh--move-to-end-of-block' has left us at the end of the buffer.
-          (unless (eobp) (backward-char)))
+            (vsh--move-to-end-of-block (vsh-split-regexp) t)))
       (unless (bobp)
-        (dotimes (_loop-counter (abs count))
-          (vsh--move-to-end-of-block (vsh-split-regexp) nil)
-          (when (re-search-backward (vsh-split-regexp) nil 'move-to-end)
-            (end-of-line)))))))
+        ;; In order to count this place as "in" the previous block.
+        (when (and (bolp)
+                   (/= (point-min) (point))
+                   (string-match (vsh-split-regexp) (vsh--current-line -1)))
+          (backward-char))
+        (let (re-matched)
+          (dotimes (_loop-counter (abs count))
+            (vsh--move-to-end-of-block (vsh-split-regexp) nil)
+            (when (setq re-matched
+                        (re-search-backward (vsh-split-regexp) nil
+                                            'move-to-end))
+              (end-of-line)))
+          (when re-matched (forward-char)))))))
 (defun vsh-end-of-block (count)
   "Move to last line of command block."
   (interactive "p")

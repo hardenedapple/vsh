@@ -490,7 +490,7 @@ Motions tested are:
           (if (looking-at-p (vsh-split-regexp))
               (setq last-line-prompt t)
             (when last-line-prompt
-              (setq ret (cons (1- (point)) ret)))
+              (setq ret (cons (point) ret)))
             (setq last-line-prompt nil))))
 
        (end-of-block-points ()
