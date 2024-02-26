@@ -624,15 +624,16 @@ argument."
                        (not (string-match (vsh-split-regexp) (vsh--current-line 1)))))
           (cl-decf count)
           (vsh-bol))
-        (dotimes (_loop-counter count)
-          (setq re-matched (re-search-forward (vsh-split-regexp) nil 'move-to-end))
-          (vsh--move-to-end-of-block (vsh-split-regexp) t))
-        ;; When there is an end of the current block (i.e. when not reach the
-        ;; end of the buffer) `vsh--move-to-end-of-block' has left us one char
-        ;; past the end.  When we are not in the end of a block then
-        ;; `vsh--move-to-end-of-block' has left us at the end of the buffer.
-        (unless (or (= count 0) (eobp)) (backward-char))
-        (when re-matched (vsh-bol)))
+        (let (re-matched)
+          (dotimes (_loop-counter count)
+            (setq re-matched (re-search-forward (vsh-split-regexp) nil 'move-to-end))
+            (vsh--move-to-end-of-block (vsh-split-regexp) t))
+         ;; When there is an end of the current block (i.e. when not reach the
+         ;; end of the buffer) `vsh--move-to-end-of-block' has left us one char
+         ;; past the end.  When we are not in the end of a block then
+         ;; `vsh--move-to-end-of-block' has left us at the end of the buffer.
+         (unless (or (= count 0) (eobp)) (backward-char))
+         (when re-matched (vsh-bol))))
     (unless (bobp)
       (when (and (string-match (vsh-split-regexp) (vsh--current-line))
                  (> (point) (car (vsh--line-beginning-position)))
@@ -773,8 +774,9 @@ with into a single `undo' unit.")
           ;; with `vsh-execute-command' (or similar) before any output comes and
           ;; not having blank lines between the lines that were run.
           ;;
-          ;; TODO I forgot the reason that the original vim plugin chose to
-          ;; always insert a newline when inserting just after a prompt:
+          ;; TODO I originally forgot the reason that the original vim plugin
+          ;; chose to always insert a newline when inserting just after a
+          ;; prompt, later remembered while hitting the problem:
           ;;   - What happens when have deleted output since last output, but
           ;;     not started another command?
           ;;     We could add text at the end of the command in this situation
@@ -1224,6 +1226,7 @@ type of line as the one above (i.e. either a comment or a command)."
           ;; Only do "just one space" if in middle of whitespace.
           (when (<= (point) (car position-info))
             (just-one-space)))))))
+
 (defun vsh--initialise-settings ()
   "Default settings for behaviour in this major mode."
   ;; Settings for customisation of this particular major-mode.
@@ -1267,8 +1270,9 @@ Entry to this mode runs the hooks on `vsh-mode-hook'."
     ;; `warning-suppress-log-types' on the `server' symbol, but that would
     ;; *also* mean that the warning about being on FAT32 and its insecurity
     ;; against tampering would be suppressed.
-    ;; Similar for `warning-suppress-types', but that at least logs the warning
-    ;; (without popping up the *Warnings* window).
+    ;; An alternative suppression approach is to use `warning-suppress-types',
+    ;; that at least logs the warning (without popping up the *Warnings*
+    ;; window).
     ;; As it happens the FAT32 warning doesn't change based on `server-name',
     ;; so I choose to ignore these warnings for the second/third/etc run and let
     ;; the first warning pop up.
@@ -1277,7 +1281,7 @@ Entry to this mode runs the hooks on `vsh-mode-hook'."
     ;; worth the user being alerted that something strange is happening.
     (server-start)
     (let ((suffix-count 0)
-          (warning-suppress-list '((server))))
+          (warning-suppress-types '((server))))
       (while (not server-mode)
         (setq server-name (format "vsh-server-%d" suffix-count))
         (cl-incf suffix-count)
