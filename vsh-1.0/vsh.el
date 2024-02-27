@@ -245,12 +245,12 @@ to send to readline processes in underlying terminal for
 
 ;; TODO
 ;;   - Address compilation warnings.
+;;     Currently just need to fix the tests -- probably want to do this by
+;;     changing `vsh-mark-command-block' tests to use oracle functions instead
+;;     of manually specifying the region I need, then simply not passing in all
+;;     the markers as arguments into the `vsh--block-test-*' functions.
 ;;   - Add tests
-;;     - start of segment, end of segment.
-;;     - start of block, end of block.
-;;     - Much of the other commands are related to sending commands to
-;;       underlying process -- seem somewhat difficult to test the main purpose,
-;;       and the bits that
+;;     - Need to handle 
 ;;   - Documentation
 ;;     - Document the functions and variables in this file.
 ;;     - Write adjustments for emacs in the demo VSH files in the VSH repo.
@@ -279,6 +279,12 @@ to send to readline processes in underlying terminal for
 ;;     I have no idea why this happened, and didn't think of any way to debug it
 ;;     at the time.
 ;;     - Worth remembering and hopefully attempting to fix this.
+;;     - Looks like it's whenever I start info from a VSH mode buffer.
+;;       This because the first thing that the `info' command does is use
+;;       `pop-to-buffer-same-window' on a filename, and apparently emacs
+;;       implements this by creating a new buffer in the *same* mode.
+;;   - Why does `server-start' failing first time mean that syntax highlighting
+;;     does not get started.
 ;;   - Add more colours
 ;;     - Highlight strings on special lines only (not in output).
 ;;     - I wonder whether it's also useful to make the hook for our filter
@@ -1279,6 +1285,9 @@ Entry to this mode runs the hooks on `vsh-mode-hook'."
     ;;
     ;; I don't think this will be happening often, when it does happen it's
     ;; worth the user being alerted that something strange is happening.
+    ;;
+    ;; N.b. I find it very odd that the syntax highlighting doesn't seem to work
+    ;; when this `server-start' fails.  Will have to look into that.
     (server-start)
     (let ((suffix-count 0)
           (warning-suppress-types '((server))))
