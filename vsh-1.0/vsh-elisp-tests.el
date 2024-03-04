@@ -160,11 +160,6 @@ Inserts the following local variables in the scope for `body' to use:
                 (set-marker output-end (1- (marker-position output-end)))
                 (delete-region output-end (point-max))))))))))
 
-(defun test-region (point-pos mark-pos activep)
-  (should (= (point) point-pos))
-  (should (= (mark) mark-pos))
-  (should (eq mark-active activep)))
-
 ;; Gist of the interface for this macro is we need a list of function
 ;; definitions.  Each of these are defined in a lexical scope which has a bunch
 ;; of markers defined (`start-output-start', `block-start', `block-end',
@@ -329,6 +324,11 @@ Inserts the following local variables in the scope for `body' to use:
   (or (eq linetype 'command)
       (and inc-comments
            (memq linetype '(comment saved-command empty-comment)))))
+(defun test-region (point-pos mark-pos activep)
+  (should (= (point) point-pos))
+  (should (= (mark) mark-pos))
+  (should (eq mark-active activep)))
+
 (ert-deftest vsh-mark-command-block ()
   "Testing `vsh-mark-command-block' for different setups."
   (cl-flet
