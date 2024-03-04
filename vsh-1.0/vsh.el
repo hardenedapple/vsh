@@ -1073,6 +1073,8 @@ the CWD of the underlying process."
 ;;      the emacs version that we're running from.
 ;;      Maybe I could run that with an environment taken from the underlying
 ;;      `vsh' session (read from /proc/<pid>/env)?
+;;      Probably could use something like `with-environment-variables' to
+;;      improve that?
 (defvar vsh--file-name-chars
   (cond ((memq system-type '(ms-dos windows-nt cygwin))
 	 "-a-zA-Z0-9_/.,~^#$+=:\\\\")
@@ -1210,7 +1212,7 @@ underlying process in the vsh buffer."
     ;; Decided against putting the below on a keybinding
     ;; (define-key map TO-CHOOSE 'vsh-send-password)
 
-    (define-key map (kbd "C-c M-/") 'vsh-complete-file-name)
+    (define-key map (kbd "C-c M-/") 'vsh-complete-file-at-point)
     (define-key map (kbd "C-c C-x C-f") 'vsh-find-file)
     map))
 
