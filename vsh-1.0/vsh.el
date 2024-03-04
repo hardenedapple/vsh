@@ -1043,13 +1043,69 @@ the CWD of the underlying process."
   (vsh-with-current-directory
    (call-interactively vsh-find-file-function)))
 
-(fset 'vsh--complete-file-name-func (make-hippie-expand-function
-                                     '(try-complete-file-name-partially
-                                       try-complete-file-name)))
-(defun vsh-complete-file-name (arg)
-  (interactive "P")
+
+;; Copy/pasted `he-file-name-beg' from hippie-expand for `vsh--file-name-beg'.
+;; TODO Am interested in looking into `comint-dynamic-complete-filename' and
+;; `completion--file-name-table' from minibuffer.el.  Looks like these both have
+;; some clever handling in order to account for special variables and syntax.
+;;
+;; One interesting thing in `comint-dynamic-complete-filename' is that the
+;; completion function seems to understand the difference between a command line
+;; starting `cd' and a command line starting with `ls' (i.e. gives just
+;; directory names for the first and any name for the second).
+;;
+;; Looks like the comint completion handles special things like bash quoting of
+;; a filename and the like.  ... Not sure what other features it has on top of
+;; this.
+;; N.b. randomly tested the below and it seems to work.
+;; (define-key vsh-mode-map (kbd "M-/")
+;;             (lambda () (interactive)
+;;               (let ((completion-at-point-functions
+;;                      '(comint-completion-at-point)))
+;;                 (completion-at-point))))
+;;
+;; TODO What about `completion-file-name-table'?
+;;      This looks to be the completion table that `read-file-name' uses, maybe
+;;      I don't have to write my own at all.
+;;      It looks like we also have `completion--file-name-table' that expands
+;;      out environment variables etc.  This might be confusing when run inside
+;;      a `vsh' session which has a different set of environment variables to
+;;      the emacs version that we're running from.
+;;      Maybe I could run that with an environment taken from the underlying
+;;      `vsh' session (read from /proc/<pid>/env)?
+(defvar vsh--file-name-chars
+  (cond ((memq system-type '(ms-dos windows-nt cygwin))
+	 "-a-zA-Z0-9_/.,~^#$+=:\\\\")
+	(t			    ;; More strange file formats ?
+	 "-a-zA-Z0-9_/.,~^#$+="))
+  "Characters that are considered part of the file name to expand.")
+(defun vsh--file-name-beg ()
+  (let ((op (point)))
+    (save-excursion
+      (skip-chars-backward vsh--file-name-chars)
+      ;; If we are in a word that has a non-file char, then we don't believe
+      ;; this is a filename and don't include this as prefix for our file.
+      (if (< (skip-syntax-backward "w") 0)
+	  op
+	(point)))))
+(defun vsh--capf ()
+  (let* ((prefix-string (buffer-substring-no-properties (vsh--file-name-beg) (point)))
+         (name-part (file-name-nondirectory prefix-string))
+         (dir-part (or (file-name-directory prefix-string) ""))
+         (abs-dir (expand-file-name dir-part)))
+    ;; We are "taking over" completion for the last part of the filename, even
+    ;; though we're taking information from the entire filename.
+    (list (- (point) (length name-part)) (point)
+          (completion-table-dynamic
+           (lambda (_)
+             (file-name-all-completions name-part abs-dir))))))
+(defun vsh-complete-file-at-point (&optional arg)
+  "Complete the filename at point relative to the current directory of the
+underlying process in the vsh buffer."
+  (interactive "*P")
   (vsh-with-current-directory
-   (funcall-interactively #'vsh--complete-file-name-func arg)))
+   (let ((completion-at-point-functions '(vsh--capf)))
+     (completion-at-point))))
 
 (defun vsh-use-as-compile-errors (rbeg rend)
   (interactive "r")
