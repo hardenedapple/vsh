@@ -798,6 +798,25 @@ with into a single `undo' unit.")
           ;;       moment.
           (when vsh-new-output (insert-char ?\n) (setq-local vsh-new-output nil))
           (insert output)
+          ;; We only want the `ansi-color-context-region' continuing from last
+          ;; time we used this function if we are inserting "the rest" of the
+          ;; ansi color region that we have recently handled.
+          ;; If adding below the last point that was coloured, or adding above
+          ;; it, then we would not want to "continue" the last region context
+          ;; that we used.
+          ;;
+          ;; This avoids "Invalid search bound" errors when we run a command
+          ;; *above* the point where the last ansi colours were output.  It also
+          ;; avoids strange colouring when running a command below where the
+          ;; last ansi colours were output.
+          ;; It can be confused by typing a command in the middle of output, but
+          ;; that at least looks strange during the typing (because when typing
+          ;; the command that command is coloured differently).
+          (unless (and ansi-color-context-region
+                       (marker-position (cadr ansi-color-context-region))
+                       (= (marker-position (cadr ansi-color-context-region))
+                          (marker-position start-point)))
+            (setq ansi-color-context-region nil))
           (if vsh-ignore-ansi-colors
               (ansi-color-filter-region start-point insert-point)
             (ansi-color-apply-on-region start-point insert-point t))
