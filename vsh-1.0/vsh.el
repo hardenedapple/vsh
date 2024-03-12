@@ -275,14 +275,6 @@ to send to readline processes in underlying terminal for
 ;;       the current buffer to the process of some VSH buffer but with all
 ;;       newlines removed and then an extra newline added at the end of the
 ;;       text.
-;;   - At some point I ended up with a vsh process on an "*info*" buffer.
-;;     I have no idea why this happened, and didn't think of any way to debug it
-;;     at the time.
-;;     - Worth remembering and hopefully attempting to fix this.
-;;     - Looks like it's whenever I start info from a VSH mode buffer.
-;;       This because the first thing that the `info' command does is use
-;;       `pop-to-buffer-same-window' on a filename, and apparently emacs
-;;       implements this by creating a new buffer in the *same* mode.
 ;;   - Why does `server-start' failing first time mean that syntax highlighting
 ;;     does not get started.
 ;;   - Add more colours
@@ -868,6 +860,7 @@ with into a single `undo' unit.")
                  ;;  happen after there has been some output anyway.
                  ;; :sentinel ? vsh--process-sentinel ?
                  )))
+      (add-hook 'change-major-mode-hook 'vsh--change-major-mode-hook)
       ;; When insert *at* the process mark, marker will advance.
       (set-marker-insertion-type (process-mark proc) t)
       (set-marker (process-mark proc)
@@ -1319,6 +1312,28 @@ type of line as the one above (i.e. either a comment or a command)."
   (setq-local indent-line-function 'vsh-indent-function)
   (setq-local beginning-of-defun-function 'vsh--beginning-of-block-fn)
   (setq-local end-of-defun-function 'vsh--end-of-block-fn))
+
+(defun vsh--change-major-mode-hook ()
+  "Run from `kill-all-local-variables'.  Logically what is
+happening is the teardown of the `vsh-mode' for some other mode.
+
+Almost everything we want is handled automatically, but we really
+need to also close the vsh process."
+  ;; N.b. one interesting way in which this is called is through
+  ;; `pop-to-buffer-same-window' keeping the same mode as the buffer we were
+  ;; originally in.  This can be seen when using `info' from a `vsh-mode'
+  ;; buffer.  When we do such a thing without this hook we first create a
+  ;; `vsh-mode' buffer called `*info*' and start its associated process.  Then
+  ;; we change the mode to `Info-mode', killing all local variables but *not*
+  ;; killing the associated process.
+  ;; This hook is mostly here to stop such things.
+  (when (eq major-mode 'vsh-mode)
+    (let ((proc (vsh--get-process)))
+      ;; Disable accepting output from the process.
+      (set-process-filter proc t)
+      ;; Disable doing anything on process status updates.
+      (set-process-sentinel proc (lambda (&rest _) nil))
+      (when proc (delete-process proc)))))
 
 ;;;###autoload
 (define-derived-mode vsh-mode fundamental-mode "Vsh"
