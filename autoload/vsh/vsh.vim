@@ -459,6 +459,11 @@ function vsh#vsh#StartSubprocess()
     echoerr 'Already a subprocess running for this buffer'
     return
   endif
+  " Initialise empty file with a prompt.
+  if getpos('$')[1:] == [1, 1, 0] && empty(getline(1))
+    call setline(1, b:vsh_prompt)
+    normal $
+  endif
   " XXX Mark use
   call s:set_marks_at('0')
 
@@ -1139,17 +1144,15 @@ function vsh#vsh#ReplaceOutput()
   call vsh#vsh#RunCommand(l:command_line, l:command)
 endfunction
 
-function vsh#vsh#NewPrompt(skip_output)
-  if a:skip_output
-    exe s:segment_end() - 1
-  endif
+function vsh#vsh#NewPrompt()
+  exe s:segment_end() - 1
   put = b:vsh_prompt
   startinsert!
 endfunction
 
 function vsh#vsh#ReplaceOutputNewPrompt()
   call vsh#vsh#ReplaceOutput()
-  call vsh#vsh#NewPrompt(1)
+  call vsh#vsh#NewPrompt()
 endfunction
 
 function vsh#vsh#SaveOutput(activate)

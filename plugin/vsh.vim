@@ -12,7 +12,7 @@ let g:vsh_buffer_mappings_list = [
       \ ['o' , 'vsh_o_prev_prompt'                 , '<silent>'        , '<C-p>'           , ' <Plug>(vshOPrevPrompt)'               , " V:<C-U>call vsh#vsh#MoveToPrevPrompt('o', v:count1)<CR>"] ,
       \ ['n' , 'vsh_replace_output'                , '<silent>'        , '<CR> '           , ' <Plug>(vshReplaceOutput)'             , " :call vsh#vsh#ReplaceOutput()<CR>"]                ,
       \ ['i' , 'vsh_run_new_prompt'                , '<silent>'        , '<M-CR>'          , ' <Plug>(vshRunNewPrompt)'              , " <Esc>:call vsh#vsh#ReplaceOutputNewPrompt()<CR>"]  ,
-      \ ['n' , 'vsh_new_prompt'                    , '<silent>'        , '<localleader>n ' , ' <Plug>(vshNewPrompt)'                 , " :<C-U>call vsh#vsh#NewPrompt(1)<CR>"]              ,
+      \ ['n' , 'vsh_new_prompt'                    , '<silent>'        , '<localleader>n ' , ' <Plug>(vshNewPrompt)'                 , " :<C-U>call vsh#vsh#NewPrompt()<CR>"]              ,
       \ ['v' , 'vsh_make_cmd'                      , '<silent>'        , '<F4>'            , ' <Plug>(vshMakeCmd)'                   , " :VmakeCmds<CR>"]                                   ,
       \ ['v' , 'vsh_rerun'                         , '<silent>'        , '<F3>'            , ' <Plug>(vshRerun)'                     , " :Vrerun<CR>"]                                      ,
       \ ['n' , 'vsh_make_cmd_op'                   , '<expr> <silent>' , '<F4>'            , ' <Plug>(vshMakeCmdOp)'                 , " vsh#vsh#DoMakeCmdOperatorFunc()"]                  ,
