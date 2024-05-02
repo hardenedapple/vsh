@@ -244,6 +244,7 @@ to send to readline processes in underlying terminal for
   "Has this current buffers process been initialised.")
 
 ;; TODO
+;;   - Move all mappings from `C-c'.
 ;;   - Address compilation warnings.
 ;;     Currently just need to fix the tests -- probably want to do this by
 ;;     changing `vsh-mark-command-block' tests to use oracle functions instead
@@ -1170,6 +1171,11 @@ underlying process in the vsh buffer."
 ;;   (unless buffer (setq buffer (completing-read <...>)))
 ;;   (let (....)))
 
+;; TODO Really should not use `C-c' as a prefix.
+;; I originally thought this was what was expected, but on reading the
+;; documentation it looks like this is precisely *not* recommended.  I.e. that
+;; prefix is supposed to be reserved for the users configuration rather than
+;; Emacs or Emacs extensions.
 (defvar vsh-mode-map
   (let ((map (make-sparse-keymap)))
     ;; This RET mapping is a bit of a question-mark.
@@ -1306,9 +1312,9 @@ type of line as the one above (i.e. either a comment or a command)."
 (defun vsh--initialise-settings ()
   "Default settings for behaviour in this major mode."
   ;; Settings for customisation of this particular major-mode.
-  (auto-fill-mode nil)
   (setq-local comment-start (vsh-prompt))
   (setq-local comment-end "")
+  (auto-fill-mode -1)
   (setq-local indent-line-function 'vsh-indent-function)
   (setq-local beginning-of-defun-function 'vsh--beginning-of-block-fn)
   (setq-local end-of-defun-function 'vsh--end-of-block-fn))
