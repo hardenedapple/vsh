@@ -1309,12 +1309,171 @@ type of line as the one above (i.e. either a comment or a command)."
           (when (<= (point) (car position-info))
             (just-one-space)))))))
 
+(defun vsh-forward-paragraph-function (&optional arg)
+  "Implementation of `fill-forward-paragraph-function' for VSH buffers."
+  ;; Has to be recursive.
+  (interactive "^p")
+  (cond
+   ;; Base case in the recursion.
+   ((= 0 arg) 0)
+   ;; Either limit of buffer -- alternate base case in the recursion.
+   ((or (and (bobp) (> 0 arg))
+        (and (eobp) (> arg 0)))
+    arg)
+   ;; Non base cases of the recursion.
+   (t
+    ;; From the description of `forward-paragraph' "A paragraph end is the
+    ;; beginning of a line which is not part of the paragraph to which the
+    ;; end of the previous line belongs, or the end of the buffer."
+    ;; => Negative argument is "move backward to previous end of paragraph".
+    ;;
+    ;; End of paragraph points are relatively easy to define if moving
+    ;; forwards (only difficulty is in handling the case in outputs where we
+    ;; want to take the minimum of "whatever `forward-paragraph' returns" and
+    ;; "whatever `vsh--segment-bound' returns").
+    ;;
+    ;; Going backwards just use the same points.
+    ;;
+    ;; N.b. once in this branch of the `cond' we know that whatever motion we
+    ;; were asking for will be satisfied (unless I have a bug in my code).
+    (let* ((direction (if (> arg 0) 1 -1))
+           (forwards (= direction 1))
+           (recurse-value (- arg direction))
+           (back-single-char
+            ;; Logically we are moving between points.  The definition of these
+            ;; points is such that when moving forwards we are at the start of a
+            ;; line for the next paragraph, but when moving backwards we are at
+            ;; the start of a line for the current paragraph.  In order to make
+            ;; decisions about what to do I look at the start of a line.  Hence
+            ;; we need to account for this "current" or "previous" paragraph
+            ;; difference.
+            (and (bolp)
+                 (not forwards)
+                 ;; If `looking-at-p' a split regexp, then going back one char
+                 ;; accounts for the case when this is the first line of a
+                 ;; logical `fill' paragraph and when it's not the first line of
+                 ;; a logical fill paragraph going back one character doesn't
+                 ;; matter.
+                 ;; When not `looking-at-p' a split regexp we're in an output
+                 ;; block.  Going back one char is only valid if there is a
+                 ;; command line above us -- otherwise we may want to delegate
+                 ;; to `forward-paragraph' and going back one char could have
+                 ;; messed that up.
+                 (or (looking-at-p (vsh-split-regexp))
+                     (string-match (vsh-split-regexp) (vsh--current-line -1)))
+                 (not (backward-char))))
+           (orig-point (point)))
+      (cond
+       ((string-match (vsh-comment-regexp) (vsh--current-line))
+        (vsh--move-to-end-of-block (vsh-comment-regexp) forwards))
+       ;; Handle blank comments differently so that `adaptive-fill-function' can
+       ;; avoid getting confused by the different prefix between the two things.
+       ((string-match (vsh-blank-comment-regexp) (vsh--current-line))
+        (vsh--move-to-end-of-block (vsh-blank-comment-regexp) forwards))
+       ((string-match (vsh-command-regexp) (vsh--current-line))
+        ;; Know that if we were at the start of a line then we moved to
+        ;; the line above in the `back-single-char' evaluation above.
+        ;; Hence moving to the start of the line makes this a single line
+        ;; paragraph.
+        (forward-line (if forwards direction 0)))
+       (t
+        ;; Move forward either to least of:
+        ;; - Next paragraph according to `forward-paragraph'.
+        ;; - Next special vsh marker.
+        ;; Do this on repeat until count has been achieved.
+        (let ((segment-pos (vsh--segment-bound forwards nil))
+              (para-pos (save-excursion (forward-paragraph direction)
+                                        (point))))
+          ;; `forward-paragraph' always moves unless at the very end or
+          ;; beginning of buffer.  Have checked for both limits of buffer at
+          ;; start of this function.  Only motion we've made since then has been
+          ;; backwards one character if at the very start of a special line *or*
+          ;; if there is a special line above us.  If have moved to the very
+          ;; start of the buffer in the `back-single-char' evaluation above,
+          ;; `vsh--segment-bound' must also have returned the very start of the
+          ;; buffer.
+          (when (= (point) para-pos)
+            (assert (not forwards))
+            (assert (= (point) segment-pos)))
+          (goto-char
+           (funcall (if forwards #'min #'max) segment-pos para-pos)))))
+      (vsh-forward-paragraph-function recurse-value)))))
+
+;; The below function returns a is needed in order to get `fill-paragraph' to accept an
+;; `adaptive-fill-function' result as the `fill-prefix' to use for a single-line
+;; command prompt (being treated as a paragraph in and of itself).
+(defun vsh-set-adaptive-fill-first-line-regexp ()
+  "Function to determine the `adaptive-fill-first-line-regexp' for a VSH
+buffer."
+  ;; Assume that if we are being called with this variable already set that
+  ;; means we are calling ourselves again for some reason.
+  ;; TBH I don't know of a case when this might happen, but being a little
+  ;; paranoid.  Should probably add some debugging instead that would catch this
+  ;; and increase my understanding of the system if that ever happens.
+  ;; Should never happen because when switching major modes
+  ;; `kill-all-local-variables' gets called, and this function is only really
+  ;; called when starting up a `vsh-mode' buffer.  It just felt possible that
+  ;; someone calls this function a bunch of times when trying things out and the
+  ;; regexp builds up each time.
+  (if (local-variable-p 'adaptive-fill-first-line-regexp)
+      adaptive-fill-first-line-regexp
+    (rx (or (literal adaptive-fill-first-line-regexp)
+            (literal (vsh-prompt))))))
+
+(defun vsh-adaptive-fill-function ()
+  "Adaptive fill function for `vsh' buffers."
+  (let* ((tmp (vsh--line-beginning-position))
+         (whitespace-start (cdr tmp))
+         (lbp (line-beginning-position)))
+    (unless (= whitespace-start lbp)
+      (buffer-substring-no-properties lbp whitespace-start))))
+
 (defun vsh--initialise-settings ()
   "Default settings for behaviour in this major mode."
   ;; Settings for customisation of this particular major-mode.
-  (setq-local comment-start (vsh-prompt))
-  (setq-local comment-end "")
   (auto-fill-mode -1)
+  ;; https://tony-zorman.com/posts/join-lines-comments.html
+  ;; `make-local-variable' and `adaptive-fill-function' may help for this.
+  ;; `fill-context-prefix' ... maybe need `first-line-regexp' and something for
+  ;; paragraph starting at `vsh--beginning-of-block-fn' (or maybe the other one
+  ;; ...).  Is there some interaction with `paragraph-start' that I'm unaware
+  ;; of?
+  ;; ... I *suspect* that if I manage to plug into the `fill-context-prefix'
+  ;; thing then `fill-paragraph' might start to work ...
+  ;;
+  ;; Things to change:
+  ;; 1) `fill-paragraph' etc breaks in between command blocks and output.
+  ;;    - remap `fill-paragraph'?
+  ;;      It may be that the logic of `fill-paragraph' is too far removed from
+  ;;      what I want to do.
+  ;;    - Maybe just use `fill-paragraph-function' or
+  ;;      `fill-forward-paragraph-function'?
+  ;;      Looks like this is a helper
+  ;; 1) `fill-region' should use the prompt from the first line as the
+  ;;    fill-prefix.
+  ;;    - I suspect this is simply "enable adaptive-fill and configure
+  ;;      accordingly"
+  ;; 2) `RET' enters prefix according to the line we're currently on.
+  ;; 3) `indent-new-comment-line' enters prefix according to line currently on?
+  ;; 4) Some key in order to "fill current line" (i.e. not entire paragraph).
+  ;;    - This should also add backslash to the end of each line and a little
+  ;;      indentation to the start of each line (i.e. this should be "write a
+  ;;      single bash command over multiple lines).
+  ;; 5) `delete-indentation' (i.e. `join-line') removes prefix according to line
+  ;;    we're on.
+  ;;    - I believe implemented with `fill-prefix' unfortunately *not* using
+  ;;      `fill-context-prefix', though I guess I could set `fill-prefix' to
+  ;;      `fill-context-prefix' with an `advice'.
+  ;; 6) If I don't use comments to insert prefixes, then could I do the opposite
+  ;;    and say comments are everything *except* prefixes then use
+  ;;    `comment-auto-fill-only-comments' in order to disable auto-fill on the
+  ;;    command lines?
+  ;;
+  ;; IIUC `adaptive-fill-prefix'
+  (setq-local adaptive-fill-function 'vsh-adaptive-fill-function)
+  (setq-local adaptive-fill-first-line-regexp
+              (vsh-set-adaptive-fill-first-line-regexp))
+  (setq-local fill-forward-paragraph-function 'vsh-forward-paragraph-function)
   (setq-local indent-line-function 'vsh-indent-function)
   (setq-local beginning-of-defun-function 'vsh--beginning-of-block-fn)
   (setq-local end-of-defun-function 'vsh--end-of-block-fn))
