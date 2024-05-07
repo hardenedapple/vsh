@@ -1178,27 +1178,27 @@ underlying process in the vsh buffer."
 ;; Emacs or Emacs extensions.
 (defvar vsh-mode-map
   (let ((map (make-sparse-keymap)))
-    ;; This RET mapping is a bit of a question-mark.
-    ;; On the one hand I rely on the "insert comment" behaviour to ensure
-    ;; prompts are inserted on newline.  On the other hand I have a suspicion
-    ;; that the user would have overridden this mapping reasonably often.
-    (define-key map (kbd "RET") 'comment-indent-new-line)
-    (define-key map (kbd "C-c C-n") 'vsh-next-command)
-    (define-key map (kbd "C-c C-p") 'vsh-prev-command)
-    (define-key map (kbd "C-c C-a") 'vsh-bol)
-    (define-key map (kbd "C-c C-u") 'vsh-line-discard)
-    (define-key map (kbd "C-c n") 'vsh-new-prompt)
+    (keymap-set map "RET" 'vsh-newline)
+    (keymap-set map "<remap> <join-line>" 'vsh-join-line)
+    (keymap-set map "<remap> <delete-indentation>" 'vsh-join-line)
+    (keymap-set map "<remap> <move-beginning-of-line>" 'vsh-bol)
+
+    (keymap-set map "C-c C-a" 'vsh-bol)
+    (keymap-set map "C-c C-n" 'vsh-next-command)
+    (keymap-set map "C-c C-p" 'vsh-prev-command)
+    (keymap-set map "C-c C-u" 'vsh-line-discard)
+    (keymap-set map "C-c n" 'vsh-new-prompt)
     ;; Negative argument puts you at start of next block.
     ;; This is just `beginning-of-defun' function, but we can't use
     ;; `beginning-of-defun-function' because `beginning-of-defun' has a call to
     ;; `beginning-of-line' just after that hook is used.  Hence define our own
     ;; function which leaves us at the start of a prompt.
-    (define-key map (kbd "C-M-a") 'vsh-beginning-of-block)
+    (keymap-set map "C-M-a" 'vsh-beginning-of-block)
     ;; Similar for `end-of-defun'. In order to make things like `mark-defun'
     ;; work properly we want to go right to the end of the command block, but
     ;; for moving around we want to end up at the start of the last command in a
     ;; block.
-    (define-key map (kbd "C-M-e") 'vsh-end-of-block)
+    (keymap-set map "C-M-e" 'vsh-end-of-block)
     ;; Universal argument marks the "outer" block as per vim nomenclature
     ;; (i.e. counting comment lines same as output).
     ;; Similar to `end-of-defun' and `beginning-of-defun', `mark-defun' mostly
@@ -1206,32 +1206,32 @@ underlying process in the vsh buffer."
     ;; `*-of-defun-function'.  In this case the reason we define our own
     ;; function is to allow `universal-argument' to choose between including
     ;; comments and not including comments.
-    (define-key map (kbd "C-M-h") 'vsh-mark-command-block)
-    (define-key map (kbd "C-c C-o") 'vsh-mark-segment)
+    (keymap-set map "C-M-h" 'vsh-mark-command-block)
+    (keymap-set map "C-c C-o" 'vsh-mark-segment)
     ;; Decided against putting this on a keybinding.
-    ;; (define-key map TO-CHOOSE 'vsh-make-cmd)
+    ;; (keymap-set map TO-CHOOSE 'vsh-make-cmd)
 
-    (define-key map (kbd "C-c s") 'vsh-save-command)
-    (define-key map (kbd "C-c a") 'vsh-activate-command)
+    (keymap-set map "C-c s" 'vsh-save-command)
+    (keymap-set map "C-c a" 'vsh-activate-command)
 
-    (define-key map (kbd "C-M-x") 'vsh-execute-block)
-    (define-key map (kbd "C-c RET") 'vsh-execute-command)
-    (define-key map (kbd "C-c C-M-x") 'vsh-execute-region)
-    (define-key map (kbd "C-c C-<return>") 'vsh-execute-and-new-prompt)
+    (keymap-set map "C-M-x" 'vsh-execute-block)
+    (keymap-set map "C-c RET" 'vsh-execute-command)
+    (keymap-set map "C-c C-M-x" 'vsh-execute-region)
+    (keymap-set map "C-c C-<return>" 'vsh-execute-and-new-prompt)
 
-    (define-key map (kbd "C-c C-d") 'vsh-goto-insert-point)
-    (define-key map (kbd "C-c C-z") 'vsh-goto-last-prompt)
+    (keymap-set map "C-c C-d" 'vsh-goto-insert-point)
+    (keymap-set map "C-c C-z" 'vsh-goto-last-prompt)
     ;; Decided against putting this on a keybinding.
-    ;; (define-key map TO-CHOOSE 'vsh-send-region)
+    ;; (keymap-set map TO-CHOOSE 'vsh-send-region)
 
-    (define-key map (kbd "C-c C-c") 'vsh-send-control-char)
-    (define-key map (kbd "C-c TAB") 'vsh-request-completions)
+    (keymap-set map "C-c C-c" 'vsh-send-control-char)
+    (keymap-set map "C-c TAB" 'vsh-request-completions)
 
     ;; Decided against putting the below on a keybinding
-    ;; (define-key map TO-CHOOSE 'vsh-send-password)
+    ;; (keymap-set map TO-CHOOSE 'vsh-send-password)
 
-    (define-key map (kbd "C-c M-/") 'vsh-complete-file-at-point)
-    (define-key map (kbd "C-c C-x C-f") 'vsh-find-file)
+    (keymap-set map "C-c M-/" 'vsh-complete-file-at-point)
+    (keymap-set map "C-c C-x C-f" 'vsh-find-file)
     map))
 
 ;; (defvar-keymap vsh-repeat-map
@@ -1427,6 +1427,48 @@ buffer."
          (lbp (line-beginning-position)))
     (unless (= whitespace-start lbp)
       (buffer-substring-no-properties lbp whitespace-start))))
+
+;; Had two approaches considered (haven't thought of any other approach).
+;; 1) Define a new function that calls `join-line' and use a keybinding with
+;;    <remap> to adjust any keybinding the user has for this.
+;; 2) Use the below as an advice around `join-line'.
+;; Have gone with this because I have written some wrappers around `join-line'
+;; and this handles those use-cases while the remapping would not have handled
+;; those.
+;;
+;; I took a different approach for `newline' on the assumption that `RET' is so
+;; standard a keybinding that it's very unlikely to be doing something different
+;; (as compared to `M-^' that I could easily imagine having been remapped
+;; relatively often).  I also thought there was some possibility that anything
+;; already on the `RET' keybinding is somewhat likely to do something special
+;; around inserting extra text etc, and wrapping around anything like that seems
+;; likely to trigger some problems.
+;; All of this wild speculation -- will likely only see if others use this
+;; package.
+
+;; N.b. prefix argument and region are naturally passed.
+(defun vsh-join-line ()
+  "Implementation of `join-line' (i.e. `delete-indentation') that removes any
+VSH prompt at the start of the line before joining the line.
+
+N.b. whether to remove a comment or command marker is determined based on the
+line the cursor is on when this command is run (defaulting to the command
+marker)."
+  (interactive)
+  (let ((fill-prefix (or (vsh-adaptive-fill-function) (vsh-prompt))))
+    (call-interactively #'join-line)))
+;; I do about handling an argument for inserting multiple lines.
+;; `comment-indent-new-line' doesn't have such a "insert multiple lines"
+;; argument, so it doesn't feel too necessary to implement that feature.
+(defun vsh-newline ()
+  (interactive)
+  (let ((fill-prefix
+         (when (>= (point) (car (vsh--line-beginning-position)))
+           (vsh-adaptive-fill-function))))
+    ;; Little bit of a hack -- `comment-indent-new-line' handles inserting the
+    ;; `fill-prefix', but only if there are no comments (which is fine because I
+    ;; don't specify any comments).
+    (comment-indent-new-line)))
 
 (defun vsh--initialise-settings ()
   "Default settings for behaviour in this major mode."
