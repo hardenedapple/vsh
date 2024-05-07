@@ -1402,23 +1402,11 @@ type of line as the one above (i.e. either a comment or a command)."
 ;; The below function returns a is needed in order to get `fill-paragraph' to accept an
 ;; `adaptive-fill-function' result as the `fill-prefix' to use for a single-line
 ;; command prompt (being treated as a paragraph in and of itself).
-(defun vsh-set-adaptive-fill-first-line-regexp ()
+(defun vsh-adaptive-fill-first-line-regexp ()
   "Function to determine the `adaptive-fill-first-line-regexp' for a VSH
 buffer."
-  ;; Assume that if we are being called with this variable already set that
-  ;; means we are calling ourselves again for some reason.
-  ;; TBH I don't know of a case when this might happen, but being a little
-  ;; paranoid.  Should probably add some debugging instead that would catch this
-  ;; and increase my understanding of the system if that ever happens.
-  ;; Should never happen because when switching major modes
-  ;; `kill-all-local-variables' gets called, and this function is only really
-  ;; called when starting up a `vsh-mode' buffer.  It just felt possible that
-  ;; someone calls this function a bunch of times when trying things out and the
-  ;; regexp builds up each time.
-  (if (local-variable-p 'adaptive-fill-first-line-regexp)
-      adaptive-fill-first-line-regexp
-    (rx (or (literal adaptive-fill-first-line-regexp)
-            (literal (vsh-prompt))))))
+  (rx (or (literal adaptive-fill-first-line-regexp)
+          (literal (vsh-prompt)))))
 
 (defun vsh-adaptive-fill-function ()
   "Adaptive fill function for `vsh' buffers."
@@ -1514,7 +1502,7 @@ marker)."
   ;; IIUC `adaptive-fill-prefix'
   (setq-local adaptive-fill-function 'vsh-adaptive-fill-function)
   (setq-local adaptive-fill-first-line-regexp
-              (vsh-set-adaptive-fill-first-line-regexp))
+              (vsh-adaptive-fill-first-line-regexp))
   (setq-local fill-forward-paragraph-function 'vsh-forward-paragraph-function)
   (setq-local indent-line-function 'vsh-indent-function)
   (setq-local beginning-of-defun-function 'vsh--beginning-of-block-fn)
