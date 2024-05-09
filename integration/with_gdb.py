@@ -1,6 +1,5 @@
 import os
 import string
-import pynvim
 import gdb
 
 def linespec_from_address(address):
@@ -12,30 +11,14 @@ def linespec_from_address(address):
     return pos
 
 
-def get_nvim_instance():
-    nvim_socket_path = os.getenv('NVIM')
-    if not nvim_socket_path:
-        nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
-    if not nvim_socket_path:
-        raise OSError('No socket path NVIM_LISTEN_ADDRESS in environment')
-    return pynvim.attach('socket', path=nvim_socket_path)
-
-
-def find_marked_window(nvim):
-    for win in nvim.current.tabpage.windows:
-        if win.vars.get('gdb_view'):
-            return win
-    return None
-
-
-def mark_position(sal, letter, nvim, delete=False):
+def mark_position(sal, letter, editor_obj, delete=False):
     '''Given a gdb symtab and line object, mark its position with `letter`.
-    
+
     `delete` determines what should happen when `sal` doesn't contain enough
     information to perform the action.
     It's a three way choice encoded with booleans and None.
         delete = False    =>   raise ValueError()
-        delete = True     =>   run `delmark` in the nvim instance
+        delete = True     =>   remove mark in the editor instance
         delete = None     =>   do nothing, just return
 
     '''
@@ -44,29 +27,42 @@ def mark_position(sal, letter, nvim, delete=False):
     # just return.
     if not sal.symtab:
         if delete:
-            nvim.command('delmarks {}'.format(letter))
+            remove_mark(letter, editor_obj)
         elif delete is None:
             return
         else:
             raise ValueError('sal has no symtab')
     full_filename = sal.symtab.fullname()
-    # Doesn't matter if the buffer has already been loaded.
-    # `badd` doesn't do anything if it has.
-    nvim.command('badd {}'.format(full_filename))
-    bufnr = nvim.funcs.bufnr(full_filename)
-    nvim.funcs.setpos("'{}".format(letter),
-                      [bufnr, sal.line, 0, 0])
+    add_mark(full_filename, sal.line, letter, editor_obj)
+
+
+class GoHere(gdb.Command):
+    def __init__(self):
+        super(GoHere, self).__init__('gohere', gdb.COMMAND_USER)
+
+    def invoke(self, arg, _):
+        self.dont_repeat()
+        args = gdb.string_to_argv(arg)
+
+        address, open_method = gohere_args_parse(args)
+        pos = linespec_from_address(address)
+        gohere_editor_implementation(open_method, pos)
+
+
+class ShowHere(gdb.Command):
+    def __init__(self):
+        super(ShowHere, self).__init__('showhere', gdb.COMMAND_USER)
+
+    def invoke(self, arg, _):
+        args = gdb.string_to_argv(arg)
+        if len(args) > 1:
+            raise ValueError('Usage: showhere [address]')
+        address = '$pc' if not args else args[0]
+        pos = linespec_from_address(address)
+        showhere_editor_implementation(pos)
 
 
 class MarkStack(gdb.Command):
-    '''Put marks A-Z on each of the current stack.
-
-    Can then view each of the relevant functions reasonably easily.
-
-    Usage:
-        nvim-mark-stack
-
-    '''
     def __init__(self):
         super(MarkStack, self).__init__('mark-stack', gdb.COMMAND_USER)
 
@@ -75,7 +71,8 @@ class MarkStack(gdb.Command):
         if len(gdb.string_to_argv(arg)):
             raise ValueError('mark-stack takes no arguments')
         frame = gdb.selected_frame()
-        nvim = get_nvim_instance()
+        m_f_assocs = []
+        marks_to_clear = None
         for mark in string.ascii_uppercase:
             # TODO Sometimes strange things are happening:
             # frame.older().pc() == frame.pc()
@@ -117,11 +114,7 @@ class MarkStack(gdb.Command):
             # Here we mark c_val_print_array() and c_val_print() in the same
             # position.
             pc_pos = frame.find_sal()
-            # If we don't know the filename, clear this mark.
-            # If we didn't clear the mark, then neovim would end up with a
-            # confusing set of marks.
-            mark_position(pc_pos, mark, nvim, True)
-
+            m_f_assocs.append((mark, pc_pos))
             frame = frame.older()
             if frame is None:
                 # Clear all remaining marks (to make sure the user doesn't get
@@ -129,15 +122,43 @@ class MarkStack(gdb.Command):
                 # are from previous runs).
                 marks_to_clear = string.ascii_uppercase[
                     string.ascii_uppercase.find(mark) + 1:]
-                nvim.command('delmarks {}'.format(marks_to_clear))
-                return
+                break
+        if marks_to_clear is None:
+            print('WARNING: Ran out of marks to use,',
+                  'frames lower than {} are not marked'.format(
+                      len(string.ascii_uppercase)))
+            marks_to_clear = ''
+        mark_stack_editor_implementation(m_f_assocs, marks_to_clear)
 
 
-class GoHere(gdb.Command):
-    '''View the current position in a neovim buffer.
+class MarkThis(gdb.Command):
+    def __init__(self):
+        super(MarkThis, self).__init__('mark-this', gdb.COMMAND_USER)
+
+    def invoke(self, arg, _):
+        self.dont_repeat()
+        args = gdb.string_to_argv(arg)
+        address = '$pc' if len(args) < 2 else args[-1]
+        if not args:
+            raise ValueError('mark-this must be told which mark to set')
+        mark_letter = args[0]
+        mark_this_editor_implementation(mark_letter, address)
+
+
+if not os.getenv('VSH_EMACS_BUFFER'):
+    import pynvim
+    MarkStack.__doc__ = '''Put marks A-Z on each of the current stack.
+
+    Can then jump to each of the relevant functions reasonably easily.
+
+    Usage:
+        mark-stack
+
+    '''
+    GoHere.__doc__ =  '''View the current position in a neovim buffer.
 
     You can specify how to open the other file with arguments between the
-    address and the command.
+    address and the command.  Default address is "current" as determined by $pc.
     Note that using 'edit' on large files with syntax highlighting and folding
     will take longer than using 'buffer'.
 
@@ -166,10 +187,36 @@ class GoHere(gdb.Command):
         gohere vnew some_function
 
     '''
-    def __init__(self):
-        super(GoHere, self).__init__('gohere', gdb.COMMAND_USER)
+    ShowHere.__doc__ = '''Run `gohere` with default arguments, and return to the current window.
 
-    def direct_goto(self, nvim, name):
+    Usage:
+        showhere [address]
+
+    '''
+    MarkThis.__doc__ = '''Put the given mark at the address of the given location.
+
+    If no address is given, then mark the position in source code where the
+    current stage of execution is.
+
+    Usage:
+        mark-this [A-Z] [address]
+
+    '''
+    def get_nvim_instance():
+        nvim_socket_path = os.getenv('NVIM')
+        if not nvim_socket_path:
+            nvim_socket_path = os.getenv('NVIM_LISTEN_ADDRESS')
+        if not nvim_socket_path:
+            raise OSError('No socket path NVIM_LISTEN_ADDRESS in environment')
+        return pynvim.attach('socket', path=nvim_socket_path)
+
+    def find_marked_window(nvim):
+        for win in nvim.current.tabpage.windows:
+            if win.vars.get('gdb_view'):
+                return win
+        return None
+
+    def direct_goto(nvim, name):
         '''Returns 'buffer' if `name` is the name of a valid neovim buffer,
         otherwise returns 'edit' '''
         fullname = os.path.abspath(name)
@@ -178,10 +225,7 @@ class GoHere(gdb.Command):
                 return 'buffer'
         return 'edit'
 
-    def invoke(self, arg, _):
-        self.dont_repeat()
-        args = gdb.string_to_argv(arg)
-
+    def gohere_args_parse(args):
         address = '$pc' if len(args) < 2 else args[-1]
         if not args:
             open_method = 'default'
@@ -189,8 +233,9 @@ class GoHere(gdb.Command):
             open_method = args[0]
         else:
             open_method = ' '.join(args[:-1])
+        return address, open_method
 
-        pos = linespec_from_address(address)
+    def gohere_editor_implementation(open_method, pos):
         nvim = get_nvim_instance()
 
         if open_method == 'default':
@@ -203,22 +248,7 @@ class GoHere(gdb.Command):
                                         os.path.abspath(pos.symtab.fullname())))
         nvim.command('silent! {}foldopen!'.format(pos.line))
 
-
-class ShowHere(gdb.Command):
-    '''Run `gohere` with default arguments, and return to the current window.
-
-    Usage:
-        showhere [address]
-
-    '''
-    def __init__(self):
-        super(ShowHere, self).__init__('showhere', gdb.COMMAND_USER)
-
-    def invoke(self, arg, _):
-        args = gdb.string_to_argv(arg)
-        if len(args) > 1:
-            raise ValueError('Usage: showhere [address]')
-        address = '$pc' if not args else args[0]
+    def showhere_editor_implementation(pos):
         nvim = get_nvim_instance()
         curwin = nvim.current.window
         marked_win = find_marked_window(nvim)
@@ -234,42 +264,130 @@ class ShowHere(gdb.Command):
                     nvim.current.window.vars['gdb_view'] = 1
                     nvim.command('wincmd w')
 
-        gdb.execute('gohere default {}'.format(address))
+        gohere_editor_implementation('default', pos)
         nvim.command('{} wincmd w'.format(curwin.number))
 
+    def remove_mark(letter, nvim):
+        nvim.command('delmarks {}'.format(letter))
 
-class MarkThis(gdb.Command):
-    '''Put the given mark at the address of the given location.
+    def add_mark(filename, linenum, letter, nvim):
+        # Doesn't matter if the buffer has already been loaded.
+        # `badd` doesn't do anything if it has.
+        nvim.command('badd {}'.format(full_filename))
+        bufnr = nvim.funcs.bufnr(full_filename)
+        nvim.funcs.setpos("'{}".format(letter),
+                          [bufnr, sal.line, 0, 0])
 
-    If no address is given, then mark the position in source code where the
-    current stage of execution is.
-
-    Usage:
-        mark-this [A-Z] [address]
-
-    '''
-    def __init__(self):
-        super(MarkThis, self).__init__('mark-this', gdb.COMMAND_USER)
-
-    def invoke(self, arg, _):
-        self.dont_repeat()
-        args = gdb.string_to_argv(arg)
-        address = '$pc' if len(args) < 2 else args[-1]
-        if not args:
-            raise ValueError('mark-this must be told which mark to set')
-        mark_letter = args[0]
+    def mark_this_editor_implementation(mark_letter, address):
         if len(mark_letter) != 1 or mark_letter not in string.ascii_uppercase:
             raise ValueError('mark-this mark should be a single uppercase letter')
-
         pos = linespec_from_address(address)
         nvim = get_nvim_instance()
-
         try:
             mark_position(pos, mark_letter, nvim, False)
         except ValueError:
             print('Not enough debug information.')
             print("Can't find source code location for pc {}".format(address))
-            
+
+    def mark_stack_editor_implementation(m_f_assocs, marks_to_clear):
+        nvim = get_nvim_instance()
+        for mark, pc_pos in m_f_assocs:
+            # If we don't know the filename, clear this mark.
+            # If we didn't clear the mark, then neovim would end up with a
+            # confusing set of marks.
+            mark_position(pc_pos, mark, nvim, True)
+        nvim.command('delmarks {}'.format(marks_to_clear))
+
+
+else:
+    import subprocess as sp
+    MarkStack.__doc__ = '''Save each location of the current stack in registers A-Z.
+
+    Can then jump to each of the relevant locations easily with
+    `jump-to-register' in emacs.
+
+    Usage:
+        mark-stack
+
+    '''
+    GoHere.__doc__ = '''View the current position in emacs buffer.
+
+    Opens up the file using `emacsclient --reuse-frame', so configuration of how
+    to open up the window could be done with the emacs variable `server-window'.
+
+    Address can be specified in any way that GDB recognises, the default is the
+    "current position" as determined by $pc.
+
+    Usage:
+        gohere [address]
+
+    '''
+    ShowHere.__doc__ = '''View position in *another* emacs buffer.
+
+    Opens up the file similar to `emacsclient --reuse-frame', except that the
+    current window will not change the buffer and instead some other window will
+    be chosen.  User configuration of which window to select can be done with
+    the emacs variable `server-window'.
+
+    Other than that, behaves the same as `gohere'.
+
+    Usage:
+        showhere [address]
+
+    '''
+    MarkThis.__doc__ = '''Store given address under emacs register provided.
+
+    If no address given, mark the current position given by $pc.
+
+    Usage:
+        mark-this [A-Z0-9] [address]
+
+    '''
+    VALID_MARKS = string.ascii_uppercase + string.digits
+    def emacsclient_args(unique_part):
+        return ['emacsclient', '--no-wait', '--reuse-frame'] + unique_part
+
+    def gohere_args_parse(args):
+        address = '$pc' if len(args) < 1 else args[1]
+        return address, None
+
+    def gohere_editor_implementation(_, pos):
+        fullname = os.path.abspath(pos.symtab.fullname())
+        sp.check_output(emacsclient_args(['+{}'.format(pos.line), fullname]))
+
+    def remove_mark(letter, _):
+        lisp = '(setf (alist-get ?{} register-alist nil t) nil)'.format(letter)
+        sp.check_output(emacsclient_args(['--eval', lisp]))
+
+    def add_mark(filename, linenum, letter, _):
+        lisp = '(vsh--add-mark "{}" {} ?{})'.format(
+            filename, linenum, letter)
+        sp.check_output(emacsclient_args(['--eval', lisp]))
+
+    def showhere_editor_implementation(pos):
+        fullname = os.path.abspath(pos.symtab.fullname())
+        lisp = '(vsh--gdb-integration-showhere "{}" {})'.format(
+            fullname, pos.line)
+        sp.check_output(emacsclient_args(['--eval', lisp]))
+
+    def mark_this_editor_implementation(mark_letter, address):
+        if len(mark_letter) != 1 or mark_letter not in string.ascii_uppercase + string.digits:
+            raise ValueError('mark-this mark should be a single uppercase letter')
+        pos = linespec_from_address(address)
+        try:
+            mark_position(pos, mark_letter, None, False)
+        except ValueError:
+            print('Not enough debug information.')
+            print("Can't find source code location for pc {}".format(address))
+
+    def mark_stack_editor_implementation(m_f_assocs, marks_to_clear):
+        for mark, pc_pos in m_f_assocs:
+            # If we don't know the filename, clear this mark.
+            # If we didn't clear the mark, then neovim would end up with a
+            # confusing set of marks.
+            mark_position(pc_pos, mark, None, True)
+        for mark in marks_to_clear:
+            remove_mark(mark, None)
 
 GoHere()
 MarkStack()

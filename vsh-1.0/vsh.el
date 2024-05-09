@@ -819,6 +819,78 @@ with into a single `undo' unit.")
           (undo-boundary))))
     (unless vsh-buffer-initialised (setq-local vsh-buffer-initialised t))))
 
+;; Not implementing column jumping since the debug info doesn't usually have
+;; this.  As it stands there are two general approaches.
+(defun vsh--gdb-integration-showhere (filename linenum)
+  "Function to be called by GDB via python plugin for `showhere' command."
+  ;; `t' for `nowait' also means that `server-visit-files' doesn't attempt to
+  ;; use its `proc' argument that should be the associated `emacsclient'
+  ;; process.  Hence we can pass `nil' for that argument.
+  ;;
+  ;; N.b. I believe there are not race conditions here since IIUC the emacs lisp
+  ;; still runs in the same thread as the user interacts with.
+  (let* ((buffer
+          (car (server-visit-files `((,filename . (,linenum . 0))) nil t)))
+         (original-window (selected-window))
+         (was-dedicated (window-dedicated-p original-window)))
+    ;; Don't let the current window change.
+    (set-window-dedicated-p original-window t)
+    ;; Pass `nil' for `this-frame-only' on the expectation that for the
+    ;; `showhere' GDB command we don't care too much about where the buffer gets
+    ;; opened up in.
+    ;;
+    ;; TODO In order to implement some logic about where we should show the
+    ;; relevant buffer we should do something around `server-window' here.
+    ;; If we end up only ever wanting to use our custom logic, it may be better
+    ;; to directly use our logic rather than using `server-switch-buffer'.
+    ;; If I never care about using custom logic it might be better to avoid this
+    ;; indirection and use `emacsclient --no-wait <filename>' directly.
+    (save-excursion
+      (server-switch-buffer buffer nil (cons linenum 0) nil)
+      ;; Ensure this line is actually shown.
+      (when hs-minor-mode (save-excursion (hs-show-block))))
+    (unless was-dedicated (set-window-dedicated-p original-window nil))))
+
+(defun vsh--load-buffer (filename linenum)
+  "`vsh' helper that loads a file into a buffer"
+  ;; Mostly taken from `server-visit-files' minus some things.  Don't want the
+  ;; `save-current-buffer' in this function, and don't want some of the record
+  ;; keeping.
+  ;;
+  ;; If there is an existing buffer modified or the file is
+  ;; modified, revert it.  If there is an existing buffer with
+  ;; deleted file, offer to write it.
+  (let ((obuf (get-file-buffer filename)))
+    (if (null obuf)
+	(progn
+	  (run-hooks 'pre-command-hook)
+	  (set-buffer (find-file-noselect filename)))
+      (set-buffer obuf)
+      ;; separately for each file, in sync with post-command hooks,
+      ;; with the new buffer current:
+      (run-hooks 'pre-command-hook)
+      (cond ((file-exists-p filename)
+             (when (not (verify-visited-file-modtime obuf))
+               (revert-buffer t nil)))
+            (t
+             (when (y-or-n-p
+                    (concat "File no longer exists: " filename
+                            ", write buffer to file? "))
+               (write-file filename)))))
+    (server-goto-line-column (cons linenum 0))
+    ;; hooks may be specific to current buffer:
+    (run-hooks 'post-command-hook)))
+
+(defun vsh--add-mark (filename linenum letter)
+  "Function called by GDB via python plugin to record a point in a register."
+  ;; We don't use `server-visit-files' here in order to avoid the record keeping
+  ;; designed for `emacsclient' stuff.  We do in `vsh--gdb-integration-showhere'
+  ;; above because we want to act mostly as if `emacsclient' was directly
+  ;; called.
+  (save-excursion
+    (vsh--load-buffer filename linenum)
+    (point-to-register letter)))
+
 ;; I don't think I need to call `accept-process-output' since I usually do very
 ;; little and return to the user-input loop.  In fact *not* calling it is useful
 ;; to ensure that when I run `vsh-execute-region' I send the command from every
