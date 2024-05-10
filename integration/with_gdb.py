@@ -242,7 +242,7 @@ if not os.getenv('VSH_EMACS_BUFFER'):
             win = find_marked_window(nvim)
             if win:
                 nvim.command('{} wincmd w'.format(win.number))
-            open_method = self.direct_goto(nvim, pos.symtab.fullname())
+            open_method = direct_goto(nvim, pos.symtab.fullname())
 
         nvim.command('{} +{} {}'.format(open_method, pos.line,
                                         os.path.abspath(pos.symtab.fullname())))
@@ -253,9 +253,11 @@ if not os.getenv('VSH_EMACS_BUFFER'):
         curwin = nvim.current.window
         marked_win = find_marked_window(nvim)
         if not marked_win:
+            num = None
             tabwindows = list(nvim.current.tabpage.windows)
             if curwin.number != 1:
-                tabwindows[curwin.number - 2].vars['gdb_view'] = 1
+                num = curwin.number - 2
+                tabwindows[num].vars['gdb_view'] = 1
             else:
                 try:
                     tabwindows[curwin.number].vars['gdb_view'] = 1
@@ -263,6 +265,9 @@ if not os.getenv('VSH_EMACS_BUFFER'):
                     nvim.command('wincmd v')
                     nvim.current.window.vars['gdb_view'] = 1
                     nvim.command('wincmd w')
+                finally:
+                    num = curwin.number
+            print('No marked window, choosing window #{}'.format(num))
 
         gohere_editor_implementation('default', pos)
         nvim.command('{} wincmd w'.format(curwin.number))
@@ -273,10 +278,10 @@ if not os.getenv('VSH_EMACS_BUFFER'):
     def add_mark(filename, linenum, letter, nvim):
         # Doesn't matter if the buffer has already been loaded.
         # `badd` doesn't do anything if it has.
-        nvim.command('badd {}'.format(full_filename))
-        bufnr = nvim.funcs.bufnr(full_filename)
+        nvim.command('badd {}'.format(filename))
+        bufnr = nvim.funcs.bufnr(filename)
         nvim.funcs.setpos("'{}".format(letter),
-                          [bufnr, sal.line, 0, 0])
+                          [bufnr, linenum, 0, 0])
 
     def mark_this_editor_implementation(mark_letter, address):
         if len(mark_letter) != 1 or mark_letter not in string.ascii_uppercase:
