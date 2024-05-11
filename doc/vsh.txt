@@ -27,6 +27,7 @@ Contents~
 Overview                |vsh-overview|
 Running commands        |vsh-running|
 Customisation           |vsh-customisation|
+GDB Integration         |vsh-gdb-integration|
 Mappings                |vsh-mappings|
 
 ==============================================================================
@@ -284,8 +285,8 @@ The mappings are: `<leader>vps`, `<leader>vpd`, `<leader>vts`, and  `<leader>vtd
 
 
 ==============================================================================
-
 Customisation~
+
                         *vsh-customisation*
 
         *g:vsh_insert_mark* *g:vsh_prompt_mark* *vsh-marks*
@@ -364,6 +365,32 @@ might be sensible to simply restart the underlying shell for this buffer.
 This restart can be done by using |vsh#vsh#RestartSubprocess()|.  One can
 think of this as closing a terminal (while sending the appropriate SIGHUP to
 underlying processes) and opening a new one.
+
+==============================================================================
+Integration With GDB~
+
+                            *vsh-gdb-integration*
+There is some slight integration with GDB for this plugin.  This comes in the
+form of a GDB plugin which provides 4 new commands to interact with the vim
+instance running the current VSH buffer.
+
+In order to use this integration one would add the below source line to their
+`~/.gdbinit` (or one could manually run this command at the GDB prompt).
+        `source <path-to-plugin>/integration/with_gdb.py`
+
+This integration provides four commands:
+1) gohere (move cursor to source corresponding to GDB location provided).
+   Which window to use is determined by command argument, plus whether there
+   are any windows marked with `w:gdb_view` being truthy.
+2) showhere (run `gohere`, then move cursor back to VSH buffer -- unless
+   `w:gdb_view` marks the current window, or there is only one window).
+3) mark-this (set mark provided on command line to source corresponding to GDB
+   location provided on command line).
+4) mark-stack (set marks A, B, etc to the frames 0, 1, etc of the current
+   backtrace).
+
+N.b. more extensive help on how to use each command is available via
+`help <command>` at the GDB prompt.
 
 ==============================================================================
 Mappings~
