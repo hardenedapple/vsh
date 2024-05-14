@@ -162,63 +162,14 @@ SGR control sequences are interpreted as determining color and *not* filtered."
 ;; This may or may not have been started at the time that a VSH buffer is opened,
 ;; or indeed at the later time that an underlying process wants to talk to the
 ;; emacs process that is running the buffer.
-;;
-;; In order to account for that we *could* create our own process that does much
-;; the same thing.  We could then turn that on/off independently of the main
-;; server.  The problem with that is that it feels like this would be less
-;; visible to the user.  This isn't much of a problem.
-;; It means a bunch of duplicated code though -- and it just feels a little
-;; silly for the sole purpose of having a separate emacs server process.
-;;
-;;
-;; There are two approaches I thought about:
-;; 1) When starting a VSH process for the first time, start a special VSH server
-;;    for all vsh helpers to communicate with.  This server is started when needed,
-;;    and is less likely to be stopped without knowing that it disables VSH
-;;    functionality.
-;; 2) Attempt to use any existing server.  This means there is less likely to be
-;;    server processes that the user is unaware of.  This server may or may not be
-;;    running when VSH starts.  It seems slightly more likely that this would get
-;;    stopped in between starting a VSH underlying process and when some helper
-;;    wants to communicate with the parent emacs.
-
-;; Things to think about:
-;; 1) Multiple frames, many showing the relevant vsh buffer.
-;;    - Perform action in whichever is the active frame, otherwise the first
-;;      frame found that is showing this VSH buffer.
-;; 2) How to know which buffer we're talking from?  Does it matter?
-;; 3) Need to tell subprocesses what the server name is (in case of multiple
-;;    emacs servers running).
-;; 4) Looks like file-permissions are what ensures we're only allowing the
-;;    current user to control this emacs session.
-;; 5) If using the standard server, then `emacsclient' has features like getting
-;;    informed that the frame I'm working on has been suspected/deleted etc.
-;;    There's also a the features of tracking which files were opened in this
-;;    emacs process becase of an `emacsclient' call, and `emacsclient'
-;;    automatically waits on the emacs server to respond (rather than the hack I
-;;    have of having the VSH user say "successful edit" on the command line).
-;; 6) The communication features I have are:
-;;    - GDB:
-;;      - Move point to a given position in a given file
-;;        `emacsclient --no-wait +line:column filename'
-;;      - Mark stack.
-;;        `emacsclient --eval '(some-vsh-command-for-marking-stack (list positions ...))'
-;;      - Show here.
-;;        `emacsclient --no-wait ????'
-;;      - Mark this.
-;;        `emacsclient --eval '(some-other-vsh-command-for-marking-position position)'
-;;    - EDITOR
-;;      - `emacsclient filename ...'
-;;    - readline bindings
-;;      - `emacsclient --eval '(some-vsh-command-for-recording-bindings
-;;                              buffer-indicator bindings)''
-
 (defcustom vsh-may-start-server t
-  "Hook to determine whether VSH attempts to ensure `server-start' has been run.
+  "Hook to determine whether VSH attempts to ensure `server-start'
+has been run.
 
-Some features depend on emacs `server-start' having been run in the emacs buffer
-that VSH runs in.  This variable determines whether VSH attempts to start such a
-server if one is not running.
+Some features depend on emacs `server-start' having been run in
+the emacs process that VSH runs in.  This variable determines
+whether VSH attempts to start such a server if one is not
+running.
 
 If the server is not running and this variable is set to `nil`
 those features are automatically disabled."
