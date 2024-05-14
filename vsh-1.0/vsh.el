@@ -462,15 +462,23 @@ argument."
          (vsh--move-to-end-of-block regex forwards))))))
 
 (defun vsh-mark-command-block (inc-comments)
-  "Mark the entire command block around the current position."
-  (interactive "P")
-  (push-mark (vsh--command-block-bounds inc-comments nil))
-  (goto-char (vsh--command-block-bounds inc-comments t))
-  (when (/= (point) (mark t)) (activate-mark)))
+  "Mark the entire command block around the current position.
 
-(defun vsh--beginning-of-block-fn (&optional count)
+When below a command block mark the one above it.  When above *all* command
+blocks mark the first one."
+  (interactive "P")
+  (let* ((regexp (if inc-comments (vsh-split-regexp) (vsh-command-regexp)))
+         (beginning-of-defun-function
+          (lambda (&optional arg)
+            (vsh--beginning-of-block-fn arg regexp)))
+         (end-of-defun-function
+          (lambda () (vsh--end-of-block-fn 1 nil regexp))))
+    (mark-defun 1 t)))
+
+(defun vsh--beginning-of-block-fn (&optional count regexp)
   "Function to use for `beginning-of-defun' in `vsh-mode' buffers."
-  (let ((count (or count 1)))
+  (let ((count (or count 1))
+        (regexp (or regexp (vsh-split-regexp))))
     (if (> count 0)
         (unless (bobp)
           ;; Want to move to the very start of the top prompt.
@@ -485,13 +493,13 @@ argument."
           ;; prompt after current point.
           (unless (bolp) (end-of-line))
           (dotimes (_loop-counter count)
-            (re-search-backward (vsh-split-regexp) nil 'move-to-end)
-            (vsh--move-to-end-of-block (vsh-split-regexp) nil)))
+            (re-search-backward regexp nil 'move-to-end)
+            (vsh--move-to-end-of-block regexp nil)))
       (unless (eobp)
         (let ((last-found nil))
           (dotimes (_loop-counter (abs count))
-            (vsh--move-to-end-of-block (vsh-split-regexp) t)
-            (setq last-found (re-search-forward (vsh-split-regexp) nil 'move-to-end)))
+            (vsh--move-to-end-of-block regexp t)
+            (setq last-found (re-search-forward regexp nil 'move-to-end)))
           ;; Not particularly necessary because `beginning-of-defun' calls this function
           ;; *then* calls `beginning-of-line'.  However it makes this function always
           ;; end up at the very start of a function.
@@ -531,8 +539,9 @@ argument."
          (setq last-found (re-search-forward (vsh-split-regexp) nil 'move-to-end)))
        (when last-found (vsh-bol))))))
 
-(defun vsh--end-of-block-fn (&optional count _interactive)
-  (let ((count (or count 1)))
+(defun vsh--end-of-block-fn (&optional count _interactive regexp)
+  (let ((count (or count 1))
+        (regexp (or regexp (vsh-split-regexp))))
     (if (> count 0)
         (unless (eobp)
           ;; Want to move to the very end of the last special line in this
@@ -541,20 +550,18 @@ argument."
           ;; block.
           (beginning-of-line)
           (dotimes (_loop-counter count)
-            (re-search-forward (vsh-split-regexp) nil 'move-to-end)
-            (vsh--move-to-end-of-block (vsh-split-regexp) t)))
+            (re-search-forward regexp nil 'move-to-end)
+            (vsh--move-to-end-of-block regexp t)))
       (unless (bobp)
         ;; In order to count this place as "in" the previous block.
         (when (and (bolp)
                    (/= (point-min) (point))
-                   (string-match (vsh-split-regexp) (vsh--current-line -1)))
+                   (string-match regexp (vsh--current-line -1)))
           (backward-char))
         (let (re-matched)
           (dotimes (_loop-counter (abs count))
-            (vsh--move-to-end-of-block (vsh-split-regexp) nil)
-            (when (setq re-matched
-                        (re-search-backward (vsh-split-regexp) nil
-                                            'move-to-end))
+            (vsh--move-to-end-of-block regexp nil)
+            (when (setq re-matched (re-search-backward regexp nil 'move-to-end))
               (end-of-line)))
           (when re-matched (forward-char)))))))
 (defun vsh-end-of-block (count)
@@ -965,7 +972,8 @@ part-way through a prompt we execute that prompt."
 (defun vsh-execute-block (inc-comments)
   "Execute each command line in the given block of commands."
   (interactive "P")
-  (vsh-mark-command-block inc-comments)
+  (unless (region-active-p)
+   (vsh-mark-command-block inc-comments))
   (vsh-execute-region))
 
 (defun vsh-execute-and-new-prompt ()

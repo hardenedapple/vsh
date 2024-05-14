@@ -320,107 +320,13 @@ Inserts the following local variables in the scope for `body' to use:
         ,call-sexp
         (delete-region block-mid end-inserted-line)))))
 
-(defun vsh--counts-as-block (linetype inc-comments)
-  (or (eq linetype 'command)
-      (and inc-comments
-           (memq linetype '(comment saved-command empty-comment)))))
-(defun test-region (point-pos mark-pos activep)
-  (should (= (point) point-pos))
-  (should (= (mark) mark-pos))
-  (should (eq mark-active activep)))
-
-(ert-deftest vsh-mark-command-block ()
-  "Testing `vsh-mark-command-block' for different setups."
-  (cl-flet
-      (;; Basic testing function -- parametrised across a function
-       ;; determining what to test when inside the block.
-       ;; N.b. one wonders whether always testing what happens
-       ;; outside of the block when the block itself changes is
-       ;; completely worth it.
-       (test-buffer-partial-line
-         (cur-pos inside-block-test linetype
-                  start-output-start block-start block-mid block-end
-                  end-output-end &optional block-start-fn)
-         (let ((start-point (funcall cur-pos))
-               (block-start-fn
-                (or block-start-fn
-                    (lambda (inc-comments) (marker-position block-start)))))
-           (should (not (= start-point 0)))
-           (dolist (inc-comments (list nil t))
-             (goto-char start-point)
-             (deactivate-mark t)
-             (vsh-mark-command-block inc-comments)
-             (cond
-              ((< start-point (funcall block-start-fn inc-comments))
-               (if (eql (point-min) (marker-position start-output-start))
-                   (test-region (mark) start-point nil)
-                 (test-region (marker-position start-output-start)
-                              (point-min)
-                              t)))
-              ((<= start-point (marker-position end-output-end))
-               (if (vsh--counts-as-block linetype inc-comments)
-                   (test-region (marker-position block-end)
-                                (marker-position block-start)
-                                t)
-                 (funcall inside-block-test start-point)))
-              ((> start-point (marker-position end-output-end))
-               (test-region (point-max)
-                            (1+ (marker-position end-output-end))
-                            t)))))))
-    (vsh--with-standard-blocks
-     (vsh--block-test-basic #'test-buffer-partial-line)
-
-     (vsh--block-test-end
-      (test-buffer-partial-line
-       cur-pos
-       ;; N.b. essentially same as existing `test-region' in
-       ;; the `test-buffer-partial-line' case where we've
-       ;; started inside the block and this is an output line.
-       ;; Only difference is that we use `orig-end' instead of
-       ;; the `block-end' marker.
-       (lambda (start-point)
-         (test-region orig-end (marker-position block-start) t))
-       linetype
-       start-output-start block-start block-mid block-end end-output-end))
-
-     (vsh--block-test-start
-      (test-buffer-partial-line
-       cur-pos
-       (lambda (start-point)
-         (test-region (marker-position block-end)
-                      orig-block-start
-                      t))
-       linetype
-       start-output-start block-start block-mid block-end end-output-end
-       (lambda (inc-comments)
-         (if (vsh--counts-as-block linetype inc-comments)
-             (marker-position block-start)
-           orig-block-start))))
-
-     (vsh--block-test-mid
-      (test-buffer-partial-line
-       cur-pos
-       ;; This is notably different to the above two cases because it
-       ;; splits the block in two rather than changing the points
-       ;; surrounding the existing block.
-       (lambda (start-point)
-         (if (< start-point end-inserted-line)
-             (test-region (marker-position block-mid)
-                          (marker-position block-start)
-                          t)
-           (test-region (marker-position block-end)
-                        end-inserted-line
-                        t)))
-       linetype
-       start-output-start block-start block-mid block-end end-output-end)))))
-
 (defun vsh--back-motion-next-pt (pt element-list)
   ;;  First point is at the very start of the buffer.
   ;;  |vshcmd: > |here is a point
   ;;  test
   ;;  vshcmd: > |here is another point
   ;;  |  <-- last point is at the very end of the buffer
-  ;;  Requirement here is that `element-list' is in order (so  we know
+  ;;  Requirement here is that `element-list' is in order (so we know
   ;;  that the first position we start out *greater* than we will move
   ;;  to).
   (let ((prev (point-min)))
@@ -532,6 +438,89 @@ Motions tested are:
            (list #'test-beg-block-fn #'test-beg-block-cmd
                  #'test-end-block-fn #'test-end-block-cmd
                  #'test-prev-cmd #'test-next-cmd)))
+      (dolist (func-tester func-tester-list)
+        (setq ret (cons (vsh--block-test-end (funcall func-tester cur-pos)) ret))
+        (setq ret (cons (vsh--block-test-start (funcall func-tester cur-pos)) ret))
+        (setq ret (cons (vsh--block-test-mid (funcall func-tester cur-pos)) ret)))
+      (setq ret (cons (lambda (cur-pos &rest _args)
+                        (dolist (func-tester func-tester-list)
+                          (funcall func-tester cur-pos)))
+                      ret))
+      (apply #'vsh--with-standard-blocks ret))))
+
+
+(defun vsh--selection-for-point (pt element-list)
+  ;; `vsh-mark-command-block' behaves like `mark-defun' in that if we are below
+  ;; a function we select that function, but if we are above all functions we
+  ;; select the first function.  Hence the `or' here.
+  ;;
+  ;; If there are any regions that we are *in*, choose that.
+  (or (cl-find-if (lambda (x) (and (>= pt (car x)) (<= pt (cdr x))))
+                  element-list)
+      ;; If we are before any region, choose the first region (because that's
+      ;; what `mark-defun' does).
+      (when (< pt (caar element-list))
+        (car element-list))
+      ;; Otherwise, choose the last region we are *after*.
+      (cl-find-if (lambda (x) (> pt (cdr x))) (reverse element-list))))
+(defun vsh--test-selection-func (cur-pos region-list selection-func)
+  (let ((start-point (funcall cur-pos))
+        (element-list (cl-remove-duplicates region-list)))
+    ;; (message "###\nPoint: %d\nElement-list: %s\nFunction: %s\n%s"
+    ;;          start-point element-list selection-func (buffer-string))
+    (should (not (= start-point 0)))
+    (goto-char start-point)
+    (funcall selection-func)
+    ;; (message "After: point: %s\nmark: %s" (point) (mark))
+    (let ((s-region (vsh--selection-for-point start-point element-list)))
+      ;; (message "s-region: %s" s-region)
+      (should (eq (point) (car s-region)))
+      (should (eq (mark) (cdr s-region)))
+      (should (region-active-p)))
+    (deactivate-mark)))
+
+(defmacro vsh--selection-oracle (&rest body)
+  `(let (ret last-line-prompt temp-var)
+     (save-excursion
+       (goto-char (point-min))
+       (while (not (eobp))
+         ,@body
+         (forward-line)))
+     ;; When there is no *end* to the region, assume this block reaches the last
+     ;; point in the buffer.
+     (unless (consp (car ret))
+       (setf (car ret) (cons (car ret) (point-max))))
+     (nreverse ret)))
+(ert-deftest vsh-selection-oracle-tests ()
+  "Testing different selections.
+
+Selections tested are:
+  - `vsh-mark-command-block'"
+  (cl-flet*
+      ((mark-command-block-points (inc-comments)
+         (let ((regexp
+                (if inc-comments (vsh-split-regexp)
+                  (vsh-command-regexp))))
+           (vsh--selection-oracle
+            (if (not (looking-at-p regexp))
+                (progn
+                  (when last-line-prompt
+                    (cl-assert (not (consp (car ret))))
+                    (setf (car ret) (cons (car ret) (point))))
+                  (setq last-line-prompt nil))
+              (when (not last-line-prompt)
+                (cl-assert (or (not ret) (consp (car ret))) t)
+                (setq ret (cons (point) ret)))
+              (setq last-line-prompt t)))))
+
+
+       (test-select-defun (cur-pos) (vsh--test-selection-func
+                                     cur-pos (mark-command-block-points nil)
+                                     (lambda () (vsh-mark-command-block nil))))
+       (test-select-cmdblock (cur-pos) (vsh--test-selection-func
+                                        cur-pos (mark-command-block-points t)
+                                        (lambda () (vsh-mark-command-block t)))))
+    (let (ret (func-tester-list (list #'test-select-defun)))
       (dolist (func-tester func-tester-list)
         (setq ret (cons (vsh--block-test-end (funcall func-tester cur-pos)) ret))
         (setq ret (cons (vsh--block-test-start (funcall func-tester cur-pos)) ret))
