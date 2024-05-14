@@ -1199,6 +1199,9 @@ underlying process in the vsh buffer."
 ;; documentation it looks like this is precisely *not* recommended.  I.e. that
 ;; prefix is supposed to be reserved for the users configuration rather than
 ;; Emacs or Emacs extensions.
+;;
+;; That said, `comint-mode' uses `C-c' as a prefix and this mode is trying to be
+;; reminiscent of that comint.
 (defvar vsh-mode-map
   (let ((map (make-sparse-keymap)))
     (keymap-set map "RET" 'vsh-newline)
@@ -1206,41 +1209,55 @@ underlying process in the vsh buffer."
     (keymap-set map "<remap> <delete-indentation>" 'vsh-join-line)
     (keymap-set map "<remap> <move-beginning-of-line>" 'vsh-bol)
 
-    (keymap-set map "C-c C-a" 'vsh-bol)
-    (keymap-set map "C-c C-n" 'vsh-next-command)
-    (keymap-set map "C-c C-p" 'vsh-prev-command)
-    (keymap-set map "C-c C-u" 'vsh-line-discard)
-    (keymap-set map "C-c n" 'vsh-new-prompt)
+    (keymap-set map "C-a" 'vsh-bol)
+    (keymap-set map "<remap> <forward-sentence>" 'vsh-next-command)
+    (keymap-set map "<remap> <backward-sentence>" 'vsh-prev-command)
     ;; Negative argument puts you at start of next block.
     ;; This is just `beginning-of-defun' function, but we can't use
     ;; `beginning-of-defun-function' because `beginning-of-defun' has a call to
-    ;; `beginning-of-line' just after that hook is used.  Hence define our own
-    ;; function which leaves us at the start of a prompt.
-    (keymap-set map "C-M-a" 'vsh-beginning-of-block)
-    ;; Similar for `end-of-defun'. In order to make things like `mark-defun'
-    ;; work properly we want to go right to the end of the command block, but
-    ;; for moving around we want to end up at the start of the last command in a
-    ;; block.
-    (keymap-set map "C-M-e" 'vsh-end-of-block)
+    ;; `beginning-of-line' just after that hook is used.  That's fine though,
+    ;; since in order to make things like `mark-defun' work properly we want to
+    ;; go right to the end of the command block, but for moving around we want
+    ;; to end up at the start of the last command in a block. Hence define our
+    ;; own function which leaves us at the start of a prompt.
+    (keymap-set map "<remap> <beginning-of-defun>" 'vsh-beginning-of-block)
+    ;; Similar for `end-of-defun'.
+    (keymap-set map "<remap> <end-of-defun>" 'vsh-end-of-block)
     ;; Universal argument marks the "outer" block as per vim nomenclature
     ;; (i.e. counting comment lines same as output).
     ;; Similar to `end-of-defun' and `beginning-of-defun', `mark-defun' mostly
     ;; works with the standard mappings once we've defined
     ;; `*-of-defun-function'.  In this case the reason we define our own
     ;; function is to allow `universal-argument' to choose between including
-    ;; comments and not including comments.
-    (keymap-set map "C-M-h" 'vsh-mark-command-block)
+    ;; comments and not including comments.  Another difference between
+    ;; `mark-defun' and `vsh-mark-command-block' is that `mark-defun' puts the
+    ;; cursor at the start of the block, and repeated uses of it mark more and
+    ;; more.  I would like to have that "extend" feature in
+    ;; `vsh-mark-command-block', but not put point at the start of the block.
+    ;; With point at the end of the block plus some "extension" feature we
+    ;; should be able to nicely select multiple commands.
+    (keymap-set map "<remap> <mark-defun>" 'vsh-mark-command-block)
+    ;; Taking this from `comint-delete-output' since if you want to delete some
+    ;; output you would use this command (even though you would also use this
+    ;; command for other reasons).
     (keymap-set map "C-c C-o" 'vsh-mark-segment)
+    ;; Taken from `comint-kill-input'.
+    (keymap-set map "C-c C-u" 'vsh-line-discard)
+    (keymap-set map "C-c n" 'vsh-new-prompt)
+
+    ;; Remap the execution commands
+    (keymap-set map "<remap> <eval-defun>" 'vsh-execute-block)
+    (keymap-set map "<remap> <eval-last-sexp>" 'vsh-execute-command)
+    (keymap-set map "C-x C-<return>" 'vsh-execute-and-new-prompt)
+
     ;; Decided against putting this on a keybinding.
     ;; (keymap-set map TO-CHOOSE 'vsh-make-cmd)
 
+    ;; Put on `C-c' because I've followed `comint' in some ways already.  Could
+    ;; put it on a "sub" keymap and allow the user to choose what key to put
+    ;; that on.
     (keymap-set map "C-c s" 'vsh-save-command)
     (keymap-set map "C-c a" 'vsh-activate-command)
-
-    (keymap-set map "C-M-x" 'vsh-execute-block)
-    (keymap-set map "C-c RET" 'vsh-execute-command)
-    (keymap-set map "C-c C-M-x" 'vsh-execute-region)
-    (keymap-set map "C-c C-<return>" 'vsh-execute-and-new-prompt)
 
     (keymap-set map "C-c C-d" 'vsh-goto-insert-point)
     (keymap-set map "C-c C-z" 'vsh-goto-last-prompt)
