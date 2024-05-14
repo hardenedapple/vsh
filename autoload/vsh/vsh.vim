@@ -1333,6 +1333,7 @@ endfunction
 function vsh#vsh#SetupMappings()
   command -buffer -range Vrerun execute 'keeppatterns ' . <line1> . ',' . <line2> . 'global/' . b:vsh_prompt . '/call vsh#vsh#ReplaceOutput()'
   command -buffer -range VmakeCmds execute 'keeppatterns ' . <line1> . ',' . <line2> . 's/^/' . b:vsh_prompt . '/'
+	command -buffer -range VsetQF execute 'cexpr getline(' . <line1> . ',' . <line2> . ')'
   command -buffer VshPass call vsh#vsh#SendPassword()
 	command -buffer VshSendUnterminated call vsh#vsh#SendUnterminated()
   if !has('g:vsh_no_default_mappings')
@@ -1347,6 +1348,7 @@ endfunction
 function s:teardown_mappings()
   silent! delcommand -buffer Vrerun
   silent! delcommand -buffer VmakeCmds
+  silent! delcommand -buffer VsetQF
   silent! delcommand -buffer VshPass
   silent! delcommand -buffer VshSendUnterminated
   if !has('g:vsh_no_default_mappings')
