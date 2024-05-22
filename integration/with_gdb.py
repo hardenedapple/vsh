@@ -393,7 +393,8 @@ else:
                 # If we didn't clear the mark, then neovim would end up with a
                 # confusing set of marks.
                 mark_position(pc_pos, mark, nvim, True)
-            nvim.command('delmarks {}'.format(marks_to_clear))
+            if marks_to_clear:
+                nvim.command('delmarks {}'.format(marks_to_clear))
     else:
         import socket
         import json
@@ -459,7 +460,8 @@ else:
                     # If we didn't clear the mark, then neovim would end up with a
                     # confusing set of marks.
                     mark_position(pc_pos, mark, sock, True)
-                run_vim_command(sock, ['ex', 'delmarks {}'.format(marks_to_clear)])
+                if marks_to_clear:
+                    run_vim_command(sock, ['ex', 'delmarks {}'.format(marks_to_clear)])
 
 
 
