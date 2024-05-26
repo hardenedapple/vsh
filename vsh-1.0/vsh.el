@@ -1252,7 +1252,11 @@ underlying process in the vsh buffer."
     (keymap-set map "C-c n" 'vsh-new-prompt)
 
     ;; Remap the execution commands
-    (keymap-set map "<remap> <eval-defun>" 'vsh-execute-block)
+    ;; N.b. I would like to use "<remap> <eval-defun>" for `vsh-execute-block',
+    ;; but it's usually not defined in the global map but instead in
+    ;; `emacs-lisp-mode-map', while `eval-last-sexp' is usually defined in the
+    ;; global map (hence the remap works).
+    (keymap-set map "C-M-x" 'vsh-execute-block)
     (keymap-set map "<remap> <eval-last-sexp>" 'vsh-execute-command)
     (keymap-set map "C-x C-<return>" 'vsh-execute-and-new-prompt)
 
