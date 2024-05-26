@@ -195,24 +195,14 @@ to send to readline processes in underlying terminal for
   "Has this current buffers process been initialised.")
 
 ;; TODO
-;;   - Move all mappings from `C-c'.
 ;;   - Address compilation warnings.
 ;;     Currently just need to fix the tests -- probably want to do this by
 ;;     changing `vsh-mark-command-block' tests to use oracle functions instead
 ;;     of manually specifying the region I need, then simply not passing in all
 ;;     the markers as arguments into the `vsh--block-test-*' functions.
-;;   - Add tests
-;;     - Need to handle 
 ;;   - Documentation
 ;;     - Document the functions and variables in this file.
 ;;     - Write adjustments for emacs in the demo VSH files in the VSH repo.
-;;   - Ensure that `comment-indent-new-line' gives us a hash comment when
-;;     invoked on a comment and gives us a command when invoked on a command.
-;;     - As it stands it always gives the command prefix rather than
-;;       distinguishing.
-;;   - Would be nice to make the "automatically add command prefix"
-;;     functionality not based on comments, and only set what I call comments
-;;     to be comments according to `newcomment.el'.
 ;;   - Error handling
 ;;     - Alert when attempting to interact with an underlying process and the
 ;;       underlying process has been terminated.  I guess `user-error' would be
@@ -220,7 +210,6 @@ to send to readline processes in underlying terminal for
 ;;   - Think about what buffer-local symbols need to be marked as
 ;;     `permanent-local' so they are not removed on changing major mode (see
 ;;     "(elisp) Creating Buffer-Local").
-;;   - Update the GDB integration code to handle emacs.
 ;;   - Add the `python' text sending functions.
 ;;     - Python REPL treats newlines different to the python interpreter when
 ;;       reading a file.  Vim version of VSH introduces a function to send from
@@ -236,8 +225,9 @@ to send to readline processes in underlying terminal for
 ;;       `comint-output-filter-functions').
 ;;   - Allow buffer-local or user-specified prompt.
 ;;   - Maybe do something about the `repeat-mode' stuff.
-;;     - E.g. something like "C-c C-n" can be `repeat-mode'ed with C-n.
-;;   - Handle `case-fold-search' (ensure it doesn't change things)
+;;   - Handle `case-fold-search' (ensure it doesn't break behaviour)
+;;     - Need to first test whether this has any affect on `vsh-next-command',
+;;       everything else should be somewhat obvious from the results of that.
 
 (defun vsh-prompt (&optional _buffer)
   "String defining command prefix.
