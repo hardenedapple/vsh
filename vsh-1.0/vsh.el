@@ -1218,8 +1218,6 @@ underlying process in the vsh buffer."
     (keymap-set map "<remap> <move-beginning-of-line>" 'vsh-bol)
 
     (keymap-set map "C-a" 'vsh-bol)
-    (keymap-set map "<remap> <forward-sentence>" 'vsh-next-command)
-    (keymap-set map "<remap> <backward-sentence>" 'vsh-prev-command)
     ;; Negative argument puts you at start of next block.
     ;; This is just `beginning-of-defun' function, but we can't use
     ;; `beginning-of-defun-function' because `beginning-of-defun' has a call to
@@ -1548,6 +1546,7 @@ marker)."
   ;;    command lines?
   ;;
   ;; IIUC `adaptive-fill-prefix'
+  (setq-local forward-sentence-function 'vsh-next-command)
   (setq-local adaptive-fill-function 'vsh-adaptive-fill-function)
   (setq-local adaptive-fill-first-line-regexp
               (vsh-adaptive-fill-first-line-regexp))
