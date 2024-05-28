@@ -736,7 +736,8 @@ with into a single `undo' unit.")
           ;;       Currently we have a different decision between vim and emacs,
           ;;       that's not great.  Should probably make the two more
           ;;       consistent, will procrastinate on making the decision for the
-          ;;       moment.
+          ;;       moment in order to "taste" both options -- I doubt either
+          ;;       matters.
           (when vsh-new-output (insert-char ?\n) (setq-local vsh-new-output nil))
           (insert output)
           ;; We only want the `ansi-color-context-region' continuing from last
@@ -788,11 +789,9 @@ with into a single `undo' unit.")
     ;; opened up in.
     ;;
     ;; TODO In order to implement some logic about where we should show the
-    ;; relevant buffer we should do something around `server-window' here.
+    ;; relevant buffer we could do something around `server-window' here.
     ;; If we end up only ever wanting to use our custom logic, it may be better
     ;; to directly use our logic rather than using `server-switch-buffer'.
-    ;; If I never care about using custom logic it might be better to avoid this
-    ;; indirection and use `emacsclient --no-wait <filename>' directly.
     (save-excursion
       (server-switch-buffer buffer nil (cons linenum 0) nil)
       ;; Ensure this line is actually shown.
@@ -913,7 +912,13 @@ with into a single `undo' unit.")
   (get-buffer-process (or buffer (current-buffer))))
 
 (defun vsh--delete-and-send (text-to-send proc)
-  (delete-region (vsh--segment-bound nil) (vsh--segment-bound t))
+  ;; `delete-region' clears the mark if it deletes anything but doesn't
+  ;; otherwise.  This means that this function has a different behaviour
+  ;; depending on what the segment spans.  Hence need to have an if clause
+  ;; around to avoid different behaviour.
+  (if (eql (vsh--segment-bound nil) (vsh--segment-bound t))
+      (deactivate-mark)
+    (delete-region (vsh--segment-bound nil) (vsh--segment-bound t)))
   (vsh--set-markers proc)
   (setq-local vsh-new-output t)
   (setq-local vsh--undo-list-at-last-insertion buffer-undo-list)
