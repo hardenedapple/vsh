@@ -16,6 +16,10 @@
 ;; One can think of it similarly to Jupyter notebooks, but general to a terminal
 ;; session and with less special features in order to only work with plain text.
 ;;
+;; One can also think of it as similar to `M-x shell', but more focussed around
+;; replay of existing commands and pruning of your session into something close
+;; to automation.
+;;
 ;; When running experimental terminal sessions (where one does not know exactly
 ;; how to do what they are attempting) one can find themselves repeating parts
 ;; of that session multiple times with slight variation.
