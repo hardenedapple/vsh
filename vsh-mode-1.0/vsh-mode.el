@@ -1,10 +1,11 @@
-;;; vsh.el --- Alternate PTY interface for complex terminal sessions -*- lexical-binding: t -*-
+;;; vsh-mode.el --- Alternate PTY interface for complex terminal sessions -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2024 Matthew Malcomson
 
 ;; Author: Matthew Malcomson <hardenedapple@gmail.com>
 ;; Maintainer: Matthew Malcomson <hardenedapple@gmail.com>
 ;; Version: 1.0
+;; Package-Requires: ((emacs "28.1"))
 ;; Keywords: processes
 ;; URL: https://github.com/hardenedapple/vsh
 
@@ -140,6 +141,7 @@
 ;;   - `C-c M-/' for `vsh-complete-file-at-point'
 ;;   - `C-c C-x C-f' for `vsh-find-file' (find file in directory of shell).
 
+;;; Code:
 
 ;;; Customization and Buffer Variables
 
@@ -1597,7 +1599,6 @@ need to also close the vsh process."
       (set-process-sentinel proc (lambda (&rest _) nil))
       (when proc (delete-process proc)))))
 
-;;;###autoload
 (defun vsh--maybe-start-server ()
   (unless (or (not vsh-may-start-server)
               ;; Need to check this is `fboundp' because `server-start'
@@ -1661,4 +1662,4 @@ Entry to this mode runs the hooks on `vsh-mode-hook'."
 
 (provide 'vsh-mode)
 
-;;; vsh.el ends here
+;;; vsh-mode.el ends here
