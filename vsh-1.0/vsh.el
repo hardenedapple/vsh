@@ -1140,7 +1140,7 @@ the CWD of the underlying process."
           (completion-table-dynamic
            (lambda (_)
              (file-name-all-completions name-part abs-dir))))))
-(defun vsh-complete-file-at-point (&optional arg)
+(defun vsh-complete-file-at-point (&optional _arg)
   "Complete the filename at point relative to the current directory of the
 underlying process in the vsh buffer."
   (interactive "*P")
@@ -1356,7 +1356,7 @@ type of line as the one above (i.e. either a comment or a command)."
 
 (defun vsh-forward-paragraph-function (&optional arg)
   "Implementation of `fill-forward-paragraph-function' for VSH buffers."
-  ;; Has to be recursive.
+  ;; N.b. for `fill-paragraph'.
   (interactive "^p")
   (cond
    ;; Base case in the recursion.
@@ -1383,16 +1383,15 @@ type of line as the one above (i.e. either a comment or a command)."
     ;; were asking for will be satisfied (unless I have a bug in my code).
     (let* ((direction (if (> arg 0) 1 -1))
            (forwards (= direction 1))
-           (recurse-value (- arg direction))
-           (back-single-char
-            ;; Logically we are moving between points.  The definition of these
-            ;; points is such that when moving forwards we are at the start of a
-            ;; line for the next paragraph, but when moving backwards we are at
-            ;; the start of a line for the current paragraph.  In order to make
-            ;; decisions about what to do I look at the start of a line.  Hence
-            ;; we need to account for this "current" or "previous" paragraph
-            ;; difference.
-            (and (bolp)
+           (recurse-value (- arg direction)))
+      ;; Logically we are moving between points.  The definition of these
+      ;; points is such that when moving forwards we are at the start of a
+      ;; line for the next paragraph, but when moving backwards we are at
+      ;; the start of a line for the current paragraph.  In order to make
+      ;; decisions about what to do I look at the start of a line.  Hence
+      ;; we need to account for this "current" or "previous" paragraph
+      ;; difference.
+      (when (and (bolp)
                  (not forwards)
                  ;; If `looking-at-p' a split regexp, then going back one char
                  ;; accounts for the case when this is the first line of a
@@ -1405,9 +1404,8 @@ type of line as the one above (i.e. either a comment or a command)."
                  ;; to `forward-paragraph' and going back one char could have
                  ;; messed that up.
                  (or (looking-at-p (vsh-split-regexp))
-                     (string-match (vsh-split-regexp) (vsh--current-line -1)))
-                 (not (backward-char))))
-           (orig-point (point)))
+                     (string-match (vsh-split-regexp) (vsh--current-line -1))))
+        (backward-char))
       (cond
        ((string-match (vsh-comment-regexp) (vsh--current-line))
         (vsh--move-to-end-of-block (vsh-comment-regexp) forwards))
@@ -1438,8 +1436,8 @@ type of line as the one above (i.e. either a comment or a command)."
           ;; `vsh--segment-bound' must also have returned the very start of the
           ;; buffer.
           (when (= (point) para-pos)
-            (assert (not forwards))
-            (assert (= (point) segment-pos)))
+            (cl-assert (not forwards))
+            (cl-assert (= (point) segment-pos)))
           (goto-char
            (funcall (if forwards #'min #'max) segment-pos para-pos)))))
       (vsh-forward-paragraph-function recurse-value)))))
