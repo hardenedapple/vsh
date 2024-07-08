@@ -1,4 +1,4 @@
-(define-package "vsh" "1.0"
+(define-package "vsh-mode" "1.0"
   "Alternate PTY interface for complex terminal sessions."
   ;; TODO Honestly a bit of a guess which emacs version this requires.
   ;; I've not even tested this version, but AFAIK there is nothing special about
