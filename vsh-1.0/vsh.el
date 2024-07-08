@@ -37,7 +37,8 @@
 ;; recording a list of commands that got run (as in history).  One can edit the
 ;; output as per a `shell' buffer etc.  The difference with `vsh' is that you
 ;; can also remove commands that were mistakes, and you can run previous
-;; commands in place (and as a block).
+;; commands in place (and as a block).  N.b. running a command is done with the
+;; default `eval-last-sexp' binding (usually `C-x C-e').
 ;; As an example, when running in a GDB session one might have a session with
 ;; various mistakes and temporary commands in the history (simplistic example
 ;; below):
@@ -95,7 +96,7 @@
 ;; Furthermore, you can put all these commands in one block and run the entire
 ;; block every time you start GDB (imagine there are three or four setup
 ;; commands that via trial and error you have found you need to run in these
-;; debugging sessions).
+;; debugging sessions).  The below block would be run with `C-M-x'.
 ;;
 ;; vshcmd: > gdb ./test
 ;; vshcmd: > break puts
@@ -128,6 +129,16 @@
 ;; test the exact terminal session you intend to run and avoid typos during the
 ;; demonstration while still allowing the ability to do something slightly
 ;; different on the day.
+;;
+;; Basic keybindings:
+;;   - `C-M-x' for `vsh-execute-block'
+;;   - `C-x C-e' for `vsh-execute-command'
+;;   - `M-e' for `vsh-next-command'  (actually `forward-sentence')
+;;   - `M-a' for `vsh-prev-command'  (actually `backward-sentence')
+;;   - `C-c C-o' for `vsh-mark-segment' (to mark output from a command).
+;;   - `C-c C-u' for `vsh-line-discard' (kill back to end of prompt).
+;;   - `C-c M-/' for `vsh-complete-file-at-point'
+;;   - `C-c C-x C-f' for `vsh-find-file' (find file in directory of shell).
 
 
 ;;; Customization and Buffer Variables
@@ -199,14 +210,20 @@ to send to readline processes in underlying terminal for
   "Has this current buffers process been initialised.")
 
 ;; TODO
+;;   - Do I want to include the demo directory?
+;;     If so I think I would need to adjust to emacs bindings first ...
 ;;   - Address compilation warnings.
 ;;     Currently just need to fix the tests -- probably want to do this by
 ;;     changing `vsh-mark-command-block' tests to use oracle functions instead
 ;;     of manually specifying the region I need, then simply not passing in all
 ;;     the markers as arguments into the `vsh--block-test-*' functions.
+;;     Honestly don't care that much about compilation warnings in the tests ...
 ;;   - Documentation
 ;;     - Document the functions and variables in this file.
 ;;     - Write adjustments for emacs in the demo VSH files in the VSH repo.
+;;   - Improve `vsh-use-as-compile-errors'.
+;;	- `next-error' is not working in the buffer that this creates.
+;;	  Have to figure out exactly what to do about that.
 ;;   - Error handling
 ;;     - Alert when attempting to interact with an underlying process and the
 ;;       underlying process has been terminated.  I guess `user-error' would be
@@ -220,8 +237,6 @@ to send to readline processes in underlying terminal for
 ;;       the current buffer to the process of some VSH buffer but with all
 ;;       newlines removed and then an extra newline added at the end of the
 ;;       text.
-;;   - Why does `server-start' failing first time mean that syntax highlighting
-;;     does not get started.
 ;;   - Add more colours
 ;;     - Highlight strings on special lines only (not in output).
 ;;     - I wonder whether it's also useful to make the hook for our filter
