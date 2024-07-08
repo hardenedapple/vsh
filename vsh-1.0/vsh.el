@@ -141,7 +141,7 @@
   :group 'vsh)
 
 (defcustom vsh-mode-hook
-  '(vsh--initialise-settings vsh--setup-colors vsh-start-process)
+  '(vsh--initialise-settings vsh--setup-colors vsh--maybe-start-server vsh-start-process)
   "Hook for customizing vsh mode."
   :type 'hook
   :group 'vsh)
@@ -1577,6 +1577,47 @@ need to also close the vsh process."
       (when proc (delete-process proc)))))
 
 ;;;###autoload
+(defun vsh--maybe-start-server ()
+  (unless (or (not vsh-may-start-server)
+              ;; Need to check this is `fboundp' because `server-start'
+              ;; autoloads the server package so if the server has not been
+              ;; started then `server-running-p' may not be available.
+              (and (fboundp 'server-running-p) (server-running-p)))
+    ;; Attempt to make different server name if there is already one running.
+    ;; Should only happen when there is two different emacs sessions running a
+    ;; server.  When this happens `emacsclient' is given the relevant address
+    ;; for this particular emacs session via the `EMACS_SOCKET_NAME' environment
+    ;; variable.
+    ;;
+    ;; The different attempts mean there is a warning raised for each attempt.
+    ;; This looks ugly so we suppress the warning with
+    ;; `warning-suppress-log-types' on the `server' symbol.  That *also* means
+    ;; that the warning about being on FAT32 and its insecurity against
+    ;; tampering would be suppressed.  An alternative suppression approach is to
+    ;; use `warning-suppress-types', that at least logs the warning (without
+    ;; popping up the *Warnings* window).  As it happens the FAT32 warning
+    ;; doesn't change based on `server-name', so I choose to completely ignore
+    ;; these warnings for the second/third/etc run and let the first warning pop
+    ;; up.
+    ;;
+    ;; I don't think this will be happening often, when it does happen it's
+    ;; worth the user being alerted that something strange is happening.
+    (server-start)
+    (when (not server-mode)
+      ;; It's unfortunate that I have to use `warning' here, but needed in order
+      ;; to make sure the user sees this information (telling them that
+      ;; everything is alright) when the `warning' comes from the server code.
+      (display-warning
+       'server
+       "`vsh-mode' will now find and use an available `server-name'"
+       :warning)
+      (let ((suffix-count 0)
+            (warning-suppress-log-types '((server))))
+        (while (not server-mode)
+          (setq server-name (format "vsh-server-%d" suffix-count))
+          (cl-incf suffix-count)
+          (server-start))))))
+
 (define-derived-mode vsh-mode fundamental-mode "Vsh"
   "Major mode for interacting with VSH files.
 
@@ -1592,42 +1633,7 @@ Entry to this mode runs the hooks on `vsh-mode-hook'."
   (make-local-variable 'vsh-new-output)
   (make-local-variable 'vsh-completions-keys)
   (make-local-variable 'vsh-ignore-ansi-colors)
-  (make-local-variable 'vsh--undo-list-at-last-insertion)
-  (unless (or (not vsh-may-start-server)
-              ;; Need to check this is `fboundp' because `server-start'
-              ;; autoloads the server package so if the server has not been
-              ;; started then `server-running-p' may not be available.
-              (and (fboundp 'server-running-p) (server-running-p)))
-    ;; Attempt to make different server name if there is already one running.
-    ;; Should only happen when there is two different emacs sessions running a
-    ;; server.  When this happens `emacsclient' is given the relevant address
-    ;; for this particular emacs session via the `EMACS_SOCKET_NAME' environment
-    ;; variable.
-    ;;
-    ;; Currently the different attempts mean there is a warning raised for each
-    ;; attempt.  This is ugly, I can suppress the warning with
-    ;; `warning-suppress-log-types' on the `server' symbol, but that would
-    ;; *also* mean that the warning about being on FAT32 and its insecurity
-    ;; against tampering would be suppressed.
-    ;; An alternative suppression approach is to use `warning-suppress-types',
-    ;; that at least logs the warning (without popping up the *Warnings*
-    ;; window).
-    ;; As it happens the FAT32 warning doesn't change based on `server-name',
-    ;; so I choose to ignore these warnings for the second/third/etc run and let
-    ;; the first warning pop up.
-    ;;
-    ;; I don't think this will be happening often, when it does happen it's
-    ;; worth the user being alerted that something strange is happening.
-    ;;
-    ;; N.b. I find it very odd that the syntax highlighting doesn't seem to work
-    ;; when this `server-start' fails.  Will have to look into that.
-    (server-start)
-    (let ((suffix-count 0)
-          (warning-suppress-types '((server))))
-      (while (not server-mode)
-        (setq server-name (format "vsh-server-%d" suffix-count))
-        (cl-incf suffix-count)
-        (server-start)))))
+  (make-local-variable 'vsh--undo-list-at-last-insertion))
 
 ;;;###autoload (add-to-list 'auto-mode-alist '("\\.vsh\\'" . vsh-mode))
 
