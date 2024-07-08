@@ -38,7 +38,7 @@
 ;; recording a list of commands that got run (as in history).  One can edit the
 ;; output as per a `shell' buffer etc.  The difference with `vsh' is that you
 ;; can also remove commands that were mistakes, and you can run previous
-;; commands in place (and as a block).  N.b. running a command is done with the
+;; commands in place (and as a block).  N.b.  running a command is done with the
 ;; default `eval-last-sexp' binding (usually `C-x C-e').
 ;; As an example, when running in a GDB session one might have a session with
 ;; various mistakes and temporary commands in the history (simplistic example
@@ -126,7 +126,7 @@
 ;; python REPL, gdb session, or shell session).  Most of these quirks have not
 ;; turned out to be problematic enough to compare to the benefits listed above.
 ;;
-;; N.b. another use for this mode is to prepare live demonstrations.  You can
+;; N.b.  another use for this mode is to prepare live demonstrations.  You can
 ;; test the exact terminal session you intend to run and avoid typos during the
 ;; demonstration while still allowing the ability to do something slightly
 ;; different on the day.
@@ -164,10 +164,11 @@
   :group 'vsh)
 
 (defcustom vsh-ignore-ansi-colors nil
-  "Define whether to ignore ansi color sequences coming from underlying terminal
-or to use them to specify text colors.
+  "Define how to handle ansi color sequences from underlying terminal.
 
-`nil' implies that SGR control sequences are filtered, anything else means that
+Either ignore or to use them to specify text colors.
+
+nil implies that SGR control sequences are filtered, anything else means that
 SGR control sequences are interpreted as determining color and *not* filtered."
   :type 'boolean
   :group 'vsh)
@@ -180,11 +181,10 @@ SGR control sequences are interpreted as determining color and *not* filtered."
 ;; or indeed at the later time that an underlying process wants to talk to the
 ;; emacs process that is running the buffer.
 (defcustom vsh-may-start-server t
-  "Hook to determine whether VSH attempts to ensure `server-start'
-has been run.
+  "Should VSH attempt to ensure `server-start' has been run.
 
-Some features depend on emacs `server-start' having been run in
-the emacs process that VSH runs in.  This variable determines
+Some features depend on Emacs `server-start' having been run in
+the Emacs process that VSH runs in.  This variable determines
 whether VSH attempts to start such a server if one is not
 running.
 
@@ -198,11 +198,13 @@ those features are automatically disabled."
 
 This is not supposed to be a marker between logical subcommands of e.g. a bash
 process, rather it is whether we recently manually moved the marker position
-(e.g. because a command was just executed).")
+\(e.g. because a command was just executed).")
 (defvar vsh-completions-keys '((possible-completions . "?")
                                (glob-list-expansions . "g")
                                (unix-line-discard . ""))
-  "Association list of control characters defining the key sequences
+  "Control characters to send for readline.
+
+Association list of control characters defining the key sequences
 to send to readline processes in underlying terminal for
 `possible-completions', `glob-list-expansions', and
 `unix-line-discard' respectively.")
@@ -251,7 +253,7 @@ to send to readline processes in underlying terminal for
 ;;       everything else should be somewhat obvious from the results of that.
 
 (defun vsh-prompt (&optional _buffer)
-  "String defining command prefix.
+  "String that command & comment prefixes are based on.
 
 Will eventually return the vsh prompt for the relevant buffer.
 As yet I've not implemented different prompts for different
@@ -259,9 +261,11 @@ buffers, so this is essentially a literal."
   vsh-default-prompt)
 
 ;;; Defining the different line types:
-(defun vsh--command-header (&optional _buffer) (vsh-prompt))
+(defun vsh--command-header (&optional _buffer)
+  "String defining what prefix for a command."
+  (vsh-prompt))
 (defun vsh--comment-header (&optional buffer)
-  "String defining comment prefix."
+  "String defining comment prefix for BUFFER."
   (string-join (list (vsh-prompt buffer) "# ")))
 
 ;; N.b. Using `blank' rather than `whitespace' because the syntax classes are
@@ -269,28 +273,27 @@ buffers, so this is essentially a literal."
 ;; properties.  Now `blank' does not match newline, so we ensure that the
 ;; newline is also directly mentioned in our regexp.
 (defun vsh--comment-marker (&optional buffer)
-  "Regexp defining comment prefix."
+  "Regexp defining comment prefix for BUFFER."
   (rx (group-n 1 (literal (vsh-prompt buffer))
                (zero-or-more blank)
                "#"
                (optional " "))
       (group-n 2 (zero-or-more blank))))
 (defun vsh--command-marker (&optional buffer)
-  "Regexp defining command prefix."
+  "Regexp defining command prefix for BUFFER."
   (rx (group-n 1 (literal (vsh-prompt buffer)))
       (group-n 2 (zero-or-more blank))
       (group-n 3 (or eol (not (any ?# blank ?\n))))))
 
 (defun vsh--blank-prompt (&optional buffer)
-  "Prompt without trailing whitespace."
+  "Prompt without trailing whitespace for BUFFER."
   (replace-regexp-in-string "\\s-+$" "" (vsh-prompt buffer)))
 (defun vsh-blank-comment-regexp (&optional buffer)
-  "Regexp defining a \"blank\" comment."
+  "Regexp defining a \"blank\" comment for BUFFER."
   (rx (group-n 1 (literal (vsh--blank-prompt buffer)))
       (group-n 2 eol)))
 (defun vsh-split-regexp (&optional buffer)
-  "Regexp defining lines which are not classed as output (and are hence a
-\"split\" of output).
+  "Regexp defining non-output lines (and hence \"split\" sections in BUFFER).
 
 These are all lines which start with the `vsh-prompt' with any trailing
 whitespace stripped."
@@ -305,15 +308,15 @@ whitespace stripped."
   )
 
 (defun vsh-command-regexp (&optional buffer)
-  "Rx regexp defining lines which are commands."
+  "Rx regexp defining lines which are commands for BUFFER."
   (rx bol (regexp (vsh--command-marker buffer))))
 
 (defun vsh-comment-regexp (&optional buffer)
-  "Regexp defining lines which are comments"
+  "Regexp defining lines which are comments for BUFFER."
   (rx bol (regexp (vsh--comment-marker buffer))))
 
 (defun vsh-motion-marker (&optional buffer)
-  "Regexp defining what we move to with up/down motions.
+  "Regexp defining what we move to with up/down motions in BUFFER.
 
 This is slightly different to split marker and the comment markers.  The reason
 for this is just observed use.
@@ -332,10 +335,14 @@ command\"."
       (regexp (vsh--command-marker buffer))))
 
 (defun vsh--current-line (&optional count)
+  "Return line COUNT above or below `point'."
   (setq count (when count (1+ count)))
   (buffer-substring-no-properties (line-beginning-position count)
                                   (line-end-position count)))
 (defun vsh--line-beginning-position (&optional count)
+  "Return start of comment/command/line on line COUNT above or below `point'.
+
+Choice of which to return is based on what the line contains."
   (let* ((funclist (list #'vsh-command-regexp #'vsh-motion-marker
                          #'vsh-comment-regexp #'vsh-blank-comment-regexp))
          (match (cl-find-if (lambda (fn)
@@ -347,14 +354,17 @@ command\"."
 (defun vsh-bol (&optional arg)
   "Move to beginning of command line or comment if this line is not output.
 
-With prefix argument unconditionally runs `beginning-of-line' with no arg."
+With prefix argument ARG unconditionally runs `beginning-of-line' with no arg."
   (interactive "^P")
   (if (consp arg)
       (beginning-of-line)
     (goto-char (car (vsh--line-beginning-position)))))
 
 (defun vsh-line-discard (remove-spaces)
-  "Delete command back to beginning of command line."
+  "Delete command back to beginning of command line.
+
+REMOVE-SPACES determines whether to also remove any leading spaces between the
+prompt and the first character of the command line."
   (interactive "P")
   (let* ((vsh-line-beg-spec (vsh--line-beginning-position))
          (start-point (if (not remove-spaces)
@@ -364,7 +374,7 @@ With prefix argument unconditionally runs `beginning-of-line' with no arg."
       (kill-region start-point (point)))))
 
 (defun vsh-next-command (&optional count)
-  "Move to the next vsh prompt."
+  "Move forward COUNT vsh prompt lines."
   (interactive "p")
   ;; Move to the next vsh prompt start (as defined by `vsh-motion-marker').
   ;; If there is no next prompt then move to the end/start of the buffer
@@ -408,14 +418,17 @@ With prefix argument unconditionally runs `beginning-of-line' with no arg."
       (goto-char (match-end 2))))
 
 (defun vsh-prev-command (&optional count)
-  "Move to the previous vsh prompt."
+  "Move backward COUNT vsh prompt lines."
   (interactive "p")
   (vsh-next-command (- count)))
 
 (defun vsh--segment-bound (&optional forwards inc-marker)
   "Find start or end of the current segment.
 
-Segment is defined as a command plus the entire output directly under it."
+Segment is defined as a command plus the entire output directly under it.
+FORWARDS indicates whether we should find the start or end of this segment.
+INC-MARKER indicates whether this segment should include the command/comment
+directly above it."
   (save-excursion
     (forward-line (if forwards 1 0))
     (let ((have-seen-match (looking-at-p (vsh-split-regexp))))
@@ -430,13 +443,20 @@ Segment is defined as a command plus the entire output directly under it."
     (point)))
 
 (defun vsh-mark-segment (inc-marker)
-  "Mark the current segment."
+  "Mark the current segment.
+
+INC-MARKER determines whether the current segment includes the comment or
+command directly above it."
   (interactive "P")
   (set-mark (vsh--segment-bound nil inc-marker))
   (goto-char (vsh--segment-bound t inc-marker))
   (activate-mark))
 
 (defun vsh--move-to-end-of-block (regex forwards)
+  "Move to boundary of block defined as lines prefixed by REGEX.
+
+FORWARDS true moves point forwards, FORWARDS nil moves point backwards.
+Returns `point' after motion.  Does not move point if it is not in a block."
   (when (string-match regex (vsh--current-line))
     (beginning-of-line)
     (let ((not-moved 1))
@@ -461,11 +481,11 @@ Segment is defined as a command plus the entire output directly under it."
 ;;   - If looking for start of command block, go up until find *not* a split
 ;;     marker, return that point.
 (defun vsh--command-block-bounds (inc-comments &optional forwards)
-  "Find start or end of current command block.
+  "Find start or end (according to FORWARDS) of current command block.
 
 Command block is defined as either a sequence of lines all starting with
 `vsh-split-regexp', or a sequence of lines all starting with
-`vsh-command-regexp' depending on the value of the provided `inc-comments'
+`vsh-command-regexp' depending on the value of the provided INC-COMMENTS
 argument."
   (save-excursion
     (let ((orig-point (point)))
@@ -480,7 +500,10 @@ argument."
   "Mark the entire command block around the current position.
 
 When below a command block mark the one above it.  When above *all* command
-blocks mark the first one."
+blocks mark the first one.
+INC-COMMENTS determines whether command block is defined as a sequence of lines
+matching the `vsh-command-regexp' or as a sequence of lines matching
+`vsh-split-regexp'.  Informally whether a comment ends the block or not."
   (interactive "P")
   (let* ((regexp (if inc-comments (vsh-split-regexp) (vsh-command-regexp)))
          (beginning-of-defun-function
@@ -638,13 +661,19 @@ blocks mark the first one."
             (delete-region (match-beginning 4) (match-end 4))
           (message "Output is not currently Saved"))))))
 (defun vsh-save-command ()
+  "Ensure special line at start of current segment is a comment.
+
+If current \"special line\" is a command, then comment it.  This avoids the
+possibility of accidentally pressing C-x C-e and losing your current output."
   (interactive)
   (vsh--save-or-activate-command t))
 (defun vsh-activate-command ()
+  "Possibly undo behaviour of `vsh-save-command'."
   (interactive)
   (vsh--save-or-activate-command nil))
 
 (defun vsh-new-prompt ()
+  "Insert new prompt under the current output section."
   (interactive)
   (goto-char (vsh--segment-bound t nil))
   ;; Chance that we reach the end of the buffer and there is no newline at the
@@ -824,7 +853,7 @@ with into a single `undo' unit.")
     (unless was-dedicated (set-window-dedicated-p original-window nil))))
 
 (defun vsh--load-buffer (filename linenum)
-  "`vsh' helper that loads a file into a buffer"
+  "`vsh' helper that loads a file into a buffer."
   ;; Mostly taken from `server-visit-files' minus some things.  Don't want the
   ;; `save-current-buffer' in this function, and don't want some of the record
   ;; keeping.
@@ -1072,7 +1101,7 @@ updating `vsh-completions-keys' directly."
       (vsh--delete-and-send text-to-send (vsh--get-process)))))
 
 (defun vsh-find-foreground-cwd (&optional buffer)
-  "Find the cwd of the foreground process group in a given `vsh' buffer.
+  "Find the cwd of the foreground process group in a given `vsh' BUFFER.
 
 This is the process group most likely to be printing to stdout, and hence most
 likely to have printed relative path names that the user wants to work with."
