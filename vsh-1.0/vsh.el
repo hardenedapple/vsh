@@ -323,10 +323,14 @@ command\"."
          (count (when count (1+ count))))
     (cons (+ (line-beginning-position count) (if match (match-end 2) 0))
           (+ (line-beginning-position count) (if match (match-end 1) 0)))))
-(defun vsh-bol ()
-  "Move to beginning of command line or comment if this line is not output."
-  (interactive)
-  (goto-char (car (vsh--line-beginning-position))))
+(defun vsh-bol (&optional arg)
+  "Move to beginning of command line or comment if this line is not output.
+
+With prefix argument unconditionally runs `beginning-of-line' with no arg."
+  (interactive "^P")
+  (if (consp arg)
+      (beginning-of-line)
+    (goto-char (car (vsh--line-beginning-position)))))
 
 (defun vsh-line-discard (remove-spaces)
   "Delete command back to beginning of command line."
