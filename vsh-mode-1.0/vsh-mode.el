@@ -1639,6 +1639,7 @@ need to also close the vsh process."
           (cl-incf suffix-count)
           (server-start))))))
 
+;;;###autoload
 (define-derived-mode vsh-mode fundamental-mode "Vsh"
   "Major mode for interacting with VSH files.
 
@@ -1658,6 +1659,6 @@ Entry to this mode runs the hooks on `vsh-mode-hook'."
 
 ;;;###autoload (add-to-list 'auto-mode-alist '("\\.vsh\\'" . vsh-mode))
 
-(provide 'vsh)
+(provide 'vsh-mode)
 
 ;;; vsh.el ends here
