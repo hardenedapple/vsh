@@ -1019,13 +1019,20 @@ part-way through a prompt we execute that prompt."
     (goto-char ending-position)))
 
 (defun vsh-execute-block (inc-comments)
-  "Execute each command line in the given block of commands."
+  "Execute each command line in the block of commands around `point'.
+
+Universal argument sets INC-COMMENTS which determines whether we include
+comments when selecting the block around `point'.
+
+When region is active execute all commands in current region rather than block
+around `point'."
   (interactive "P")
   (unless (region-active-p)
    (vsh-mark-command-block inc-comments))
   (vsh-execute-region))
 
 (defun vsh-execute-and-new-prompt ()
+  "Execute command at `point', then insert new prompt."
   (interactive)
   (vsh-execute-command)
   (vsh-new-prompt))
