@@ -18,6 +18,7 @@ stty tabs -onlcr icanon -echo -onlcr iexten isig -echonl -crterase
 
 export PAGER=
 export MANPAGER="$1/vsh_man_pager"
+export GIT_PAGER='col -b'
 
 # N.b. These variables are in the `vim` environment, but not the `nvim`
 # environment.  With these set some commands change their output to fit the
