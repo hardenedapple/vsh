@@ -4,6 +4,18 @@
 " loading if necessary.
 runtime! plugin/vsh.vim
 
+" TODO
+"		Need to replace all uses of `get(b:, 'vsh_job', 0)` with something that
+"		checks whether the job is available or not.
+"		Vim9 doesn't like this check -- complains that I'm using a Job Id as a
+"		number (which is not automatically converted).
+"
+"	- Figure out why I got a complaint about job already being started when it
+"	  wasn't.
+"
+"	- Fix the vim python script that forks and acts as a server.
+"		(Apparently there is some problem around python runtime and using `fork`).
+
 " The user specifies a b:vsh_prompt variable that marks a command and/or a comment.
 " This variable specifies what should be a command, what lines count as
 " non-output to replace, *and* how we move about the file.
