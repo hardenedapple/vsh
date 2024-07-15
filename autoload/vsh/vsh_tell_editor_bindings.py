@@ -155,7 +155,7 @@ if __name__ == "__main__":
         import re
         import json
         origvim_socket_addr = os.getenv('VSH_VIM_LISTEN_ADDRESS')
-        m = re.match('localhost:(\d+)', origvim_socket_addr)
+        m = re.match(r'localhost:(\d+)', origvim_socket_addr)
         assert(m)
         sock = socket.socket()
         sock.connect(('localhost', int(m.groups()[0])))
