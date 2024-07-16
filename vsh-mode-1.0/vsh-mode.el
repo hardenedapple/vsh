@@ -143,6 +143,12 @@
 
 ;;; Code:
 
+(require 'ansi-color)
+(require 'server)
+(require 'warnings)
+(require 'hideshow)
+(require 'compile)
+
 ;;; Customization and Buffer Variables
 
 ;; Variables
