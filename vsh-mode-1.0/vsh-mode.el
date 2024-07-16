@@ -475,7 +475,7 @@ Returns `point' after motion.  Does not move point if it is not in a block."
       ;; in a buffer is a command we will end up at the very end of the buffer
       ;; at the end of the current line.  Check for this in order to include
       ;; the entire last line.
-      (when (and (= not-moved 0) (/= (point) (point-max)))
+      (when (and (= not-moved 0) (not (eobp)))
         (forward-line (if forwards 0 1)))))
   (point))
 
