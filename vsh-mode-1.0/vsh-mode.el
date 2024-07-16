@@ -931,7 +931,7 @@ with into a single `undo' unit.")
                  :command (list shell-start-stub vsh-install-dir "bash")
                  :connection-type 'pty
                  :noquery t
-                 :filter 'vsh--process-filter
+                 :filter #'vsh--process-filter
                  ;;  Default sentinel seems good enough (because I'm using
                  ;;  `process-mark' of the underlying process as my mark for
                  ;;  where to add text).  It doesn't have the check for adding a
@@ -940,7 +940,7 @@ with into a single `undo' unit.")
                  ;;  happen after there has been some output anyway.
                  ;; :sentinel ? vsh--process-sentinel ?
                  )))
-      (add-hook 'change-major-mode-hook 'vsh--change-major-mode-hook)
+      (add-hook 'change-major-mode-hook #'vsh--change-major-mode-hook)
       ;; When insert *at* the process mark, marker will advance.
       (set-marker-insertion-type (process-mark proc) t)
       (set-marker (process-mark proc)
@@ -1611,14 +1611,14 @@ marker)."
   ;;    command lines?
   ;;
   ;; IIUC `adaptive-fill-prefix'
-  (setq-local forward-sentence-function 'vsh-next-command)
-  (setq-local adaptive-fill-function 'vsh-adaptive-fill-function)
+  (setq-local forward-sentence-function #'vsh-next-command)
+  (setq-local adaptive-fill-function #'vsh-adaptive-fill-function)
   (setq-local adaptive-fill-first-line-regexp
               (vsh-adaptive-fill-first-line-regexp))
-  (setq-local fill-forward-paragraph-function 'vsh-forward-paragraph-function)
-  (setq-local indent-line-function 'vsh-indent-function)
-  (setq-local beginning-of-defun-function 'vsh--beginning-of-block-fn)
-  (setq-local end-of-defun-function 'vsh--end-of-block-fn))
+  (setq-local fill-forward-paragraph-function #'vsh-forward-paragraph-function)
+  (setq-local indent-line-function #'vsh-indent-function)
+  (setq-local beginning-of-defun-function #'vsh--beginning-of-block-fn)
+  (setq-local end-of-defun-function #'vsh--end-of-block-fn))
 
 (defun vsh--change-major-mode-hook ()
   "Run from `kill-all-local-variables'.  Logically what is
