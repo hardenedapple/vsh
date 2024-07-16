@@ -1,5 +1,5 @@
 ;; vsh-elisp-tests.el  --- Generated tests for vsh.el -*- lexical-binding: t; -*-
-(require 'vsh)
+(require 'vsh-mode)
 ;; TODO (Maybe) ???
 ;;   Feels a little bit of a waste to test on *every* point in the line.
 ;;   I *could* choose to only run on a random point in the line to reduce this
