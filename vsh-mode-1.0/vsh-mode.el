@@ -1092,7 +1092,7 @@ updating `vsh-completions-keys' directly."
       ;; Using `buffer-base-buffer' for indirect buffers.
       (when (= buffer-hash (sxhash-eq (or (buffer-base-buffer buffer) buffer)))
         (with-current-buffer buffer
-          (when (eq 'vsh-mode major-mode)
+          (when (derived-mode-p 'vsh-mode)
             (setq-local vsh-completions-keys
                         `((possible-completions . ,p)
                           (glob-list-expansions . ,g)
@@ -1246,7 +1246,7 @@ underlying process in the vsh buffer."
   (process-send-string
    (vsh--get-process
     (or buffer
-        (if (eq major-mode 'vsh-mode)
+        (if (derived-mode-p 'vsh-mode)
             (current-buffer)
           (get-buffer
            (completing-read
@@ -1254,7 +1254,8 @@ underlying process in the vsh buffer."
             (mapcar #'buffer-name
                     (seq-filter
                      (lambda (x)
-                       (eq (buffer-local-value 'major-mode x) 'vsh-mode))
+                       (provided-mode-derived-p
+                        (buffer-local-value 'major-mode x) 'vsh-mode))
                      (buffer-list))))))))
    (buffer-substring-no-properties rbeg rend)))
 
@@ -1633,7 +1634,7 @@ need to also close the vsh process."
   ;; we change the mode to `Info-mode', killing all local variables but *not*
   ;; killing the associated process.
   ;; This hook is mostly here to stop such things.
-  (when (eq major-mode 'vsh-mode)
+  (when (derived-mode-p 'vsh-mode)
     (let ((proc (vsh--get-process)))
       ;; Disable accepting output from the process.
       (set-process-filter proc t)
