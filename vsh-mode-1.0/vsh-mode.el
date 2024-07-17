@@ -5,7 +5,7 @@
 ;; Author: Matthew Malcomson <hardenedapple@gmail.com>
 ;; Maintainer: Matthew Malcomson <hardenedapple@gmail.com>
 ;; Version: 1.0
-;; Package-Requires: ((emacs "30.1"))
+;; Package-Requires: ((emacs "30.0"))
 ;; Keywords: processes
 ;; URL: https://github.com/hardenedapple/vsh
 ;; SPDX-License-Identifier: MIT
