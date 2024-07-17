@@ -21,6 +21,8 @@ import sys
 import signal
 import json
 import vim
+import subprocess as sp
+import atexit
 
 if len(sys.argv) > 1 and sys.argv[1] == 'testing':
     def vsh_debug_print(*args, **kwargs):
@@ -48,14 +50,8 @@ def vsh_sock_recv_catch(sock):
         buf = b''
     return buf
 
-def vsh_kill_child(pid):
-    # TODO Only send kill if this PID still exists.
-    try:
-        os.kill(pid, signal.SIGHUP)
-    except ProcessLookupError:
-        # Process may have already been killed outside, don't flash an error on
-        # the screen.
-        pass
+def vsh_kill_child(proc):
+    proc.send_signal(signal.SIGHUP)
 
 vimsock = socket.socket()
 vimsock.bind(('localhost', 0))
@@ -71,25 +67,27 @@ vsh_debug_print('Listen socket port: ', listenport)
 vsh_set_var('vsh_origvim_server_addr', 'localhost:' + str(vimport))
 vsh_set_var('vsh_origvim_listen_addr', 'localhost:' + str(listenport))
 
-pid = os.fork()
-if pid != 0:
-    listensock.close()
-    vimsock.close()
-    # Close the child process when vim closes.
-    import atexit
-    atexit.register(vsh_kill_child, pid)
-    # Advertise the PID to vim so that vim can send a signal if it wants.
-    vsh_set_var('vsh_origvim_server_pid', pid)
-    del vimsock, listensock, vimport, listenport
-else:
-    vimsock.set_inheritable(True)
-    listensock.set_inheritable(True)
-    scriptdir = vsh_get_dir()
-    scriptname = os.path.join(scriptdir, 'origvim_server.py')
-    os.execv(scriptname,
-             [scriptname, 'testing' if are_testing else 'x',
-              str(vimsock.fileno()), str(listensock.fileno())])
+vimsock.set_inheritable(True)
+listensock.set_inheritable(True)
+scriptdir = vsh_get_dir()
+scriptname = os.path.join(scriptdir, 'origvim_server.py')
 
+# None of stdin, stdout, and stderr are redirected, they are all pointing at
+# the same place.  Since this script does not read from stdin that's fine, and
+# anything that it prints to stdout *should* be seen in the above vim instance,
+# so this default is exactly what we want.
+child_process = sp.Popen(
+        [scriptname, 'testing' if are_testing else 'x',
+              str(vimsock.fileno()), str(listensock.fileno())],
+        pass_fds=(listensock.fileno(), vimsock.fileno()))
+
+listensock.close()
+vimsock.close()
+# Close the child process when vim closes.
+atexit.register(vsh_kill_child, child_process)
+# Advertise the PID to vim so that vim can send a signal if it wants.
+vsh_set_var('vsh_origvim_server_pid', child_process.pid)
+del vimsock, listensock, vimport, listenport, scriptdir, scriptname
 
 # XXX Manual Testing XXX
 def vsh_test_new_conn(vlisten, vport):
@@ -152,6 +150,6 @@ def vsh_test_run(vport):
                     vsh_debug_print('  Sending back: ', ret)
                     vimsock.send(ret)
 
-if pid != 0 and len(sys.argv) > 1 and sys.argv[1] == 'testing':
+if len(sys.argv) > 1 and sys.argv[1] == 'testing':
     import time
     vsh_test_run(vimport)
