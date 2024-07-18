@@ -1313,7 +1313,7 @@ underlying process in the vsh buffer."
     (keymap-set map "C-c C-o" 'vsh-mark-segment)
     ;; Taken from `comint-kill-input'.
     (keymap-set map "C-c C-u" 'vsh-line-discard)
-    (keymap-set map "C-c n" 'vsh-new-prompt)
+    (keymap-set map "C-c C-n" 'vsh-new-prompt)
 
     ;; Remap the execution commands
     ;; N.b. I would like to use "<remap> <eval-defun>" for `vsh-execute-block',
@@ -1330,8 +1330,8 @@ underlying process in the vsh buffer."
     ;; Put on `C-c' because I've followed `comint' in some ways already.  Could
     ;; put it on a "sub" keymap and allow the user to choose what key to put
     ;; that on.
-    (keymap-set map "C-c s" 'vsh-save-command)
-    (keymap-set map "C-c a" 'vsh-activate-command)
+    (keymap-set map "C-c C-s" 'vsh-save-command)
+    (keymap-set map "C-c C-t" 'vsh-activate-command)
 
     (keymap-set map "C-c C-d" 'vsh-goto-insert-point)
     (keymap-set map "C-c C-z" 'vsh-goto-last-prompt)
