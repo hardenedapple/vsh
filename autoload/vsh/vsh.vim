@@ -1017,11 +1017,44 @@ function s:cd_to_cwd()
   return [l:prev_wd, l:cd_cmd, py3eval('vsh_find_cwd(' . s:vsh_get_jobid(b:vsh_job) . ')')]
 endfunction
 
-function vsh#vsh#NetrwBrowse()
-  let [l:prev_wd, l:cd_cmd, l:newcwd] = s:cd_to_cwd()
-  execute l:cd_cmd . l:newcwd
-  execute "normal \<Plug>NetrwBrowseX"
-  execute l:cd_cmd . l:prev_wd
+function vsh#vsh#WithPathSetSelf(rhs_mapping)
+	" Not quite sure what to do with this.
+	" Goal is to provide a `gx` function that does "standard gx, but in the
+	" current directory".
+	" The ideal way to do this would be "find whatever standard gx is, and run
+	" that", however since this plugin has been written "standard gx" has changed
+	" and diverged between vim and neovim.
+	"
+	" Options I know of are:
+	" 1) Still attempt to use the same function directly.
+	"    - In neovim have a small locally defined function.  Would copy-paste
+	"      from the _defaults.lua file.
+	"    - Likely to continue to go out of date as time goes on (without me
+	"      noticing).
+	"    - Highly possible it may rely on features that are tied to certain
+	"      versions of vim (hence only working for some versions).
+	" 2) Unmap local mapping, re-use global mapping, then put back the local
+	"    mapping.
+	"    - Would rely on users not having re-mapped this keybinding.
+	"      Though guessing users would likely have remapped both the VSH one and
+	"      the outer one (and if not would want to do so).
+	"
+	"	Of these option (2) seems the best, and that's what I'm going with.
+	let all_mappings = filter(maplist(), { idx, val -> 
+				\ has_key(val, 'rhs') 
+				\	&& val['rhs'] == a:rhs_mapping
+				\ && val['buffer'] == 1 })
+	if len(all_mappings) != 1
+		echoerr 'No mapping to run in outer context'
+		return
+	endif
+	let temp = all_mappings[0]
+	execute 'unmap <buffer> ' . temp['lhs']
+	let [l:prev_wd, l:cd_cmd, l:newcwd] = s:cd_to_cwd()
+	execute l:cd_cmd . l:newcwd
+	execute 'normal ' . temp['lhs']
+	execute l:cd_cmd . l:prev_wd
+	call mapset(temp)
 endfunction
 
 let s:saved_buffer_directories = {}

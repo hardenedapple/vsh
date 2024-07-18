@@ -22,7 +22,7 @@ let g:vsh_buffer_mappings_list = [
       \ ['i' , 'vsh_i_completions'                 , '<silent>'        , '<TAB>'           , ' <Plug>(vshICompletions)'              , " <Esc>:<C-u>call vsh#vsh#ShowCompletions(0)<CR>a"]  ,
       \ ['n' , 'vsh_glob_completions'              , '<silent>'        , '<localleader>g'  , ' <Plug>(vshGlobCompletions)'           , " :<C-U>call vsh#vsh#ShowCompletions(1)<CR>"]        ,
       \ ['i' , 'vsh_i_glob_completions'            , '<silent>'        , '<C-s>'           , ' <Plug>(vshIGlobCompletions)'          , " <Esc>:<C-u>call vsh#vsh#ShowCompletions(1)<CR>a"]  ,
-      \ ['n' , 'vsh_goto_thing'                    , '<silent>'        , 'gx'              , ' <Plug>(vshGotoThing)'                 , ' :<C-u>call vsh#vsh#NetrwBrowse()<CR>']             ,
+      \ ['n' , 'vsh_goto_thing'                    , '<silent>'        , 'gx'              , ' <Plug>(vshGotoThing)'                 , ' :<C-u>call vsh#vsh#WithPathSetSelf("<Plug>(vshGotoThing)")<CR>'],
       \ ['n' , 'vsh_goto_file'                     , ''                , 'gf'              , ' <Plug>(vshGotoFile)'                  , " :<C-u>call vsh#vsh#WithPathSet('normal! gf')<CR>"] ,
       \ ['n' , 'vsh_goto_FILE'                     , ''                , 'gF'              , ' <Plug>(vshGotoFILE)'                  , " :<C-u>call vsh#vsh#WithPathSet('normal! gF')<CR>"] ,
       \ ['n' , 'vsh_split_file'                    , ''                , '<C-w>f'          , ' <Plug>(vshSplitFile)'                 , " :<C-u>call vsh#vsh#WithPathSet('wincmd f')<CR>"]   ,
