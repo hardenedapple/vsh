@@ -55,7 +55,7 @@ endif
 if getbufvar(bufnr(), 'vsh_job') == ''
   call vsh#vsh#StartSubprocess()
   augroup VshBufferClose
-    autocmd BufUnload <buffer> let g:vsh_closing_jobs[expand('<afile>')] = getbufvar(expand('<afile>'), 'vsh_job', 0)
+    autocmd BufUnload <buffer> let g:vsh_closing_jobs[expand('<afile>')] = [getbufvar(expand('<afile>'), 'vsh_job', 0), getbufvar(expand('<afile>'), 'vsh_tmp_inputrc', 0)]
     autocmd BufDelete <buffer> call vsh#vsh#ClosedBuffer()
   augroup END
 endif

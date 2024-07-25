@@ -389,14 +389,23 @@ function s:close_process()
     call s:channel_close(b:vsh_job)
     unlet b:vsh_job
   endif
+  if getbufvar(bufnr('%'), 'vsh_tmp_inputrc') != ''
+    execute 'silent !rm ' . shellescape(b:vsh_tmp_inputrc)
+    unlet b:vsh_tmp_inputrc
+  endif
 endfunction
 
 function vsh#vsh#ClosedBuffer()
   let closing_file = expand('<afile>')
-  let closing_job = get(g:vsh_closing_jobs, closing_file, 0)
+  let closing_info = get(g:vsh_closing_jobs, closing_file, 0)
+  let closing_job = closing_info[0]
+  let closing_tmpfile = closing_info[1]
   if closing_job != 0
     call s:channel_close(closing_job)
     call remove(g:vsh_closing_jobs, closing_file)
+  endif
+  if closing_tmpfile != ''
+    execute 'silent !rm ' . shellescape(closing_tmpfile)
   endif
 endfunction
 
@@ -1018,43 +1027,43 @@ function s:cd_to_cwd()
 endfunction
 
 function vsh#vsh#WithPathSetSelf(rhs_mapping)
-	" Not quite sure what to do with this.
-	" Goal is to provide a `gx` function that does "standard gx, but in the
-	" current directory".
-	" The ideal way to do this would be "find whatever standard gx is, and run
-	" that", however since this plugin has been written "standard gx" has changed
-	" and diverged between vim and neovim.
-	"
-	" Options I know of are:
-	" 1) Still attempt to use the same function directly.
-	"    - In neovim have a small locally defined function.  Would copy-paste
-	"      from the _defaults.lua file.
-	"    - Likely to continue to go out of date as time goes on (without me
-	"      noticing).
-	"    - Highly possible it may rely on features that are tied to certain
-	"      versions of vim (hence only working for some versions).
-	" 2) Unmap local mapping, re-use global mapping, then put back the local
-	"    mapping.
-	"    - Would rely on users not having re-mapped this keybinding.
-	"      Though guessing users would likely have remapped both the VSH one and
-	"      the outer one (and if not would want to do so).
-	"
-	"	Of these option (2) seems the best, and that's what I'm going with.
-	let all_mappings = filter(maplist(), { idx, val -> 
-				\ has_key(val, 'rhs') 
-				\	&& val['rhs'] == a:rhs_mapping
-				\ && val['buffer'] == 1 })
-	if len(all_mappings) != 1
-		echoerr 'No mapping to run in outer context'
-		return
-	endif
-	let temp = all_mappings[0]
-	execute 'unmap <buffer> ' . temp['lhs']
-	let [l:prev_wd, l:cd_cmd, l:newcwd] = s:cd_to_cwd()
-	execute l:cd_cmd . l:newcwd
-	execute 'normal ' . temp['lhs']
-	execute l:cd_cmd . l:prev_wd
-	call mapset(temp)
+  " Not quite sure what to do with this.
+  " Goal is to provide a `gx` function that does "standard gx, but in the
+  " current directory".
+  " The ideal way to do this would be "find whatever standard gx is, and run
+  " that", however since this plugin has been written "standard gx" has changed
+  " and diverged between vim and neovim.
+  "
+  " Options I know of are:
+  " 1) Still attempt to use the same function directly.
+  "    - In neovim have a small locally defined function.  Would copy-paste
+  "      from the _defaults.lua file.
+  "    - Likely to continue to go out of date as time goes on (without me
+  "      noticing).
+  "    - Highly possible it may rely on features that are tied to certain
+  "      versions of vim (hence only working for some versions).
+  " 2) Unmap local mapping, re-use global mapping, then put back the local
+  "    mapping.
+  "    - Would rely on users not having re-mapped this keybinding.
+  "      Though guessing users would likely have remapped both the VSH one and
+  "      the outer one (and if not would want to do so).
+  "
+  " Of these option (2) seems the best, and that's what I'm going with.
+  let all_mappings = filter(maplist(), { idx, val ->
+        \ has_key(val, 'rhs')
+        \ && val['rhs'] == a:rhs_mapping
+        \ && val['buffer'] == 1 })
+  if len(all_mappings) != 1
+    echoerr 'No mapping to run in outer context'
+    return
+  endif
+  let temp = all_mappings[0]
+  execute 'unmap <buffer> ' . temp['lhs']
+  let [l:prev_wd, l:cd_cmd, l:newcwd] = s:cd_to_cwd()
+  execute l:cd_cmd . l:newcwd
+  execute 'normal ' . temp['lhs']
+  execute l:cd_cmd . l:prev_wd
+  call mapset(temp)
 endfunction
 
 let s:saved_buffer_directories = {}
@@ -1474,7 +1483,7 @@ endfunction
 function s:remove_buffer_variables()
   for variable in ['vsh_job', 'vsh_prompt', 'vsh_completions_cmd',
         \ 'vsh_insert_change_tick', 'vsh_initialised', 'vsh_dir_store',
-				\ 'vsh_alt_buffer']
+        \ 'vsh_alt_buffer', 'vsh_tmp_inputrc']
     execute 'silent! unlet b:' . variable
   endfor
   autocmd! VshBufferClose BufUnload,BufDelete <buffer>
@@ -1485,4 +1494,19 @@ function vsh#vsh#Undoftplugin()
   call s:close_process()
   call s:remove_buffer_variables()
 endfunction
+
+let s:all_temp_files = []
+function vsh#vsh#RecordTempFile(temp_file)
+  call add(s:all_temp_files, a:temp_file)
+endfunction
+function vsh#vsh#RemoveTempfiles()
+  for tmpfile in s:all_temp_files
+    do
+    execute 'silent !rm ' . shellescape(tmpfile)
+  endfor
+endfunction
+
+augroup VshVimLeave
+  autocmd VimLeave * call vsh#vsh#RemoveTempfiles()
+augroup end
 " }}}
