@@ -59,6 +59,12 @@ def vsh_outputlen(buf, curprompt):
     found_prompt = False
     count = 0
     for (count, line) in enumerate(buf[curprompt:]):
+        # In recent versions of neovim the NULL byte in output can give us some
+        # problems.  https://github.com/neovim/neovim/issues/29855
+        # Just remove it in the search and say that NULL bytes in your prompt are
+        # unsupported (which seems reasonable to me).
+        null_loc = line.find('\x00')
+        if null_loc != -1: line = line[:null_loc]
         # Use vim's match() so that vim regular expressions work.
         if vsh_FuncStore.match(line, prompt) != -1:
             found_prompt = True
@@ -136,8 +142,14 @@ def vsh_insert_helper(data, vsh_buf):
     # data would have been '' so this still works.
     prompt = vim.eval('vsh#vsh#SplitMarker({})'.format(vsh_buf.number))
     insert_line_text = vsh_buf[insert_line - 1]
+    # In recent versions of neovim the NULL byte in output can give us some
+    # problems.  https://github.com/neovim/neovim/issues/29855
+    # Just remove it in the search and say that NULL bytes in your prompt are
+    # unsupported (which seems reasonable to me).
+    null_loc = insert_line_text.find('\x00')
+    match_text = insert_line_text[:null_loc] if null_loc != -1 else insert_line_text
     # Use vsh_FuncStore.match() so vim regular expressions in 'prompt' work.
-    if vsh_FuncStore.match(insert_line_text, prompt) == -1:
+    if vsh_FuncStore.match(match_text, prompt) == -1:
         firstline = data.pop(0)
         try:
             vsh_buf[insert_line - 1] = insert_line_text + firstline
