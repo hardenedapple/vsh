@@ -239,6 +239,11 @@ to send to readline processes in underlying terminal for
 ;;     - Alert when attempting to interact with an underlying process and the
 ;;       underlying process has been terminated.  I guess `user-error' would be
 ;;       the function to use here.
+;;   - Look into `start-server' handling for other emacs sessions a bit more.
+;;     I swear that this was working earlier, but on recent testing it looks
+;;     like a new instance of emacs is somehow just using the original server
+;;     (and hence `emacsclient' uses in one session attempts to set variables in
+;;     one set up earlier -- though fails because the sesion).
 ;;   - Think about what buffer-local symbols need to be marked as
 ;;     `permanent-local' so they are not removed on changing major mode (see
 ;;     "(elisp) Creating Buffer-Local").
@@ -942,6 +947,8 @@ with into a single `undo' unit.")
                  ;; :sentinel ? vsh--process-sentinel ?
                  )))
       (add-hook 'change-major-mode-hook #'vsh--change-major-mode-hook)
+      (add-hook 'kill-buffer-hook #'vsh--kill-buffer-hook)
+      (add-hook 'kill-emacs-hook #'vsh--kill-emacs-hook)
       ;; When insert *at* the process mark, marker will advance.
       (set-marker-insertion-type (process-mark proc) t)
       (set-marker (process-mark proc)
@@ -1098,6 +1105,15 @@ updating `vsh-completions-keys' directly."
                         `((possible-completions . ,p)
                           (glob-list-expansions . ,g)
                           (unix-line-discard    . ,l)))))))))
+(defun vsh--receive-tmpfile-to-remove-on-exit (buffer-hash tmpfilename)
+  "Function called by vsh_tell_editor_bindings.py to tell emacs which temp file
+name needs to be closed on buffer close."
+  (dolist (buffer (buffer-list))
+      ;; Using `buffer-base-buffer' for indirect buffers.
+      (when (= buffer-hash (sxhash-eq (or (buffer-base-buffer buffer) buffer)))
+        (with-current-buffer buffer
+          (when (derived-mode-p 'vsh-mode)
+            (setq-local vsh--inputrc-tmpfile tmpfilename))))))
 
 (defun vsh-request-completions (use-glob)
   "Ask proc in underlying terminal for possible-completions of command so far."
@@ -1641,7 +1657,31 @@ need to also close the vsh process."
       (set-process-filter proc t)
       ;; Disable doing anything on process status updates.
       (set-process-sentinel proc (lambda (&rest _) nil))
-      (when proc (delete-process proc)))))
+      (when proc (delete-process proc)))
+    (when vsh--inputrc-tmpfile
+      (delete-file vsh--inputrc-tmpfile))))
+(defun vsh--kill-buffer-hook ()
+  "Run from `kill-buffer-hook'.
+
+Only used to remove the temporary $INPUTRC we create for a given shell session.
+N.b. we create a separate $INPUTRC for each shell session because we've not
+implemented any way to identify that we're asking for a duplicate $INPUTRC.
+This does also mean that deciding whether to delete a given temporary file is
+easy -- if this buffer is closing its temporary inputrc also gets removed."
+  (when (and (derived-mode-p 'vsh-mode)
+             vsh--inputrc-tmpfile)
+    (delete-file vsh--inputrc-tmpfile)))
+(defun vsh--kill-emacs-hook ()
+  "Run from `kill-emacs-hook'.
+
+Used to remove *all* temporary $INPUTRC files created in this emacs session.
+Cleanup in order to avoid leaving pointless files on the filesystem."
+  (mapc (lambda (x)
+          (when (and (provided-mode-derived-p
+                      (buffer-local-value 'major-mode x) 'vsh-mode)
+                     (buffer-local-value 'vsh--inputrc-tmpfile x))
+            (delete-file (buffer-local-value 'vsh--inputrc-tmpfile x))))
+        (buffer-list)))
 
 (defun vsh--maybe-start-server ()
   (unless (or (not vsh-may-start-server)
@@ -1700,7 +1740,8 @@ Entry to this mode runs the hooks on `vsh-mode-hook'."
   (make-local-variable 'vsh-new-output)
   (make-local-variable 'vsh-completions-keys)
   (make-local-variable 'vsh-ignore-ansi-colors)
-  (make-local-variable 'vsh--undo-list-at-last-insertion))
+  (make-local-variable 'vsh--undo-list-at-last-insertion)
+  (make-local-variable 'vsh--inputrc-tmpfile))
 
 ;;;###autoload (add-to-list 'auto-mode-alist '("\\.vsh\\'" . vsh-mode))
 

@@ -191,9 +191,9 @@ if __name__ == "__main__":
         sp.check_call(['emacsclient', '--suppress-output', '--eval',
                        '(vsh--receive-readline-bindings {} {})'.format(
                            sys.argv[4], ' '.join(lisp_arguments))])
-        lisp_arguments = [repr(sys.argv[5])]
+        lisp_arguments = ['"' + sys.argv[5] + '"']
         sp.check_call(['emacsclient', '--suppress-output', '--eval',
-                       '(vsh--receive-buffer-to-close {} {})'.format(
+                       '(vsh--receive-tmpfile-to-remove-on-exit {} {})'.format(
                            sys.argv[4], ' '.join(lisp_arguments))])
     else:
         print('No editor to send info to!', file=sys.stderr)
