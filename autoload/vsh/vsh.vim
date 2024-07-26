@@ -389,10 +389,6 @@ function s:close_process()
     call s:channel_close(b:vsh_job)
     unlet b:vsh_job
   endif
-  if getbufvar(bufnr('%'), 'vsh_tmp_inputrc') != ''
-    execute 'silent !rm ' . shellescape(b:vsh_tmp_inputrc)
-    unlet b:vsh_tmp_inputrc
-  endif
 endfunction
 
 function vsh#vsh#ClosedBuffer()
@@ -743,12 +739,6 @@ endfunction
 " }}}
 
 " {{{ Where vim and nvim differ.
-" At the moment it makes little sense to implement the vim stuff properly as
-" everything would be much easier when :h job-term  has been implemented.
-" Even once that happens, I have little motivation (other than it seems "right"
-" that it should be done) to do this.
-" If anyone reading this source wants it done, either send a patch or ask me
-" nicely, it would greatly improve the chances I get round to it :-] .
 if !has('nvim')
   " Vim Specific Functions {{{
   let s:channel_buffer_mapping = {}
@@ -885,8 +875,11 @@ if !has('nvim')
   " }}}
 else
   " Neovim Specific functions {{{
+  let s:active_inputrc_files = {}
   " Current process has exited, clear up buffer local variables.
   function s:subprocess_closed(job_id, data, event) dict
+    call remove(s:active_inputrc_files, self.inputrc)
+    call system('rm ' . self.inputrc)
     call s:clear_vsh_vars(self.buffer, a:job_id)
   endfunction
 
@@ -918,16 +911,17 @@ else
     let cwd = expand('%:p:h')
     let arguments = extend({
           \ 'buffer': bufnr('%'),
-          \  'cwd': cwd,
+          \ 'cwd': cwd,
           \ 'env': {'TERM': 'dumb',
                   \ 'VSH_VIM_BUFFER': bufnr('%')}
           \ },
-          \s:callbacks)
+          \ s:callbacks)
     if has('unix')
       let start_script = s:plugin_path . '/vsh_shell_start'
+      let inputrc_tmpfile = substitute(system('mktemp'), '\n', '', '')
       let job_id = jobstart(
-            \ [start_script, s:plugin_path, &shell],
-            \ arguments)
+            \ [start_script, s:plugin_path, &shell, inputrc_tmpfile],
+            \ extend(arguments, {'inputrc': inputrc_tmpfile }))
     else
       " TODO Want to not echo the command I sent to Powershell.
       let job_id = jobstart(
@@ -940,14 +934,25 @@ else
       echoerr "Check this vsh buffer is in a directory that exists."
       echoerr "Does `echo jobstart(['ls'])` return 0 (this might indicate a full job table)."
       echoerr "Once the problem has been fixed run `:call vsh#vsh#StartSubprocess()` again."
+      call system('rm ' . inputrc_tmpfile)
     elseif l:job_id == -1
       echoerr 'Failed to find bash executable.'
+      call system('rm ' . inputrc_tmpfile)
     else
       " Would like to lock this, but I need to be able to change it from
       " another buffer (in ClosedBuffer() and SubprocessClosed()), and I can't
       " unlock it from there.
       let b:vsh_job = l:job_id
+      let s:active_inputrc_files[inputrc_tmpfile] = v:true
     endif
+  endfunction
+
+  function vsh#vsh#RemoveTempfiles()
+    for [tmpfile, active] in items(s:active_inputrc_files)
+      if active
+        call system('rm '.tmpfile)
+      endif
+    endfor
   endfunction
 
   function s:channel_close(job_id)
@@ -1483,7 +1488,7 @@ endfunction
 function s:remove_buffer_variables()
   for variable in ['vsh_job', 'vsh_prompt', 'vsh_completions_cmd',
         \ 'vsh_insert_change_tick', 'vsh_initialised', 'vsh_dir_store',
-        \ 'vsh_alt_buffer', 'vsh_tmp_inputrc']
+        \ 'vsh_alt_buffer']
     execute 'silent! unlet b:' . variable
   endfor
   autocmd! VshBufferClose BufUnload,BufDelete <buffer>
@@ -1493,17 +1498,6 @@ function vsh#vsh#Undoftplugin()
   call s:teardown_mappings()
   call s:close_process()
   call s:remove_buffer_variables()
-endfunction
-
-let s:all_temp_files = []
-function vsh#vsh#RecordTempFile(temp_file)
-  call add(s:all_temp_files, a:temp_file)
-endfunction
-function vsh#vsh#RemoveTempfiles()
-  for tmpfile in s:all_temp_files
-    do
-    execute 'silent !rm ' . shellescape(tmpfile)
-  endfor
 endfunction
 
 augroup VshVimLeave
