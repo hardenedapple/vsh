@@ -62,8 +62,33 @@ discard_line="$(bind -q unix-line-discard 2>/dev/null)"
 #   N.b. Probably best to parse the keys user has set up in their environment,
 #   then put them into the generated INPUTRC.  That way can ensure things like
 #   GDB have the same commands.
+#
+# 1) AFAIK there is no easy way to register that we want to remove the tmpfile
+#    when the shell we start exits.  Would have to do something about putting an
+#    `atexit` in some temporary bashrc.  This seems like complexity that I want
+#    to avoid.
+# 2) Hence rather than that be the responsibility of the shell, we make it the
+#    responsibility of the editor.
+# 3) Could create the tempfile here and report back to the editor that this is
+#    what we're doing.  Unfortunately that creates an association between
+#    current *shell* and a given tmpfile that we then map to a given buffer.
+#    Restarting the shell in a given buffer generates a new tempfile and
+#    must *add* to the list of tempfiles to close when this buffer is closed or
+#    must remove old tmpfile and record new one.
+#    Places where this could be tricky to maintain:
+#    - Restarting subprocess.
+#      Not too bad -- just need to remove old tempfile before restarting.
+#    - Manually calling `vsh_shell_start` from underlying shell.
+#      Pretty tricky -- now have two different tempfiles active at same time.
+#      (Really not supposed to do this, but nice to have a design that avoids
+#      problems with strange things nonetheless).
+# 4) Alternatively we can create the tempfile in the editor and tell
+#    vsh_shell_start what said tempfile is.  This way we could associate one
+#    tempfile per buffer in the editor (making the editor code easier for
+#    teardown) at the cost of having to give vsh_shell_start another argument.
+#    - This is what I try and do.
 setup-inputrc () {
-  temp_file="$(mktemp)"
+  temp_file="$1"
   if [[ -n "$INPUTRC" ]]; then
     echo "\$include $INPUTRC" > $temp_file
   elif [[ -f "$HOME/.inputrc" ]]; then
@@ -76,8 +101,25 @@ setup-inputrc () {
     echo 'Control-x g: glob-list-expansions' >> $temp_file
     echo 'Control-u: unix-line-discard' >> $temp_file
   fi
-  cat "$1/vsh_inputrc_snippet" >> $temp_file
-  echo "$temp_file"
+  # Generate a partial inputrc that we used to generate an inputrc for the user
+  # when starting a vsh shell.
+  echo '$if term=dumb' >> $temp_file
+  echo '  set show-all-if-ambiguous on' >> $temp_file
+  # Disable querying when I request `possible-completions` especially inside
+  # VSH (putting a bunch of text on the screen is not a problem when it's so
+  # easily removed, and this would always let us use vim-completions to find
+  # what we wanted.  Mentioning VSH since that's when I tend to have TERM=dumb.
+  echo '  set completion-query-items -1' >> $temp_file
+  # Do not paginate completions when there are a lot of options.  Similar to
+  # above, this is the best option when in VSH since we are not directly
+  # interacting with readline but rather bringing in the list of completions to
+  # the current vim buffer.
+  echo '  set page-completions off' >> $temp_file
+  # Don't want special handling of tab character.  This will *look* like
+  # a tab character getting inserted when in `vsh`, so it should *act* like
+  # that in the underlying terminal.
+  echo '  "\t":tab-insert' >> $temp_file
+  echo '$endif' >> $temp_file
 }
 
 if [[ "$completions_binding" == *'not bound to any keys'* ]] || \
@@ -85,22 +127,22 @@ if [[ "$completions_binding" == *'not bound to any keys'* ]] || \
   [[ "$discard_line" == *'not bound to any keys'* ]]; then
   # Just let any errors raise -- we'll see their stack in the buffer.
   # Use defaults that should work when there was no existing binding.
-  export INPUTRC="$(setup-inputrc $1 include-bindings)"
+  setup-inputrc "$3" include-bindings
+  export INPUTRC="$3"
   "$1/vsh_tell_editor_bindings.py" \
         'possible-completions can be invoked via "\e=".' \
         'glob-list-expansions can be invoked via "\C-xg".' \
         'unix-line-discard can be invoked via "\C-u".' \
-        "$vsh_buffer" \
-        "$INPUTRC"
+        "$vsh_buffer"
 
 else
   # Just let any errors raise -- we'll see their stack in the buffer.
-  export INPUTRC="$(setup-inputrc $1)"
+  setup-inputrc "$3"
+  export INPUTRC="$3"
   "$1/vsh_tell_editor_bindings.py" \
         "$completions_binding" \
         "$glob_binding" \
         "$discard_line" \
-        "$vsh_buffer" \
-        "$INPUTRC"
+        "$vsh_buffer"
 fi
 exec "$2"

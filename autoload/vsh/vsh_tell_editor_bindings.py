@@ -132,7 +132,7 @@ def find_command_from_output(bind_output):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 6:
+    if len(sys.argv) != 5:
         sys.exit(1)
 
     # Just let exceptions raise -- we'll get the information and I can account
@@ -150,8 +150,6 @@ if __name__ == "__main__":
         nvim = pynvim.attach('socket', path=nvim_socket_path)
         curbuf = nvim.buffers[int(sys.argv[4])]
         curbuf.vars['vsh_completions_cmd'] = completions_list
-        curbuf.vars['vsh_tmp_inputrc'] = sys.argv[5]
-        nvim.call('vsh#vsh#RecordTempFile', sys.argv[5])
     elif os.getenv('VSH_VIM_LISTEN_ADDRESS'):
         import socket
         import re
@@ -161,25 +159,12 @@ if __name__ == "__main__":
         assert(m)
         sock = socket.socket()
         sock.connect(('localhost', int(m.groups()[0])))
-        # Set completions command variable.
         message = [
                 'call', 'setbufvar',
                 [int(sys.argv[4]), 'vsh_completions_cmd', completions_list]
         ]
         message = json.dumps(message).encode('utf8')
         sock.send(message)
-        # Record tmp inputrc for this buffer.
-        message = [
-                'call', 'setbufvar',
-                [int(sys.argv[4]), 'vsh_tmp_inputrc', sys.argv[5]]
-        ]
-        message = json.dumps(message).encode('utf8')
-        sock.send(message)
-        # Record tmp inputrc in the script-local set of vim files.
-        message = ['call', 'vsh#vsh#RecordTempFile', [sys.argv[5]]]
-        message = json.dumps(message).encode('utf8')
-        sock.send(message)
-
         sock.shutdown(socket.SHUT_RDWR)
         sock.close()
     elif os.getenv('VSH_EMACS_BUFFER'):
@@ -190,10 +175,6 @@ if __name__ == "__main__":
             for x in completions_list]
         sp.check_call(['emacsclient', '--suppress-output', '--eval',
                        '(vsh--receive-readline-bindings {} {})'.format(
-                           sys.argv[4], ' '.join(lisp_arguments))])
-        lisp_arguments = ['"' + sys.argv[5] + '"']
-        sp.check_call(['emacsclient', '--suppress-output', '--eval',
-                       '(vsh--receive-tmpfile-to-remove-on-exit {} {})'.format(
                            sys.argv[4], ' '.join(lisp_arguments))])
     else:
         print('No editor to send info to!', file=sys.stderr)
