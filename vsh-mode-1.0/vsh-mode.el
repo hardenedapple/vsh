@@ -913,6 +913,11 @@ with into a single `undo' unit.")
 (defconst vsh-install-dir (file-name-directory load-file-name))
 ;; Decided to make this interactive so can run with `M-x'.  Mainly for when
 ;; I've done something silly in the underlying process and want to fix it.
+(defun vsh--create-process-sentinel (call-later)
+  (cl-assert (and call-later (functionp call-later)))
+  (lambda (proc msg)
+    (delete-file (process-get proc 'vsh--inputrc-tmpfile))
+    (funcall call-later proc msg)))
 (defun vsh-start-process ()
   (interactive)
   (let ((proc (vsh--get-process)))
@@ -922,13 +927,11 @@ with into a single `undo' unit.")
   ;; `process-environment' just needs to include that the terminal is dumb and
   ;; some mechanism via which to communicate back to emacs.
   (let ((process-environment process-environment)
-         (shell-start-stub
-          (expand-file-name "vsh_shell_start" vsh-install-dir)))
-    ;; Do not pass this in as INPUTRC because we do some logic based on the
-    ;; users existing environment before generating our temporary file.
-    (unless (and (boundp 'vsh--inputrc-tmpfile) vsh--inputrc-tmpfile)
-      (setq-local vsh--inputrc-tmpfile
-                  (string-trim (shell-command-to-string "mktemp"))))
+        (shell-start-stub
+         (expand-file-name "vsh_shell_start" vsh-install-dir))
+        ;; Do not pass this in as INPUTRC because we do some logic based on the
+        ;; users existing environment before generating our temporary file.
+        (vsh--inputrc-tmpfile (string-trim (shell-command-to-string "mktemp"))))
     ;; Copy current environment, then extend (to ensure things like $PATH and
     ;; $HOME are kept in the environment for the underlying process.
     (setenv "TERM" "dumb")
@@ -950,12 +953,12 @@ with into a single `undo' unit.")
                  ;;  newline to the start of output if we are inserting a
                  ;;  new-output, but since this is a rare event and is likely to
                  ;;  happen after there has been some output anyway.
-                 ;; :sentinel ? vsh--process-sentinel ?
-                 )))
-      (add-hook 'change-major-mode-hook #'vsh--proc-change-major-mode-hook)
-      (add-hook 'change-major-mode-hook #'vsh--remove-inputrc)
-      (add-hook 'kill-buffer-hook #'vsh--remove-inputrc)
-      (add-hook 'kill-emacs-hook #'vsh--inputrc-kill-emacs-hook)
+                 :sentinel (vsh--create-process-sentinel
+                            #'internal-default-process-sentinel))))
+      (add-hook 'change-major-mode-hook #'vsh--change-major-mode-hook)
+      (add-hook 'kill-emacs-hook #'vsh--remove-inputrc-files)
+      ;; Record `vsh--inputrc-tmpfile' on process for later.
+      (process-put proc 'vsh--inputrc-tmpfile vsh--inputrc-tmpfile)
       ;; When insert *at* the process mark, marker will advance.
       (set-marker-insertion-type (process-mark proc) t)
       (set-marker (process-mark proc)
@@ -1635,7 +1638,7 @@ marker)."
   (setq-local beginning-of-defun-function #'vsh--beginning-of-block-fn)
   (setq-local end-of-defun-function #'vsh--end-of-block-fn))
 
-(defun vsh--proc-change-major-mode-hook ()
+(defun vsh--change-major-mode-hook ()
   "Run from `kill-all-local-variables'.  Logically what is
 happening is the teardown of the `vsh-mode' for some other mode.
 
@@ -1654,37 +1657,16 @@ need to also close the vsh process."
       ;; Disable accepting output from the process.
       (set-process-filter proc t)
       ;; Disable doing anything on process status updates.
-      (set-process-sentinel proc (lambda (&rest _) nil))
+      (set-process-sentinel
+       proc
+       (vsh--create-process-sentinel (lambda (&rest _) nil)))
       (when proc (delete-process proc)))))
-(defun vsh--remove-inputrc ()
-  "Run from `kill-buffer-hook' and `change-major-mode-hook'.
-
-Only used to remove the temporary $INPUTRC we create for a given shell session.
-N.b. we create a separate $INPUTRC for each shell session because we've not
-implemented any way to identify that we're asking for a duplicate $INPUTRC.
-This does also mean that deciding whether to delete a given temporary file is
-easy -- if this buffer is closing its temporary inputrc also gets removed."
-  (when (and (derived-mode-p 'vsh-mode)
-             ;; Only could not be bound if startup failed or user called this
-             ;; for no reason.  If that is the case then I would like to see
-             ;; emacs complain so I would look to debug the real problem.
-             (not (cl-assert (boundp 'vsh--inputrc-tmpfile)))
-             vsh--inputrc-tmpfile)
-    (delete-file vsh--inputrc-tmpfile)
-    ;; Remove tmpfile record, since otherwise if/when we restart `vsh' it would
-    ;; be re-using the filename even though it had already been deleted and
-    ;; *possibly* something would have opened that filename for its own purpose.
-    (setq-local vsh--inputrc-tmpfile nil)))
-(defun vsh--inputrc-kill-emacs-hook ()
-  "Run from `kill-emacs-hook'.
-
-Used to remove *all* temporary $INPUTRC files created in this emacs session.
-Cleanup in order to avoid leaving pointless files on the filesystem."
+(defun vsh--remove-inputrc-files ()
   (dolist (buf (buffer-list))
-    (when (and (provided-mode-derived-p
-                (buffer-local-value 'major-mode buf) 'vsh-mode)
-               (buffer-local-value 'vsh--inputrc-tmpfile buf))
-      (delete-file (buffer-local-value 'vsh--inputrc-tmpfile buf)))))
+    (when (provided-mode-derived-p
+           (buffer-local-value 'major-mode buf) 'vsh-mode)
+      (delete-file (process-get (get-buffer-process buf)
+                                'vsh--inputrc-tmpfile)))))
 
 (defun vsh--maybe-start-server ()
   (unless (or (not vsh-may-start-server)
@@ -1743,8 +1725,7 @@ Entry to this mode runs the hooks on `vsh-mode-hook'."
   (make-local-variable 'vsh-new-output)
   (make-local-variable 'vsh-completions-keys)
   (make-local-variable 'vsh-ignore-ansi-colors)
-  (make-local-variable 'vsh--undo-list-at-last-insertion)
-  (make-local-variable 'vsh--inputrc-tmpfile))
+  (make-local-variable 'vsh--undo-list-at-last-insertion))
 
 ;;;###autoload (add-to-list 'auto-mode-alist '("\\.vsh\\'" . vsh-mode))
 
