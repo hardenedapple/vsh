@@ -739,13 +739,32 @@ endfunction
 " }}}
 
 " {{{ Where vim and nvim differ.
+let s:active_inputrc_files = {}
+function vsh#vsh#RemoveTempfiles()
+  for [tmpfile, active] in items(s:active_inputrc_files)
+    if active
+      call system('rm '.tmpfile)
+    endif
+  endfor
+endfunction
+
 if !has('nvim')
   " Vim Specific Functions {{{
   let s:channel_buffer_mapping = {}
 
   function s:subprocess_closed(job_obj, exit_status)
+    " N.b. using as dictionary key converts the channel/job into a string.
+    " Unfortunately that string includes the state (e.g. closed) and that can
+    " have changed by the time this function gets called.
     let chan = job_getchannel(a:job_obj)
     let buf = get(s:channel_buffer_mapping, chan, -1)
+    " Access tempfile from command that was run (is last argument to
+    " vsh_shell_start).
+    let inputrc = job_info(a:job_obj)['cmd'][-1]
+    if inputrc != ''
+      call remove(s:active_inputrc_files, inputrc)
+      call system('rm ' . inputrc)
+    endif
     call s:clear_vsh_vars(buf, a:job_obj)
   endfunction
 
@@ -839,10 +858,12 @@ if !has('nvim')
           \  s:callbacks)
     if has('unix')
       let start_script = s:plugin_path . '/vsh_shell_start'
+      let inputrc_tmpfile = substitute(system('mktemp'), '\n', '', '')
       let job_obj = job_start(
-            \ [start_script, s:plugin_path, &shell],
+            \ [start_script, s:plugin_path, &shell, inputrc_tmpfile],
             \ arguments)
       let s:channel_buffer_mapping[job_getchannel(job_obj)] = bufnr('%')
+      let s:active_inputrc_files[inputrc_tmpfile] = v:true
     else
       echoerr 'Powershell not yet implemented for original vim'
     endif
@@ -854,6 +875,7 @@ if !has('nvim')
       echoerr "Does `echo jobstart(['ls'])` return 0 (this might indicate a full job table)."
       echoerr "Once the problem has been fixed run `:call vsh#vsh#StartSubprocess()` again."
       echoerr "Check that " . &shell . " exists and is on PATH"
+      call system('rm '.inputrc_tmpfile)
     else
       " Would like to lock this, but I need to be able to change it from
       " another buffer (in ClosedBuffer() and SubprocessClosed()), and I can't
@@ -875,7 +897,6 @@ if !has('nvim')
   " }}}
 else
   " Neovim Specific functions {{{
-  let s:active_inputrc_files = {}
   " Current process has exited, clear up buffer local variables.
   function s:subprocess_closed(job_id, data, event) dict
     call remove(s:active_inputrc_files, self.inputrc)
@@ -945,14 +966,6 @@ else
       let b:vsh_job = l:job_id
       let s:active_inputrc_files[inputrc_tmpfile] = v:true
     endif
-  endfunction
-
-  function vsh#vsh#RemoveTempfiles()
-    for [tmpfile, active] in items(s:active_inputrc_files)
-      if active
-        call system('rm '.tmpfile)
-      endif
-    endfor
   endfunction
 
   function s:channel_close(job_id)
