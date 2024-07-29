@@ -44,14 +44,16 @@ endfunction
 
 function s:motion_marker()
   " Should match a valid command without a comment, OR a command prompt.
-  " Allow s:commentstart() before the prompt -- so we can move over
-  return '\V\(\^\|\^' . s:commentstart() . '\)' . b:vsh_prompt . '\s\*\(\[^#[:blank:]]\|\$\)'
+  " Allow s:commentstart() before the prompt -- so we can move over "saved"
+  " commands.
+  " Allow `##` for escaped hash to send to underlying terminal.
+  return '\V\(\^\|\^' . s:commentstart() . '\)' . b:vsh_prompt . '\s\*\(\[^#[:blank:]]\|\$\|#\ze#\)'
 endfunction
 
 function s:command_marker()
   " Allow notes in the file -- make lines beginning with # a comment.
   " Allow a command of just spaces (can be useful quite often).
-  return '\V\^' . b:vsh_prompt . '\s\*\(\[^#[:blank:]]\|\$\)'
+  return '\V\^' . b:vsh_prompt . '\s\*\(\[^#[:blank:]]\|\$\|##\)'
 endfunction
 
 function s:block_before(line_regex)
@@ -339,7 +341,11 @@ function vsh#vsh#ParseVSHCommand(line)
   if a:line !~# s:command_marker()
     return -1
   endif
-  return a:line[len(b:vsh_prompt):]
+  let temp = a:line[len(b:vsh_prompt):]
+  if temp[:1] == '##'
+    let temp = temp[1:]
+  endif
+  return temp
 endfunction
 
 function s:command_span()
