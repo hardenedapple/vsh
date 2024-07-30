@@ -1,1 +1,148 @@
-../autoload/vsh/vsh_shell_start
+#!/bin/bash
+
+# It is appealing to use an interactive shell to run this script so that the
+# users bashrc can choose a different INPUTRC.  We suggest the user changing
+# their .inputrc config file to have a condition for `TERM=dumb` in it and
+# choosing `set editing-mode emacs` under that clause.  However we also want to
+# support users changing the INPUTRC environment variable in their bashrc (on
+# the principle that most people are more comfortable changing settings in
+# bashrc than anywhere else).
+#
+# However, on experiment it seems like that comes with downsides in error cases
+# which we do not think are worth the trade-off.
+# See github issue #32.
+
+# TODO Have to play around with these settings to find the most useful for vsh.
+# stty -echonl -icanon -iexten isig onocr
+stty tabs -onlcr icanon -echo -onlcr iexten isig -echonl -crterase
+
+export PAGER=
+export MANPAGER="$1/vsh_man_pager"
+export GIT_PAGER='col -b'
+
+# N.b. These variables are in the `vim` environment, but not the `nvim`
+# environment.  With these set some commands change their output to fit the
+# size of the terminal that is reported, I don't think it's a good idea to take
+# this info since the vsh file will naturally have different column widths.
+unset COLUMNS
+unset LINES
+
+
+if [[ -n "$VSH_EMACS_BUFFER" ]]; then
+    export EDITOR="emacsclient"
+    vsh_buffer="$VSH_EMACS_BUFFER"
+else
+    export EDITOR="$1/vsh_editor_prog"
+    vsh_buffer="$VSH_VIM_BUFFER"
+fi
+
+# It's really awkward to find out what the bindings are programmatically
+# (or at least I don't know of a nice way to query the readline library).
+completions_binding="$(bind -q possible-completions 2>/dev/null)"
+glob_binding="$(bind -q glob-list-expansions 2>/dev/null)"
+discard_line="$(bind -q unix-line-discard 2>/dev/null)"
+
+# Set INPUTRC environment variable to a special temporary one.
+# Then we can add special configuration according to what is best for this
+# plugin.
+# Caveats:
+# - Does not cross `su` boundaries, nor does it work on the remote
+#   machine.  Hence still want to parse completion commands from the
+#   environment (on the assumption that those would be whatever the user is
+#   planning on using and possibly has set up elsewhere).  Hence would very
+#   much like to only *adjust* INPUTRC rather than override it.
+#   Do this by using `$import` and the original INPUTRC.
+# - Caveat of above logic is that it's reasonably likely that the user would
+#   simply "deal with" whatever the other shell uses outside of `vsh`.  So
+#   things could easily still be completely different.
+# - Another problem is that user may have set bindings in `bash` rather than
+#   readline.
+#   Assume that if this is the case we've picked it up with `bind -q` above,
+#   and hence avoid overriding things with our special INPUTRC.
+#   N.b. Probably best to parse the keys user has set up in their environment,
+#   then put them into the generated INPUTRC.  That way can ensure things like
+#   GDB have the same commands.
+#
+# 1) AFAIK there is no easy way to register that we want to remove the tmpfile
+#    when the shell we start exits.  Would have to do something about putting an
+#    `atexit` in some temporary bashrc.  This seems like complexity that I want
+#    to avoid.
+# 2) Hence rather than that be the responsibility of the shell, we make it the
+#    responsibility of the editor.
+# 3) Could create the tempfile here and report back to the editor that this is
+#    what we're doing.  Unfortunately that creates an association between
+#    current *shell* and a given tmpfile that we then map to a given buffer.
+#    Restarting the shell in a given buffer generates a new tempfile and
+#    must *add* to the list of tempfiles to close when this buffer is closed or
+#    must remove old tmpfile and record new one.
+#    Places where this could be tricky to maintain:
+#    - Restarting subprocess.
+#      Not too bad -- just need to remove old tempfile before restarting.
+#    - Manually calling `vsh_shell_start` from underlying shell.
+#      Pretty tricky -- now have two different tempfiles active at same time.
+#      (Really not supposed to do this, but nice to have a design that avoids
+#      problems with strange things nonetheless).
+# 4) Alternatively we can create the tempfile in the editor and tell
+#    vsh_shell_start what said tempfile is.  This way we could associate one
+#    tempfile per buffer in the editor (making the editor code easier for
+#    teardown) at the cost of having to give vsh_shell_start another argument.
+#    - This is what I try and do.
+setup-inputrc () {
+  temp_file="$1"
+  if [[ -n "$INPUTRC" ]]; then
+    echo "\$include $INPUTRC" > $temp_file
+  elif [[ -f "$HOME/.inputrc" ]]; then
+    echo "\$include $HOME/.inputrc" > $temp_file
+  else
+    echo "\$include /etc/inputrc" > $temp_file
+  fi
+  if [[ -n "$2" ]]; then
+    echo 'Meta-=: possible-completions' >> $temp_file
+    echo 'Control-x g: glob-list-expansions' >> $temp_file
+    echo 'Control-u: unix-line-discard' >> $temp_file
+  fi
+  # Generate a partial inputrc that we used to generate an inputrc for the user
+  # when starting a vsh shell.
+  echo '$if term=dumb' >> $temp_file
+  echo '  set show-all-if-ambiguous on' >> $temp_file
+  # Disable querying when I request `possible-completions` especially inside
+  # VSH (putting a bunch of text on the screen is not a problem when it's so
+  # easily removed, and this would always let us use vim-completions to find
+  # what we wanted.  Mentioning VSH since that's when I tend to have TERM=dumb.
+  echo '  set completion-query-items -1' >> $temp_file
+  # Do not paginate completions when there are a lot of options.  Similar to
+  # above, this is the best option when in VSH since we are not directly
+  # interacting with readline but rather bringing in the list of completions to
+  # the current vim buffer.
+  echo '  set page-completions off' >> $temp_file
+  # Don't want special handling of tab character.  This will *look* like
+  # a tab character getting inserted when in `vsh`, so it should *act* like
+  # that in the underlying terminal.
+  echo '  "\t":tab-insert' >> $temp_file
+  echo '$endif' >> $temp_file
+}
+
+if [[ "$completions_binding" == *'not bound to any keys'* ]] || \
+  [[ "$glob_binding" == *'not bound to any keys'* ]] || \
+  [[ "$discard_line" == *'not bound to any keys'* ]]; then
+  # Just let any errors raise -- we'll see their stack in the buffer.
+  # Use defaults that should work when there was no existing binding.
+  setup-inputrc "$3" include-bindings
+  export INPUTRC="$3"
+  "$1/vsh_tell_editor_bindings.py" \
+        'possible-completions can be invoked via "\e=".' \
+        'glob-list-expansions can be invoked via "\C-xg".' \
+        'unix-line-discard can be invoked via "\C-u".' \
+        "$vsh_buffer"
+
+else
+  # Just let any errors raise -- we'll see their stack in the buffer.
+  setup-inputrc "$3"
+  export INPUTRC="$3"
+  "$1/vsh_tell_editor_bindings.py" \
+        "$completions_binding" \
+        "$glob_binding" \
+        "$discard_line" \
+        "$vsh_buffer"
+fi
+exec "$2"
