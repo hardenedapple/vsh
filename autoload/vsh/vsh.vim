@@ -53,7 +53,7 @@ endfunction
 function s:command_marker()
   " Allow notes in the file -- make lines beginning with # a comment.
   " Allow a command of just spaces (can be useful quite often).
-  return '\V\^' . b:vsh_prompt . '\s\*\(\[^#[:blank:]]\|\$\|##\)'
+  return '\V\^' . b:vsh_prompt . '\s\*\(\[^#[:blank:]]\|\$\|#\ze#\)'
 endfunction
 
 function s:block_before(line_regex)
