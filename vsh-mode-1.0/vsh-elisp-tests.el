@@ -38,6 +38,8 @@ Inserts the following local variables in the scope for `body' to use:
   '((0 0 "Test output line" output)
     (10 10 "vshcmd: > command no space" command)
     (12 10 "vshcmd: >   command with space" command)
+    (10 10 "vshcmd: > ##  double hash command with space" command)
+    (12 10 "vshcmd: >   ##  double hash command space before" command)
     (13 13 "vshcmd: >  # space before hash" comment)
     (13 13 "vshcmd: >  # " comment)
     (12 12 "vshcmd: >  #" comment)

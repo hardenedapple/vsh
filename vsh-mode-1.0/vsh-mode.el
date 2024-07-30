@@ -393,41 +393,56 @@ prompt and the first character of the command line."
   ;; (depending on direction).
   ;; If the first/last line of the buffer is a prompt and we have moved there,
   ;; then get to the start of a prompt.
-
-  ;; These two clauses handle special cases.
-  ;; When searching *forwards* the special case is in order to handle the
-  ;; possibility that we are in the middle of a prompt (where
-  ;; `re-search-forward' will not match that prompt, but we want to behave as if
-  ;; it matches.  We check this by going to the start of the line and seeing if
-  ;; there is a prompt directly after this point.  If there is a prompt and the
-  ;; position that we would want to move to is after where we are, then we move
-  ;; to the start of the line in order to accomodate the `re-search-forward'
-  ;; behaviour.
-  (when (and (> count 0)
-             (not (bolp))
-             (string-match (vsh-motion-marker) (vsh--current-line))
-             (> (+ (line-beginning-position) (match-end 2))
-                (point)))
-    (beginning-of-line))
-  ;; When searching *backwards* the special case is in order to handle the
-  ;; possibility that we are *after* a motion marker and would move to where we
-  ;; are.  This happens to only be the case when the command is empty because
-  ;; otherwise the motion marker would not match before our point (there is a
-  ;; "match either end of line or non-whitespace character" bit of the regexp
-  ;; and that would not match where we move to  -- "end of whitespace" -- unless
-  ;; at the end of line).
-  (when (and (< count 0)
-             (string-match (vsh-motion-marker) (vsh--current-line))
-             (= (match-end 0) (match-end 2))
-             (= (+ (line-beginning-position) (match-end 0))
-                (point)))
-    (cl-decf count))
-  (when (re-search-forward (vsh-motion-marker) nil 'to-end-on-error count)
-      ;; We have moved our point, but because there is no lookahead regexp in elisp
-      ;; we may have moved it one character further than we wanted to (the character
-      ;; we checked to ensure it was not a hash indicating a comment).
-      ;; Hence just go directly to the relevant character we need.
-      (goto-char (match-end 2))))
+  (when (string-match (vsh-motion-marker) (vsh--current-line))
+    ;; These clauses handle special cases.
+    ;; When searching *forwards* the special case is in order to handle the
+    ;; possibility that we are in the middle of a prompt (where
+    ;; `re-search-forward' will not match that prompt, but we want to behave as if
+    ;; it matches.  We check this by going to the start of the line and seeing if
+    ;; there is a prompt directly after this point.  If there is a prompt and the
+    ;; position that we would want to move to is after where we are, then we move
+    ;; to the start of the line in order to accomodate the `re-search-forward'
+    ;; behaviour.
+    (when (and (> count 0)
+               (not (bolp))
+               (> (+ (line-beginning-position) (match-end 2))
+                  (point)))
+      (beginning-of-line))
+    ;; When searching *backwards* the special case is in order to handle the
+    ;; possibility that we are *after* a motion marker and would move to where we
+    ;; are.  This happens to only be the case when the command is empty because
+    ;; otherwise the motion marker would not match before our point (there is a
+    ;; "match either end of line or non-whitespace character" bit of the regexp
+    ;; and that would not match where we move to  -- "end of whitespace" -- unless
+    ;; at the end of line).
+    (when (and (< count 0)
+               (= (match-end 0) (match-end 2))
+               (= (+ (line-beginning-position) (match-end 0))
+                  (point)))
+      (cl-decf count))
+    ;; Finally we have another special condition for the "double hash" escape.
+    ;; This regexp ends at a point that is not where we want to move to.  Hence we
+    ;; have to look forward a little in order to tell if we are looking at this
+    ;; double-hash.
+    (when (and (< count 0)
+               (= (+ (line-beginning-position) (match-end 2))
+                  (1- (point)))
+               ;; Checking for "##" around here.
+               (= (char-before) ?#)
+               (= (char-after) ?#))
+      ;; Moving backward one char is what we want for the first movement.  Would
+      ;; not happen naturally because the regexp is searching for a double-hash
+      ;; and would not find it in this location (because only one hash can be
+      ;; seen before the current point).
+      (backward-char)
+      (cl-incf count)))
+  (when (and (/= count 0)
+             (re-search-forward (vsh-motion-marker) nil 'to-end-on-error count))
+    ;; We have moved our point, but because there is no lookahead regexp in
+    ;; elisp we may have moved it one or two characters further than we wanted
+    ;; to (the character we checked to ensure it was not a hash indicating a
+    ;; comment).  Hence just go directly to the relevant character we need.
+    (goto-char (match-end 2))))
 
 (defun vsh-prev-command (&optional count)
   "Move backward COUNT vsh prompt lines."
