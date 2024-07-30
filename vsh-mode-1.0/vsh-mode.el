@@ -295,7 +295,7 @@ buffers, so this is essentially a literal."
   "Regexp defining command prefix for BUFFER."
   (rx (group-n 1 (literal (vsh-prompt buffer)))
       (group-n 2 (zero-or-more blank))
-      (group-n 3 (or eol (not (any ?# blank ?\n))))))
+      (group-n 3 (or eol (not (any ?# blank ?\n)) "##"))))
 
 (defun vsh--blank-prompt (&optional buffer)
   "Prompt without trailing whitespace for BUFFER."
@@ -1493,18 +1493,18 @@ type of line as the one above (i.e. either a comment or a command)."
                      (string-match (vsh-split-regexp) (vsh--current-line -1))))
         (backward-char))
       (cond
-       ((string-match (vsh-comment-regexp) (vsh--current-line))
-        (vsh--move-to-end-of-block (vsh-comment-regexp) forwards))
-       ;; Handle blank comments differently so that `adaptive-fill-function' can
-       ;; avoid getting confused by the different prefix between the two things.
-       ((string-match (vsh-blank-comment-regexp) (vsh--current-line))
-        (vsh--move-to-end-of-block (vsh-blank-comment-regexp) forwards))
        ((string-match (vsh-command-regexp) (vsh--current-line))
         ;; Know that if we were at the start of a line then we moved to
         ;; the line above in the `back-single-char' evaluation above.
         ;; Hence moving to the start of the line makes this a single line
         ;; paragraph.
         (forward-line (if forwards direction 0)))
+       ((string-match (vsh-comment-regexp) (vsh--current-line))
+        (vsh--move-to-end-of-block (vsh-comment-regexp) forwards))
+       ;; Handle blank comments differently so that `adaptive-fill-function' can
+       ;; avoid getting confused by the different prefix between the two things.
+       ((string-match (vsh-blank-comment-regexp) (vsh--current-line))
+        (vsh--move-to-end-of-block (vsh-blank-comment-regexp) forwards))
        (t
         ;; Move forward either to least of:
         ;; - Next paragraph according to `forward-paragraph'.
