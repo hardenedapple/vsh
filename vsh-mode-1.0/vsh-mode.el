@@ -1031,13 +1031,23 @@ Returns `true' when we saw a command for programming convenience."
             (looking-at (vsh-command-regexp)))
       (unless (= segment-start (line-beginning-position))
         (goto-char (match-end 1)))
-      (vsh--delete-and-send
-       (string-join
-        (list
-         (buffer-substring-no-properties
-          (+ (line-beginning-position) (length (vsh-prompt))) (line-end-position))
-         "\n"))
-       proc))))
+      (let ((command
+             (if (string= (match-string 3) "##")
+                 ;; Special case for the "double hash" escape sequence.  Ensure
+                 ;; we only send a single hash to the underlying shell.
+                 (list
+                  (buffer-substring-no-properties
+                   (+ (line-beginning-position) (length (vsh-prompt)))
+                   (match-end 2))
+                  "#"
+                  (buffer-substring-no-properties
+                   (match-end 3) (line-end-position))
+                  "\n")
+               (list (buffer-substring-no-properties
+                      (+ (line-beginning-position) (length (vsh-prompt)))
+                      (line-end-position))
+                     "\n"))))
+        (vsh--delete-and-send (string-join command) proc)))))
 
 (defun vsh-execute-region ()
   "Run each command in the given region.
