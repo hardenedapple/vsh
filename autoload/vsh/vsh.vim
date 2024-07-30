@@ -1323,7 +1323,7 @@ function vsh#vsh#SelectCommandBlock(include_comments)
   if a:include_comments
     let include_regex = vsh#vsh#SplitMarker(0)
   else
-    let include_regex = s:motion_marker()
+    let include_regex = s:command_marker()
   endif
   let exclude_regex = s:negate_prompt_regex(l:include_regex)
   let Find_prompt = { -> search(l:include_regex, 'bcW', 0) }
