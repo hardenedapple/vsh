@@ -342,9 +342,7 @@ function vsh#vsh#ParseVSHCommand(line)
     return -1
   endif
   let temp = a:line[len(b:vsh_prompt):]
-  if temp[:1] == '##'
-    let temp = temp[1:]
-  endif
+  let temp = substitute(temp, '^\s*\zs##', '#', '')
   return temp
 endfunction
 
