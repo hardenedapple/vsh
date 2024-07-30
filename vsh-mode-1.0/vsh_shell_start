@@ -97,7 +97,9 @@ setup-inputrc () {
     echo "\$include /etc/inputrc" > $temp_file
   fi
   if [[ -n "$2" ]]; then
-    echo 'Meta-=: possible-completions' >> $temp_file
+    # N.b., I use the escape version rather than `Meta-=` because this seems to
+    # work more often.  Have not looked out for why exactly that is.
+    echo '"\e=": possible-completions' >> $temp_file
     echo 'Control-x g: glob-list-expansions' >> $temp_file
     echo 'Control-u: unix-line-discard' >> $temp_file
   fi
