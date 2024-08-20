@@ -17,8 +17,32 @@
 stty tabs -onlcr icanon -echo -onlcr iexten isig -echonl -crterase
 
 export PAGER=
+# Recently (back in 2002) `groff` changed to emit SGR color sequences instead
+# of the overstrike sequences originally for paper typewriters.  Until more
+# recently (not entirely sure when) this was overridden by default in Debian
+# based systems via a setting in /etc/groff/man.local. 
+# On newer systems (I first noticed on Ubuntu 24.04) this default has been
+# removed and the SGR encodings are now "coming through" in the output going to
+# MANPAGER.
+#
+# We now have an interesting question.  Do we pass these SGR sequences through
+# to the user (so they see bold/underlined/etc output in the emacs VSH buffer
+# -- and could see the same thing in vim VSH buffers when I get round to
+# implementing that -- and so most other programs used as MANPAGER would also
+# work), or do we try and remove them (so that searching the text matches
+# things).
+#
+# We choose trying to remove them on the principle that if users of vim/emacs
+# wanted pretty MAN pages they can use the respective viewers within that text
+# editor.  Providing a quick-and-dirty command line version inside VSH is much
+# more useful for search/replace/use as part of a command, and those uses need
+# escape sequences removed.
+# The below environment variable ensures that the legacy output format is used,
+# and the MANPAGER ensures that the overstrike formatting gets converted to
+# plain text.
+export MANROFFOPT="-c"
 export MANPAGER="$1/vsh_man_pager"
-export GIT_PAGER='col -b'
+export GIT_PAGER='cat'
 
 # N.b. These variables are in the `vim` environment, but not the `nvim`
 # environment.  With these set some commands change their output to fit the
