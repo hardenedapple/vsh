@@ -1459,7 +1459,7 @@ function s:create_color_groups(prompt)
   " Hide all bash control characters
   execute 'syn match vshHide "' . colorControl . '" conceal'
   let colornumbers = ['Black', 'DarkRed', 'DarkGreen', 'Yellow',
-        \ 'DarkBlue', 'DarkMagenta', 'DarkCyan']
+        \ 'DarkBlue', 'DarkMagenta', 'DarkCyan', 'White']
   let index = 0
   " We have the prompt here to ensure that fouled output from a pty doesn't
   " colour the entire file below it.
@@ -1467,10 +1467,24 @@ function s:create_color_groups(prompt)
   " look-ahead pattern.
   let suffix = 'm" end="\(^\(' . a:prompt . '\)\@=\|' . colorControl . '\)" contains=vshHide keepend'
   while index < len(l:colornumbers)
+    " N.b. using the table I found here.
+    "https://gist.github.com/JBlond/2fea43a3049b38287e5e9cefc87b2124
+    " Am pretty sure that combinations will not work (i.e. marking something as
+    " both red in foreground and background a problem), but I'm making progress
+    " every so often when the colors in a terminal program would help me work
+    " and are lost in vsh.
     let syn_num = 30 + index
+    let alt_syn_num = 90 + index
     let syn_name = 'vshColorMarkerfg' . index
+    let bg_syn_num = 40 + index
+    let alt_bg_syn_num = 100 + index
+    let bg_syn_name = 'vshColorMarkerbg' . index
     execute 'syn region ' . syn_name . ' start="\[\(\d\+;\)\=' . syn_num . suffix
+    execute 'syn region ' . syn_name . ' start="\[\(\d\+;\)\=' . alt_syn_num . suffix
+    execute 'syn region ' . bg_syn_name . ' start="\[' . bg_syn_num . suffix
+    execute 'syn region ' . bg_syn_name . ' start="\[' . alt_bg_syn_num . suffix
     execute 'hi ' . syn_name . ' ctermfg=' . colornumbers[index]
+    execute 'hi ' . bg_syn_name . ' ctermbg=' . colornumbers[index]
     let index += 1
   endwhile
 endfunction
