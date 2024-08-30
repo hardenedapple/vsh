@@ -686,14 +686,18 @@ function vsh#vsh#SendPassword()
   endif
 endfunction
 
-function vsh#vsh#SendUnterminated()
+function vsh#vsh#SendUnterminated(text)
   if !get(b:, 'vsh_job', 0)
     echoerr 'No subprocess currently running!'
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
   endif
-  let password = input('Text: ')
-  if s:channel_send(b:vsh_job, password) == 0
+  if a:text == ''
+    let text = input('Text: ')
+  else
+    let text = a:text
+  endif
+  if s:channel_send(b:vsh_job, text) == 0
     echoerr 's:channel_send() failed to send unterminated text'
   endif
 endfunction
@@ -1411,7 +1415,7 @@ function vsh#vsh#SetupMappings()
   command -buffer -range VmakeCmds execute 'keeppatterns ' . <line1> . ',' . <line2> . 's/^/' . b:vsh_prompt . '/'
 	command -buffer -range VsetQF execute 'cexpr getline(' . <line1> . ',' . <line2> . ')'
   command -buffer VshPass call vsh#vsh#SendPassword()
-	command -buffer VshSendUnterminated call vsh#vsh#SendUnterminated()
+	command -buffer -nargs=? VshSendUnterminated call vsh#vsh#SendUnterminated(<q-args>)
   if !has('g:vsh_no_default_mappings')
     for [mapmode, overridevar, maptype, trigger, plugmap, final_expansion] in g:vsh_buffer_mappings_list
       let final_trigger = get(g:, overridevar, trigger)

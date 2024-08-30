@@ -456,6 +456,17 @@ i_<M-CR>        Run the current command, create a new prompt under the current
 <F4>            Visual mode mapping to do the above on the visual selection.
 <F4>            Normal mode mapping to run the above on a given motion.
 
+                            *vsh-:VshSendUnterminated*
+:VshSendUnterminated [input]
+                If not given an input this requests input from the user and
+                sends that text to the underlying process without any
+                terminating newline.
+                If given an input it sends that input to the underlying
+                process without a terminating newline.
+                This mostly useful for interacting with processes which will
+                act on single character input before the newline is sent.
+                This is not often used.
+
                             *vsh-<localleader>c* *vsh-control-char*
                           *vsh-send-control-char* *vsh-send-control*
 <localleader>c  Read a single character from the user, and send the control
