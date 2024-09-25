@@ -1198,6 +1198,7 @@ function vsh#vsh#RestoreArgs()
 endfunction
 " }}}
 
+" {{{ Entry points of command implementations that are not text objects
 function vsh#vsh#ReplaceOutput()
   let l:command_line = s:segment_start()
 
@@ -1263,6 +1264,31 @@ function vsh#vsh#SaveOutput(activate)
     echo 'Output is not Active'
   endif
 endfunction
+
+function vsh#vsh#BOLOverride(mode)
+  let curline = getline('.')
+  let matchstr = getbufvar('%', 'vsh_prompt', '')
+  if matchstr == '' || curline =~# matchstr
+    if a:mode == 'v'
+      return s:prompt_end(curline, 1, 0) . '|'
+    endif
+    call s:move_to_prompt_start()
+  else
+    if a:mode == 'v'
+      return '^'
+    endif
+    normal! ^
+  endif
+endfunction
+
+function vsh#vsh#InsertOverride()
+  let orig_count = v:count1
+  normal ^
+  " Use feedkeys so that 'i' inserts.
+  " We can't use :startinsert because otherwise we don't include the count.
+  call feedkeys(orig_count . 'i')
+endfunction
+" }}}
 
 " {{{ Text objects
 " It appears that most text objects do *something* when there isn't really
@@ -1383,31 +1409,6 @@ function vsh#vsh#SelectCommandBlock(include_comments)
   " endif
 endfunction
 " }}}
-
-function vsh#vsh#BOLOverride(mode)
-  let curline = getline('.')
-  let matchstr = getbufvar('%', 'vsh_prompt', '')
-  if matchstr == '' || curline =~# matchstr
-    if a:mode == 'v'
-      return s:prompt_end(curline, 1, 0) . '|'
-    endif
-    call s:move_to_prompt_start()
-  else
-    if a:mode == 'v'
-      return '^'
-    endif
-    normal! ^
-  endif
-endfunction
-
-function vsh#vsh#InsertOverride()
-  let orig_count = v:count1
-  normal ^
-  " Use feedkeys so that 'i' inserts.
-  " We can't use :startinsert because otherwise we don't include the count.
-  call feedkeys(orig_count . 'i')
-endfunction
-
 
 " {{{ Setup and Teardown of ftplugin
 function vsh#vsh#SetupMappings()
