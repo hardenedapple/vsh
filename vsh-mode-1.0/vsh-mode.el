@@ -1272,6 +1272,76 @@ underlying process in the vsh buffer."
        (compilation-mode)
        (display-buffer (current-buffer) '(nil (allow-no-window . t)))))))
 
+(defun vsh-convert-cat (&optional marker)
+  "Convert the prompt and output of a `cat` command into a chunk of text to send
+that creates the same file.
+
+This can be run on a `cat' prompt, or in the output from the `cat' command.
+
+This command is mostly useful for converting a session showing what you
+did into either a replayable session for someone else to follow.  Also
+this could be used when turning a session into a script for later use."
+  (interactive)
+  (unless marker (setq marker "EOF"))
+  ;; N.b. Originally I was using `save-excursion', but later decided that I
+  ;; want to leave the cursor at the start of the `cat' line and have the mark
+  ;; at the end of the `EOF' line.
+  ;; Convert command line.
+  (goto-char (vsh--segment-bound nil t))
+  (if (not (and (looking-at-p (vsh-command-regexp))
+                (looking-at
+                 (rx (literal (vsh-prompt))
+                     (zero-or-more not-newline)
+                     word-boundary (group-n 1 "cat") word-boundary))))
+      (message "No command line using `cat` to convert")
+    ;; Now have a match for the type of command we care about.
+    ;; Convert the initial command.
+    (replace-match (string-join (list "cat <<" marker " >"))
+                   t t nil 1)
+    (let ((start (vsh--segment-bound nil nil))
+          (end (vsh--segment-bound t nil)))
+      (if (= start end)
+          ;; Only a single command (and no output).
+          ;; Doesn't make much sense, but try our best to provide a behaviour
+          ;; that might be useful in this case.
+          (progn (forward-line)
+                 (insert (vsh-prompt) marker ?\n))
+        (let ((start-mark (make-marker))
+              (end-mark (make-marker)))
+          ;; Record points with marks so adjustments in text do not mean we
+          ;; need to calculate the ranges again.
+          (set-marker start-mark start)
+          (set-marker end-mark end)
+          ;; Escape all `#` characters so that these lines get sent to pty.
+          (replace-regexp-in-region
+           (rx bol (group-n 1 (zero-or-more blank)) "#")
+           (rx (backref 1) "##") start-mark end-mark)
+          ;; Replace the last prompt in the current output with the marker
+          ;; (for the `cat <<EOF` ending).
+          (goto-char end-mark)
+          (forward-line -1)
+          (delete-region (line-beginning-position) (line-end-position))
+          (insert marker)
+          ;; Convert all lines into commands.
+          (vsh-make-cmd start-mark (1- (marker-position end-mark)))
+          ;; Record `start' and `end' for the command just outside this let
+          ;; block.
+          (setq start (marker-position start-mark))
+          (setq end (marker-position end-mark))
+          ;; Clear the markers so that future insertion does not need to move
+          ;; these markers in between them going out of scope and GC removing
+          ;; them (see "(elisp) Overview of Markers").
+          (set-marker start-mark nil)
+          (set-marker end-mark nil))
+        ;; Not 100% sure this is a good idea, but I'm likeing this behaviour
+        ;; for the moment.  I usually would like to see clearly the range of
+        ;; the buffer that I've selected.  Choosing not to activate the mark
+        ;; by default purely on "feels".
+        (set-mark end)
+        (goto-char start)
+        (forward-line -1)
+        (vsh-bol)))))
+
 (defun vsh-send-region (rbeg rend &optional buffer)
   "Send region to the underlying process."
   (interactive "r")
