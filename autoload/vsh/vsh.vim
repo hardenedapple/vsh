@@ -1288,6 +1288,52 @@ function vsh#vsh#InsertOverride()
   " We can't use :startinsert because otherwise we don't include the count.
   call feedkeys(orig_count . 'i')
 endfunction
+
+" N.b. problem with this is that it hard-codes the use of EOF as the marker.
+" Could add functionality to choose something else via an argument.
+function vsh#vsh#ConvertCatVshCommand(marker='EOF')
+  let marker = a:marker == '' ? 'EOF' : a:marker
+  let span = s:command_span()
+  if l:span == []
+    " Not 100% sure what to do here.  If there is no output then this command
+    " makes little sense.  Choosing to "do the best thing I can think of"
+    " rather than "complain this action makes no sense".
+    " Hence if called on a command line with no output but with a `cat` command
+    " on it, then converting the `cat` command accordingly and adding an `EOF`
+    " just below it.
+    let startline = line('.')
+    let endline = line('.')
+  else
+    let startline = l:span[0]
+    let endline = l:span[1]
+  endif
+  if getline(startline) !~# s:command_marker() 
+        \ || getline(startline) !~# 'cat'
+    echom 'No command line using cat to convert'
+    return
+  endif
+  call setline(startline, substitute(getline(startline), '\<cat\>', 'cat <<'.l:marker.' >', ''))
+  " Output of a command includes the prompt after the command finished.
+  " Hence we want to replace the last line with the marker.
+  " However, in the special case where we were run on a single line we append a
+  " line instead.  Again handling a case that doesn't really make sense, but
+  " try and make it as nice as possible.
+  if startline != endline
+    call setline(endline, l:marker)
+    execute startline.'+1,'.endline.'s/\m^\s*\zs#/##/e'
+    execute startline.'+1,'.endline.'VmakeCmds'
+  else
+    call append(endline, l:marker)
+    execute endline+1.'VmakeCmds'
+  endif
+  " Extend "start" of change to include the start line.  Because we recently
+  " modified everything between startline and endline the current "change"
+  " markers span that range, so adjusting "start of change" marker to
+  " `startline` makes the range easily selectable.
+  " Do wonder about leaving the cursor at the `cat` line ... not doing it for
+  " the moment based purely on "feel".
+  execute startline . ' mark ' .'['
+endfunction
 " }}}
 
 " {{{ Text objects
@@ -1416,6 +1462,7 @@ function vsh#vsh#SetupMappings()
   command -buffer -range VmakeCmds execute 'keeppatterns ' . <line1> . ',' . <line2> . 's/^/' . b:vsh_prompt . '/'
 	command -buffer -range VsetQF execute 'cexpr getline(' . <line1> . ',' . <line2> . ')'
   command -buffer VshPass call vsh#vsh#SendPassword()
+	command -buffer -nargs=? VshConvertCat call vsh#vsh#ConvertCatVshCommand(<q-args>)
 	command -buffer -nargs=? VshSendUnterminated call vsh#vsh#SendUnterminated(<q-args>)
   if !has('g:vsh_no_default_mappings')
     for [mapmode, overridevar, maptype, trigger, plugmap, final_expansion] in g:vsh_buffer_mappings_list
@@ -1431,6 +1478,7 @@ function s:teardown_mappings()
   silent! delcommand -buffer VmakeCmds
   silent! delcommand -buffer VsetQF
   silent! delcommand -buffer VshPass
+  silent! delcommand -buffer VshConvertCat
   silent! delcommand -buffer VshSendUnterminated
   if !has('g:vsh_no_default_mappings')
     for [mapmode, overridevar, maptype, trigger, plugmap, final_expansion] in g:vsh_buffer_mappings_list

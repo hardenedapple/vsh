@@ -467,6 +467,37 @@ i_<M-CR>        Run the current command, create a new prompt under the current
                 act on single character input before the newline is sent.
                 This is not often used.
 
+                            *vsh-:VshConvertCat*
+:VshConvertCat [marker]
+                When run in a command section where the command uses `cat`,
+                then convert the command to `cat << EOF > <whatever>` and add
+                an `EOF` marker at the end of the command.  This helps convert
+                the output of a `cat` command used previously into something
+                that creates that file.
+                This is mostly useful for converting a session showing what
+                you did into either a replayable session for someone else to
+                follow.  Also this could be used when turning a session into a
+                script for later use.
+                As an example running this command from anywhere in the
+                first command or its output below would turn >
+      vshcmd: > cat testscript.sh
+      #!/bin/bash
+      echo "Hello world"
+      $
+      vshcmd: > 
+<               Into >
+      vshcmd: > cat <<EOF > testscript.sh
+      vshcmd: > ##!/bin/bash
+      vshcmd: > echo "Hello world"
+      vshcmd: > EOF
+      vshcmd: > 
+<               NOTE: the marker is EOF by default, but another marker can be
+                selected with an argument.
+                NOTE: `#` characters at the start of a line in the output are
+                converted to double `##` in order to escape the comment
+                character so the file created by the converted sequence is the
+                same as the file that was originally printed to the terminal.
+
                             *vsh-<localleader>c* *vsh-control-char*
                           *vsh-send-control-char* *vsh-send-control*
 <localleader>c  Read a single character from the user, and send the control
