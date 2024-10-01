@@ -62,6 +62,8 @@ class ShowHere(gdb.Command):
         showhere_editor_implementation(pos)
 
 
+# TODO Have a look at putting this in the quickfix list / emacs search buffer
+# instead of storing as marks.
 class MarkStack(gdb.Command):
     def __init__(self):
         super(MarkStack, self).__init__('mark-stack', gdb.COMMAND_USER)
@@ -462,7 +464,6 @@ else:
                     mark_position(pc_pos, mark, sock, True)
                 if marks_to_clear:
                     run_vim_command(sock, ['ex', 'delmarks {}'.format(marks_to_clear)])
-
 
 
 GoHere()
