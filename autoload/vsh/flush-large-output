@@ -1,0 +1,23 @@
+#!/usr/bin/env python
+'''
+Remove large chunks of output from some VSH text.
+
+Usually used in a pipe from the text editor.
+
+'''
+import sys
+
+if __name__ == '__main__':
+    prev_cmd = None
+    for idx, line in enumerate(sys.stdin.readlines()):
+        if line.startswith('vshcmd: >'):
+            if prev_cmd is not None and (idx - prev_cmd) > 100:
+                print('...')
+            prev_cmd = idx
+            print(line, end='')
+            continue
+        if prev_cmd is None:
+            continue
+        if idx - prev_cmd >= 100:
+            continue
+        print(line, end='')
