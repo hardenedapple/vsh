@@ -53,6 +53,10 @@ class ShowHere(gdb.Command):
     def __init__(self):
         super(ShowHere, self).__init__('showhere', gdb.COMMAND_USER)
 
+    # N.b. This naturally adjusts based on selected frame *except* when one
+    # frame is inlined into the other.  In that case when going up the stack we
+    # see the same $pc and hence jump to the same spot.
+    # TODO Would be nice to account for that.
     def invoke(self, arg, _):
         args = gdb.string_to_argv(arg)
         if len(args) > 1:
