@@ -40,13 +40,18 @@ else:
 # Wait until get told to finish -- with ^D is "complete", with ^C is not.
 # Exiting with non-zero status, tells the process calling $EDITOR that the
 # files were not edited sucessfully.
-try:
-    input('Press C-d for "successful" edit, C-c otherwise')
-except EOFError:
-    ret = 0
-except KeyboardInterrupt:
-    ret = 1
-finally:
-    restore()
+ret = None
+while True:
+    try:
+        input('Press C-d for "successful" edit, C-c otherwise')
+    except EOFError:
+        ret = 0
+    except KeyboardInterrupt:
+        ret = 1
+    else:
+        continue
+    finally:
+        restore()
+    break
 
 sys.exit(ret)
