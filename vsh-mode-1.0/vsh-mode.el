@@ -1296,7 +1296,7 @@ this could be used when turning a session into a script for later use."
       (message "No command line using `cat` to convert")
     ;; Now have a match for the type of command we care about.
     ;; Convert the initial command.
-    (replace-match (string-join (list "cat <<" marker " >"))
+    (replace-match (string-join (list "cat << '" marker "' >"))
                    t t nil 1)
     (let ((start (vsh--segment-bound nil nil))
           (end (vsh--segment-bound t nil)))

@@ -1312,7 +1312,7 @@ function vsh#vsh#ConvertCatVshCommand(marker='EOF')
     echom 'No command line using cat to convert'
     return
   endif
-  call setline(startline, substitute(getline(startline), '\<cat\>', 'cat <<'.l:marker.' >', ''))
+  call setline(startline, substitute(getline(startline), '\<cat\>', 'cat << '''.l:marker.''' >', ''))
   " Output of a command includes the prompt after the command finished.
   " Hence we want to replace the last line with the marker.
   " However, in the special case where we were run on a single line we append a
