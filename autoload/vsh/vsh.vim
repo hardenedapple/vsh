@@ -765,7 +765,8 @@ if !has('nvim')
     " Unfortunately that string includes the state (e.g. closed) and that can
     " have changed by the time this function gets called.
     let chan = job_getchannel(a:job_obj)
-    let buf = get(s:channel_buffer_mapping, chan, -1)
+    let ch_id = ch_info(chan)['id']
+    let buf = get(s:channel_buffer_mapping, ch_id, -1)
     " Access tempfile from command that was run (is last argument to
     " vsh_shell_start).
     let inputrc = job_info(a:job_obj)['cmd'][-1]
@@ -777,7 +778,8 @@ if !has('nvim')
   endfunction
 
   function s:insert_text(channel, msg)
-    let buf = get(s:channel_buffer_mapping, a:channel, -1)
+    let ch_id = ch_info(a:channel)['id']
+    let buf = get(s:channel_buffer_mapping, ch_id, -1)
     call s:insert_text_general(a:msg, buf)
   endfunction
 
@@ -870,7 +872,8 @@ if !has('nvim')
       let job_obj = job_start(
             \ [start_script, s:plugin_path, &shell, inputrc_tmpfile],
             \ arguments)
-      let s:channel_buffer_mapping[job_getchannel(job_obj)] = bufnr('%')
+      let channel_id = ch_info(job_getchannel(job_obj))['id']
+      let s:channel_buffer_mapping[channel_id] = bufnr('%')
       let s:active_inputrc_files[inputrc_tmpfile] = v:true
     else
       echoerr 'Powershell not yet implemented for original vim'
