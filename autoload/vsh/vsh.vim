@@ -397,10 +397,10 @@ endfunction
 
 function vsh#vsh#ClosedBuffer()
   let closing_file = expand('<afile>')
-  let closing_info = get(g:vsh_closing_jobs, closing_file, 0)
+  let closing_info = get(g:vsh_closing_jobs, closing_file, [0, 0])
   let closing_job = closing_info[0]
   let closing_tmpfile = closing_info[1]
-  if closing_job != 0
+  if type(closing_job) != v:t_number || closing_job != 0
     call s:channel_close(closing_job)
     call remove(g:vsh_closing_jobs, closing_file)
   endif
