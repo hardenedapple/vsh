@@ -398,17 +398,13 @@ endfunction
 
 function vsh#vsh#ClosedBuffer()
   let closing_file = expand('<afile>')
-  let closing_info = get(g:vsh_closing_jobs, closing_file, v:null)
-  let closing_job = closing_info[0]
+  let closing_job = get(g:vsh_closing_jobs, closing_file, v:null)
   " Check against `7` rather than v:t_none because that works in both neovim
   " and vim.  v:null is the default in our dictionary lookup and also the value
   " of "this job has been closed".
   if type(closing_job) != 7
     call s:channel_close(closing_job)
     call remove(g:vsh_closing_jobs, closing_file)
-  endif
-  if closing_tmpfile != ''
-    execute 'silent !rm ' . shellescape(closing_tmpfile)
   endif
 endfunction
 
@@ -898,7 +894,6 @@ if !has('nvim')
             \ arguments)
       let channel_id = ch_info(job_getchannel(job_obj))['id']
       let s:channel_buffer_mapping[channel_id] = bufnr('%')
-      let s:active_inputrc_files[inputrc_tmpfile] = v:true
     else
       echoerr 'Powershell not yet implemented for original vim'
     endif
@@ -916,6 +911,7 @@ if !has('nvim')
       " another buffer (in ClosedBuffer() and SubprocessClosed()), and I can't
       " unlock it from there.
       let b:vsh_job = l:job_obj
+      let s:active_inputrc_files[inputrc_tmpfile] = v:true
     endif
   endfunction
 
