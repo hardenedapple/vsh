@@ -389,18 +389,21 @@ function s:set_marks_at(position)
 endfunction
 
 function s:close_process()
-  if getbufvar(bufnr('%'), 'vsh_job') != ''
+  " If process is running, close it.
+  if s:vsh_job_status(bufnr('%')) == v:true
     call s:channel_close(b:vsh_job)
-    unlet b:vsh_job
   endif
+  unlet! b:vsh_job
 endfunction
 
 function vsh#vsh#ClosedBuffer()
   let closing_file = expand('<afile>')
-  let closing_info = get(g:vsh_closing_jobs, closing_file, [0, 0])
+  let closing_info = get(g:vsh_closing_jobs, closing_file, v:null)
   let closing_job = closing_info[0]
-  let closing_tmpfile = closing_info[1]
-  if type(closing_job) != v:t_number || closing_job != 0
+  " Check against `7` rather than v:t_none because that works in both neovim
+  " and vim.  v:null is the default in our dictionary lookup and also the value
+  " of "this job has been closed".
+  if type(closing_job) != 7
     call s:channel_close(closing_job)
     call remove(g:vsh_closing_jobs, closing_file)
   endif
@@ -410,7 +413,7 @@ function vsh#vsh#ClosedBuffer()
 endfunction
 
 function vsh#vsh#SendControlChar()
-  if getbufvar(bufnr('%'), 'vsh_job') == ''
+  if s:vsh_job_status(bufnr('%')) != v:true
     echoerr 'No subprocess currently running!'
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
@@ -476,7 +479,7 @@ function vsh#vsh#StartSubprocess()
 
   call s:start_origvim_server()
 
-  if getbufvar(bufnr('%'), 'vsh_job') != ''
+  if s:vsh_job_status(bufnr('%')) == v:true
     echoerr 'Already a subprocess running for this buffer'
     return
   endif
@@ -501,7 +504,7 @@ function vsh#vsh#RestartSubprocess()
 endfunction
 
 function vsh#vsh#RunCommand(command_line, command)
-  if getbufvar(bufnr('%'), 'vsh_job') == ''
+  if s:vsh_job_status(bufnr('%')) != v:true
     echoerr 'No subprocess currently running!'
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
@@ -548,8 +551,8 @@ function vsh#vsh#VshSendCommand(buffer, line1, line2, dedent)
 endfunction
 
 function vsh#vsh#VshSend(buffer, pos1, pos2, dedent, charwise)
-  let job = getbufvar(a:buffer, 'vsh_job')
-  if l:job == ''
+  " Not using the abstraction here since we're checking the same thing.
+  if s:vsh_job_status(a:buffer) != v:true
     echoerr 'Buffer ' . a:buffer . ' has no vsh job running'
     return
   endif
@@ -576,6 +579,7 @@ function vsh#vsh#VshSend(buffer, pos1, pos2, dedent, charwise)
   endif
   let line1 += 1
 
+  let job = getbufvar(a:buffer, 'vsh_job')
   let indent = a:dedent == '!' ? match(first_line, '\S') : 0
   " Inclusive, indent does not account for tabs mixing with spaces (i.e. if
   " the first line is indented 4 spaces, and the second is indented with one
@@ -675,7 +679,7 @@ function vsh#vsh#SetSendbuf()
 endfunction
 
 function vsh#vsh#SendPassword()
-  if !get(b:, 'vsh_job', 0)
+  if s:vsh_job_status(bufnr('%')) != v:true
     echoerr 'No subprocess currently running!'
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
@@ -687,7 +691,7 @@ function vsh#vsh#SendPassword()
 endfunction
 
 function vsh#vsh#SendUnterminated(text)
-  if !get(b:, 'vsh_job', 0)
+  if s:vsh_job_status(bufnr('%')) != v:true
     echoerr 'No subprocess currently running!'
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
@@ -715,10 +719,21 @@ function s:clear_vsh_vars(buffer, job)
   " callback being called.  This is likely a very quick unset of filetype and
   " then reset of the filetype (happens when opening .vsh files at startup in
   " recent neovims).
-  if getbufvar(a:buffer, 'vsh_job', 0) == a:job
-    call setbufvar(a:buffer, 'vsh_job', 0)
-    if getbufvar(a:buffer, 'vsh_initialised', 0)
-      call setbufvar(a:buffer, 'vsh_initialised', 0)
+  if s:vsh_job_status(a:buffer) != v:null
+    if getbufvar(a:buffer, 'vsh_job') == a:job
+      " IIUC there is nothing along the lines of `delbufvar` which runs `unlet`
+      " on a buffer-local variable in another buffer.  Hence using two
+      " different states both to indicate "no process associated with this
+      " buffer" one is v:null as the value, the other is the value being unset.
+      " For the rest of the code this is abstracted away with the
+      " s:vsh_job_status function where we just check for `v:true` or not
+      " `v:true` (n.b. not checking against `v:false`).  This function needs to
+      " distinguish in order to know whether to clear the variable or just
+      " leave it because it's unset.
+      call setbufvar(a:buffer, 'vsh_job', v:null)
+      if getbufvar(a:buffer, 'vsh_initialised', 0)
+        call setbufvar(a:buffer, 'vsh_initialised', 0)
+      endif
     endif
   endif
 endfunction
@@ -759,6 +774,15 @@ endfunction
 if !has('nvim')
   " Vim Specific Functions {{{
   let s:channel_buffer_mapping = {}
+
+  " Tri-state describing job status.
+  function s:vsh_job_status(bufnr)
+    let j = getbufvar(a:bufnr, 'vsh_job', v:null)
+    if j == v:null
+      return v:null
+    endif
+    return job_status(j) == 'run' ? v:true : v:false
+  endfunction
 
   function s:subprocess_closed(job_obj, exit_status)
     " N.b. using as dictionary key converts the channel/job into a string.
@@ -908,6 +932,18 @@ if !has('nvim')
   " }}}
 else
   " Neovim Specific functions {{{
+  function s:vsh_job_status(bufnr)
+    let j = getbufvar(a:bufnr, 'vsh_job', v:null)
+    if j == v:null
+      return v:null
+    endif
+    " Should never happen, but let's at least be alerted if it does happen (so
+    " can fix it).
+    if j == 0
+      echoerr 'Leftover setting of job to 0'
+    endif
+    return j == 0 ? v:false : v:true
+  endfunction
   " Current process has exited, clear up buffer local variables.
   function s:subprocess_closed(job_id, data, event) dict
     call remove(s:active_inputrc_files, self.inputrc)
@@ -1000,7 +1036,7 @@ endfunction
 
 " {{{ Integration with CWD of shell
 function vsh#vsh#WithPathSet(command)
-  if getbufvar(bufnr('%'), 'vsh_job') == ''
+  if s:vsh_job_status(bufnr('%')) != v:true
     echoerr 'No subprocess currently running!'
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
@@ -1036,7 +1072,7 @@ function s:cd_to_cwd()
   " Return the current working directory of this vim window, the command to
   " use to switch the working directory, and the working directory of the
   " foreground process in the pty.
-  if getbufvar(bufnr('%'), 'vsh_job') == ''
+  if s:vsh_job_status(bufnr('%')) != v:true
     echoerr 'No subprocess currently running!'
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
@@ -1576,7 +1612,7 @@ function s:remove_buffer_variables()
   for variable in ['vsh_job', 'vsh_prompt', 'vsh_completions_cmd',
         \ 'vsh_insert_change_tick', 'vsh_initialised', 'vsh_dir_store',
         \ 'vsh_alt_buffer']
-    execute 'silent! unlet b:' . variable
+    execute 'unlet! b:' . variable
   endfor
   autocmd! VshBufferClose BufUnload,BufDelete <buffer>
 endfunction
