@@ -20,7 +20,7 @@ elif os.getenv('VSH_VIM_LISTEN_ADDRESS'):
     import re
     origvim_socket_addr = os.getenv('VSH_VIM_LISTEN_ADDRESS')
     m = re.match(r'localhost:(\d+)', origvim_socket_addr)
-    assert(m)
+    assert m
     sock = socket.socket()
     sock.connect(('localhost', int(m.groups()[0])))
 
@@ -46,12 +46,12 @@ while True:
         input('Press C-d for "successful" edit, C-c otherwise')
     except EOFError:
         ret = 0
+        restore()
     except KeyboardInterrupt:
         ret = 1
+        restore()
     else:
         continue
-    finally:
-        restore()
     break
 
 sys.exit(ret)
