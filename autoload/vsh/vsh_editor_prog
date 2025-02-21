@@ -19,6 +19,7 @@ elif os.getenv('VSH_VIM_LISTEN_ADDRESS'):
     import json
     import re
     origvim_socket_addr = os.getenv('VSH_VIM_LISTEN_ADDRESS')
+    assert origvim_socket_addr is not None
     m = re.match(r'localhost:(\d+)', origvim_socket_addr)
     assert m
     sock = socket.socket()
@@ -26,8 +27,8 @@ elif os.getenv('VSH_VIM_LISTEN_ADDRESS'):
 
     filenames = [os.path.abspath(arg) for arg in sys.argv[1:]]
     message = ["call", "vsh#vsh#EditFiles", [filenames]]
-    message = json.dumps(message)
-    sock.send(message.encode('utf8'))
+    message_str = json.dumps(message)
+    sock.send(message_str.encode('utf8'))
     def restore():
         message = ["call", "vsh#vsh#RestoreArgs", []]
         message = json.dumps(message)
