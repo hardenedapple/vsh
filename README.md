@@ -30,6 +30,15 @@ Some demos are provided in the links below.
 
 Requires vim with patch 8.0.0764 or nvim version 0.2.
 
+### Installation
+Install with favourite package manager or Vim's built-in package support.
+For emacs can find this package on MELPA.
+
+After installation, I'd suggest opening up vsh/demo/setup-env.sh to read (and
+possibly run) the (small number of) configuration steps there in turn.  The
+biggest point is to ensure `TERM=dumb` is not overridden in your bashrc (manual
+adjustment to a different shell should be relatively simple).
+
 ### Motivation video
 [![Vsh motivation](https://asciinema.org/a/9zn5e69g0by7e9kdsz1vlzgf8.png)](https://asciinema.org/a/9zn5e69g0by7e9kdsz1vlzgf8)
 
@@ -45,3 +54,11 @@ Requires vim with patch 8.0.0764 or nvim version 0.2.
 [!["Remote editing" -- sort of](https://asciinema.org/a/100680.png)](https://asciinema.org/a/100680)
 ### Relative gf anywhere
 [![Relative gf anywhere](https://asciinema.org/a/100681.png)](https://asciinema.org/a/100681)
+
+## Getting started
+There are various demo.vsh files in vsh/demo/demo*.vsh.  If you've just
+installed and are looking for how to use the plugin that's a great place to
+start.
+(demo.vsh includes demo_part2.vsh at the end of the demonstration, and that
+includes demo_part3.vsh, so they naturally get executed in turn).
+
