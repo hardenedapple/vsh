@@ -183,6 +183,7 @@ function s:move_next(mode, count, prompt)
 endfunction
 
 function vsh#vsh#MoveToNextPrompt(mode, count)
+  normal! m`
   if s:move_next(a:mode, a:count, s:motion_marker()) == 'reached end'
     call s:move_to_prompt_start()
   endif
@@ -227,6 +228,7 @@ function s:move_prev(mode, count, prompt)
 endfunction
 
 function vsh#vsh#MoveToPrevPrompt(mode, count)
+  normal! m`
   call s:move_prev(a:mode, a:count, s:motion_marker())
 endfunction
 
