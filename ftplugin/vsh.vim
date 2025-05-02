@@ -64,6 +64,49 @@ endif
 setlocal formatoptions-=t
 setlocal formatoptions-=c
 
+" TODO Unfortunately we shouldn't be setting 'conceallevel' and 'concealcursor'.
+" They're local to *window* not to *buffer*.
+" Would realy like to figure out some way of handing this nicely.  I really
+" want this setting around.
+"
+" Documentation says:
+"    When editing a buffer that has been edited before, the options from the window
+"    that was last closed are used again.  If this buffer has been edited in this
+"    window, the values from back then are used.  Otherwise the values from the
+"    last closed window where the buffer was edited last are used.
+"
+" This means that *usually* everything works as expected -- when opening
+" up a VSH mode buffer the window we opened it in gets this option set, when
+" opening the buffer again in some other window we take the settings from the
+" last window closed with this buffer (which would have had the 'conceallevel'
+" setting applied).
+"
+" However it's not 100% foolproof:
+"   - When opening up a VSH mode buffer in the another tab from the command
+"     line (with something like `vim -p x.txt a.vsh`) and then splitting to a
+"     VSH mode buffer in the first tab without having closed the original
+"     window where the VSH mode buffer was opened, the new window on a VSH mode
+"     buffer has conceallevel not set.
+" I *think* this may be a bug.  Reading the explanation in `:help
+" local-options` it sounds like it wouldn't be a bug, but reading that
+" explanation seems to imply that having a split window on a VSH buffer (and
+" never having closed any window on a VSH buffer) then splitting anothing
+" window to show the VSH buffer should take the window-local settings from the
+" window I split from.
+" I.e. seems to imply:
+"   :e x.txt
+"   :vnew a.vsh
+"   :setlocal conceallevel=2  " Automatically from the ftplugin
+"   :wincmd p
+"   :sb a.vsh
+" Would leave the second window on the VSH buffer with `conceallevel` from the
+" x.txt buffer.  That doesn't happen.
+"
+" So honestly not 100% sure what is going on here.  Could be something a bug in
+" the tab example (and that the help text is a bit misleading), I don't think
+" I'm misconfiguring things (though it is still a possibility), could be that
+" the help is misleading and everything is fine.
+" I'm hoping a bug in the tab example, will see once I eventually raise a bug.
 setlocal conceallevel=2
 setlocal concealcursor=nc
 setlocal formatoptions+=r
