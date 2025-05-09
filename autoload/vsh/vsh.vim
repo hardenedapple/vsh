@@ -69,11 +69,11 @@ function s:block_after(line_regex)
   return l:retval ? l:retval : l:eof + 1
 endfunction
 
-function s:segment_start()
+function vsh#vsh#VshSegmentStart()
   return s:block_before(vsh#vsh#SplitMarker(0))
 endfunction
 
-function s:segment_end()
+function vsh#vsh#VshSegmentEnd()
   return s:block_after(vsh#vsh#SplitMarker(0))
 endfunction
 
@@ -350,9 +350,9 @@ endfunction
 
 function s:command_span()
   let l:eof = line('$')
-  let l:startline = s:segment_start()
+  let l:startline = vsh#vsh#VshSegmentStart()
 
-  let l:nextprompt = s:segment_end()
+  let l:nextprompt = vsh#vsh#VshSegmentEnd()
   let l:cur_output_len = l:nextprompt - l:startline
 
   " If we are at the last prompt in the file, range is from here to EOF.
@@ -1039,7 +1039,7 @@ function vsh#vsh#WithPathSet(command)
     echoerr 'Suggest :call vsh#vsh#StartSubprocess()'
     return
   endif
-  let stored_dir = split(getline(s:segment_start()))[-2:]
+  let stored_dir = split(getline(vsh#vsh#VshSegmentStart()))[-2:]
   if stored_dir[0] == '#' && isdirectory(stored_dir[1])
     let subprocess_cwd = stored_dir[1]
   else
@@ -1237,7 +1237,7 @@ endfunction
 
 " {{{ Entry points of command implementations that are not text objects
 function vsh#vsh#ReplaceOutput()
-  let l:command_line = s:segment_start()
+  let l:command_line = vsh#vsh#VshSegmentStart()
 
   let l:command_text = getline(l:command_line)
 
@@ -1263,7 +1263,7 @@ function vsh#vsh#ReplaceOutput()
 endfunction
 
 function vsh#vsh#NewPrompt()
-  exe s:segment_end() - 1
+  exe vsh#vsh#VshSegmentEnd() - 1
   put = b:vsh_prompt
   startinsert!
 endfunction
@@ -1277,7 +1277,7 @@ function vsh#vsh#SaveOutput(activate)
   " Comment out the command for this output.
   " This means we won't accidentaly re-run the command here (because the
   " corresponding command is a comment).
-  let l:cur_cli = s:segment_start()
+  let l:cur_cli = vsh#vsh#VshSegmentStart()
   if l:cur_cli == 0
     return
   endif

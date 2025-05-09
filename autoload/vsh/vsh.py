@@ -16,10 +16,11 @@ else:
     import collections
     vsh_FuncStoreType = collections.namedtuple('vsh_FuncStoreType',
                                                ['match', 'setpos',
-                                               'appendbufline'])
+                                                'appendbufline', 'line'])
     vsh_FuncStore = vsh_FuncStoreType(vim.Function('match'),
                                       vim.Function('setpos'),
-                                      vim.Function('appendbufline'))
+                                      vim.Function('appendbufline'),
+                                      vim.Function('line'))
     def vsh_insert_text(data, insert_buf):
         # I honestly don't know whether getting input from a pty gives me a
         # string with newlines in it or calls the callback for each string.
@@ -40,7 +41,14 @@ else:
     def vsh_append(data, linenum, insert_buf):
         vsh_FuncStore.appendbufline(insert_buf.number, linenum, data)
 
-def vsh_outputlen(buf, curprompt):
+def _vsh_match_line(line, prompt):
+    null_loc = line.find('\x00')
+    if null_loc != -1:
+        line = line[:null_loc]
+    # Use vim's match() so that vim regular expressions work.
+    return vsh_FuncStore.match(line, prompt) != -1
+
+def vsh_outputlen(buf, curprompt, interactive_near_prompt=False):
     '''
     Given a buffer and the Vim line number of a prompt, return number of output
     lines from that prompt in the current buffer.
@@ -58,17 +66,58 @@ def vsh_outputlen(buf, curprompt):
     # curprompt represents the first line of output.
     found_prompt = False
     count = 0
-    for (count, line) in enumerate(buf[curprompt:]):
-        # In recent versions of neovim the NULL byte in output can give us some
-        # problems.  https://github.com/neovim/neovim/issues/29855
-        # Just remove it in the search and say that NULL bytes in your prompt are
-        # unsupported (which seems reasonable to me).
-        null_loc = line.find('\x00')
-        if null_loc != -1: line = line[:null_loc]
-        # Use vim's match() so that vim regular expressions work.
-        if vsh_FuncStore.match(line, prompt) != -1:
-            found_prompt = True
-            break
+    if interactive_near_prompt:
+        # Search *back* to line `curprompt`.
+        # Then search *forwards* for a line with `vsh#vsh#SplitMarker()` at the
+        # start.
+        #   - Use all relevant flags to avoid unnecessary state change..
+        #   - Set `count` from the returned number (similarly for
+        #     `found_prompt` -- if returned number is zero prompt not found).
+
+        # Assert the restrictions of calling this function with
+        # `interactive_near_prompt` set.  Special casing is certainly worth it
+        # due to how much drastically faster this is.
+        # N.b. the case where the search fails and `start_line` is zero should
+        # never happen since we should only ever call this function with the
+        # cursor on or after a prompt.
+        assert (buf == vim.current.buffer)
+        start_line = int(vim.eval('vsh#vsh#VshSegmentStart()'))
+        assert (start_line == curprompt)
+        end_line = int(vim.eval('vsh#vsh#VshSegmentEnd()'))
+        found_prompt = (end_line != 0)
+        end_line = (vsh_FuncStore.line('$') if not found_prompt else end_line)
+        # Subtract one 
+        count = end_line - start_line - 1
+    else:
+        # Even just asking for the remaining buffer is slow when in a very
+        # large buffer (i.e. in a large enough buffer this is a large
+        # bottleneck even if I'm working on small outputs -- as long as the
+        # remaining buffer is large enough).  This is a real performance
+        # bottleneck.  Would really like to perform a search, but currently
+        # don't know how to search "some buffer" rather than searching in "the
+        # current buffer".
+        #
+        # This is why I have two clauses here, one to be used by
+        # `vsh_recalculate_input_position` (and which has to be general) and
+        # another to be used by `vsh_clear_output` (which does not have to be
+        # general and could use a simple search).
+        #
+        # That at least avoids the majority of obvious performance problems
+        # that happen when the user is interacting with this buffer.
+        #
+        # If I really care about having just one function then I could start to
+        # chunk the transfer of the buffer -- though this would not help with
+        # a good number of the bottlenecks it would at least mean that we
+        # should be fine when acting on an output that is small but happens to
+        # be above some large output in the same buffer.
+        for (count, line) in enumerate(buf[curprompt:]):
+            # In recent versions of neovim the NULL byte in output can give us
+            # some problems.  https://github.com/neovim/neovim/issues/29855
+            # Just remove it in the search and say that NULL bytes in your
+            # prompt are unsupported (which seems reasonable to me).
+            if _vsh_match_line(line, prompt):
+                found_prompt = True
+                break
 
     # We have either broken out of the loop at the next prompt, or reached the
     # end of the buffer. Hence the output length is either count or count+1.
@@ -243,7 +292,7 @@ def vsh_insert_text_1(data, insert_buf):
 
 def vsh_clear_output(curline):
     '''Remove all output from a previous command.'''
-    outputlen = vsh_outputlen(vim.current.buffer, curline)
+    outputlen = vsh_outputlen(vim.current.buffer, curline, True)
     vim.current.buffer[curline:curline + outputlen] = []
 
 
