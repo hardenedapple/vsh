@@ -47,7 +47,7 @@ function s:motion_marker()
   " Allow s:commentstart() before the prompt -- so we can move over "saved"
   " commands.
   " Allow `##` for escaped hash to send to underlying terminal.
-  return '\V\(\^\|\^' . s:commentstart() . '\)' . b:vsh_prompt . '\s\*\(\[^#[:blank:]]\|\$\|#\ze#\)'
+  return '\V\^\(' . s:commentstart() . '\)\?' . b:vsh_prompt . '\s\*\(\[^#[:blank:]]\|\$\|#\ze#\)'
 endfunction
 
 function s:command_marker()
