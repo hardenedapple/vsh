@@ -245,8 +245,8 @@ def vsh_insert_text_1(data, insert_buf):
     # As @bfredl mentioned in #neovim, jobstart() process output is a stream of
     # bytes not a list of lines, it just looks like a list of lines because of
     # how they're represented in vimL.
-    # Hence we have to manually remove extra '\r' characters from our input (i.e.
-    # powershells output).
+    # Hence we have to manually remove extra '\r' characters from our input
+    # (i.e.  powershells output).
     # Unfortunately, some commands (e.g. `git`) don't end their lines with
     # '\r\n' when running in powershell, instead they end their lines with
     # '\n'.
@@ -275,7 +275,7 @@ def vsh_insert_text_1(data, insert_buf):
 
     try:
         vsh_insert_helper(data, vsh_buf)
-    except vsh_FailedToInsert as e:
+    except vsh_FailedToInsert:
         # If data from the subshell contains NULL characters, then neovim
         # replaces these with '\n' characters.
         # This is rarely the case, so try to go without first, if needed, then
@@ -287,7 +287,7 @@ def vsh_insert_text_1(data, insert_buf):
         # guess that the problem is newlines and try again.
         # If that wasn't the problem then we just re-raise the error anyway.
         vsh_insert_helper([val.replace('\n', '\x00') for val in data],
-                        vsh_buf)
+                          vsh_buf)
 
 
 def vsh_clear_output(curline):
