@@ -354,7 +354,16 @@ command\"."
 (defun vsh--line-beginning-position (&optional count)
   "Return start of comment/command/line on line COUNT above or below `point'.
 
-Choice of which to return is based on what the line contains."
+Choice of which to return is based on what the line contains.
+The \"start\" is defined as the cons cell containing the positions of the start
+of the command (after whitespace indentation) and the end of the prompt
+(i.e. before whitespace indentation).
+
+E.g. (123 . 120) if this prompt has three space characters between it and the
+start of the command.
+
+When run on a line that is not a comment or a command, the two numbers will be
+identical."
   (let* ((funclist (list #'vsh-command-regexp #'vsh-motion-marker
                          #'vsh-comment-regexp #'vsh-blank-comment-regexp))
          (match (cl-find-if (lambda (fn)
@@ -1341,6 +1350,29 @@ this could be used when turning a session into a script for later use."
         (goto-char start)
         (forward-line -1)
         (vsh-bol)))))
+
+
+(defun vsh-format-long-command (&optional arg)
+  (interactive "p")
+  ;; Options to maintain start and end positions are:
+  ;; 1) Have marks that move with the editing.  Clear marks after use.
+  ;; 2) Parse the undo history (in manner similar to `goto-chg.el') after
+  ;;    `fill-paragraph'.
+  ;; I think option (1) seems best.
+  (let* ((start-pos (car (vsh--line-beginning-position (1- arg)))))
+    (goto-char start-pos)
+    (let ((start-mark (copy-marker start-pos t))
+          (end-mark (copy-marker (line-end-position arg) t)))
+      (fill-paragraph)
+      ;; For some reason this goes into infinite loop.
+      ;; Instead replace the newline character with a backslash and the newline.
+      ; (replace-regexp-in-region "$" " \\\\" start-mark (- end-mark 1))
+      ;; Found it awkward to get `replace-regexp-in-region' working, but found
+      ;; that `replace-string-in-region' worked and just went with that.
+      (replace-string-in-region "\n" " \\\n" start-mark end-mark)
+      (replace-regexp-in-region "vshcmd: >[[:blank:]]+" "\\&    ")
+      (set-marker start-mark nil)
+      (set-marker end-mark nil))))
 
 (defun vsh-send-region (rbeg rend &optional buffer)
   "Send region to the underlying process."
