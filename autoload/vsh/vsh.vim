@@ -97,6 +97,12 @@ endfunction
 " part of the command, not otherwise.
 " If a:command_prompt is truthy, ignore comments.
 function s:prompt_end(promptline, count_whitespace, command_prompt)
+  " TODO I think I need to add '^' to the regex match comparisons.
+  " I thought "regexp match" would require the pattern being at the start of
+  " the line, but it seems to be matching anywhere.
+  " That means that "string mentioning vshcmd: > " =~# 'vshcmd: > ', and that
+  " means my checks below are problematic.  Takes time to test things so not
+  " doing it right now -- just recording the problem for later.
   " Not a command line
   if a:promptline !~# b:vsh_prompt
     return -1

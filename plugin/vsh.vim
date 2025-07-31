@@ -3,6 +3,10 @@ if exists('g:loaded_vsh')
 endif
 let g:loaded_vsh = 1
 
+" TODO Would be nice to use the <Cmd> mapping pseudokey.
+" Would no longer need tricks to go back into visual mode (e.g.
+" vsh#vsh#CommandBlockEnds needs the `v` argument).
+
 let g:vsh_buffer_mappings_list = [
       \ ['n' , 'vsh_next_prompt'                   , '<silent>'        , '<C-n>'           , ' <Plug>(vshNextPrompt)'                , " :<C-U>call vsh#vsh#MoveToNextPrompt('n', v:count1)<CR>"] ,
       \ ['n' , 'vsh_prev_prompt'                   , '<silent>'        , '<C-p>'           , ' <Plug>(vshPrevPrompt)'                , " :<C-U>call vsh#vsh#MoveToPrevPrompt('n', v:count1)<CR>"] ,

@@ -1,5 +1,22 @@
 #!/usr/bin/env python3
 
+# TODO Would like to make things a little more clever (and follow the UI that
+# people used to `fugitive` would expect, because that's where this is invoked
+# most often).
+# 1) If single other file, open in new window.
+#    - Would need to edit `vsh#vsh#EditFiles` for this.
+#    - Would likely also need to change vsh#vsh#RestoreArgs to close the
+#      window.
+# 2) When that window is closed, send some message back to this process.
+#    - Fugitive sends a message back by creating a file $FUGITIVE.exit.
+#    - I should be able to send a message with the current VSH buffer number,
+#      and then send something to that buffer.
+#    - Would need to be able to handle cancelling the editor command with the
+#      relevant buffers still open.  Similar to what I'm doing here, but also
+#      removing autocommands in the relevant buffers.
+#    - When have multiple buffers what do I do?  Send a message to this script
+#      when I've closed the last one?  As a whole 
+
 import os
 import sys
 
