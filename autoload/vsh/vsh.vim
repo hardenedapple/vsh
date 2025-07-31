@@ -1371,6 +1371,33 @@ function vsh#vsh#ConvertCatVshCommand(marker='EOF')
   " the moment based purely on "feel".
   execute startline . ' mark ' .'['
 endfunction
+
+function vsh#vsh#FormatLongCommand()
+  normal! gqq
+  let firstline = line("'[")
+  let lastline  = line("']")
+  if firstline == lastline
+    " Nothing to do.
+    echom "Exiting"
+    return
+  endif
+  " Goal:
+  "   - Want to replace "prompt at start of line" with "prompt at start of line
+  "     with some extra spaces".
+  " Problems:
+  "   - Using 's/^'.b:vsh_prompt.'/&    /' doesn't work if b:vsh_prompt has a
+  "     slash in it.  I already have problems with the prompt including regular
+  "     expression characters in it, this is getting a bit much.
+  " Solution:
+  "   - Replace with `.` relevant number of times.  Rely on `gqq` having
+  "     inserted the prompt on every line so just want to match all lines.
+  let m = substitute(b:vsh_prompt, '.', '.', 'g')
+  execute 'silent '.firstline.'+1,'.lastline.'s/^'.m.'/&    /'
+  execute 'silent '.firstline.','.lastline.'-1s/$/ \\/'
+  execute lastline
+  call vsh#vsh#BOLOverride('n')
+endfunction
+  
 " }}}
 
 " {{{ Text objects
