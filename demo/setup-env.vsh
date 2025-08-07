@@ -17,7 +17,7 @@ vshcmd: >   echo '$TERM is not set to "dumb" -- this is set before starting VSH,
 vshcmd: >   echo 'Recommend searching looking through your bashrc for anything setting TERM'
 vshcmd: >   echo 'Grepping for likely lines in bashrc.'
 vshcmd: >   if [[ -f ~/.bashrc ]]; then
-vshcmd: >       grep -Hn 'TERM' ~/.bashrc
+vshcmd: >       grep -Hn 'TERM' ~/.bashrc || echo 'None found ... set somewhere else'
 vshcmd: >   fi
 vshcmd: > fi
 vshcmd: >
