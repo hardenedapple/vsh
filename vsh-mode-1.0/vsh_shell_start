@@ -171,4 +171,19 @@ else
         "$discard_line" \
         "$vsh_buffer"
 fi
-exec "$2"
+
+# The `2>&1` part here is to handle a bug in original vim (that I've not yet
+# found the time to track down).  At some point after vim "9.1 with patches
+# 1-16, 647, 678, 697" the execution of `job_start` with `pty: 1` in the
+# options no longer has all of stdin, stderr, and stdout directed to a pseudo
+# terminal.  Instead stdout and stdin are attached to a pseudo terminal but
+# stderr is connected to a pipe.
+#
+# This means that the underlying shell (e.g. bash) is started in
+# non-interactive mode which makes things a little odd.
+#
+# Redirecting stderr to the same place as stdout avoids that problem and is
+# harmless in the case where stderr is already pointing at the same location as
+# stdout.  Eventually hope to debug the vim issue upstream, but this will
+# suffice for now.
+exec "$2" 2>&1
