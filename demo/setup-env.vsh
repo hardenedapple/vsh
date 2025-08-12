@@ -19,8 +19,9 @@ vshcmd: >   echo 'Grepping for likely lines in bashrc.'
 vshcmd: >   if [[ -f ~/.bashrc ]]; then
 vshcmd: >       grep -Hn 'TERM' ~/.bashrc || echo 'None found ... set somewhere else'
 vshcmd: >   fi
+vshcmd: > else
+vshcmd: >   echo '$TERM == dumb -- good on that front!'
 vshcmd: > fi
-vshcmd: >
 
 vshcmd: > # Ensuring that GDB turns pagination off when in a dumb terminal.
 vshcmd: > # I only know how to check environment variables for the GDB process
