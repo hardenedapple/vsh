@@ -1370,7 +1370,7 @@ this could be used when turning a session into a script for later use."
       ;; Found it awkward to get `replace-regexp-in-region' working, but found
       ;; that `replace-string-in-region' worked and just went with that.
       (replace-string-in-region "\n" " \\\n" start-mark end-mark)
-      (replace-regexp-in-region "vshcmd: >[[:blank:]]+" "\\&    ")
+      (replace-regexp-in-region "vshcmd: >[[:blank:]]+" "\\&    " start-mark end-mark)
       (set-marker start-mark nil)
       (set-marker end-mark nil))))
 
