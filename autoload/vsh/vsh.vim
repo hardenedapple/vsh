@@ -470,6 +470,12 @@ function vsh#vsh#ShowCompletions(glob)
 endfunction
 
 function vsh#vsh#StartSubprocess()
+  let b = bufname('%')
+  if b == '' || !filereadable(b)
+    echom 'Not starting a vsh process for buffer "'.b.'" as it does not correspond to a file on disk.'
+    return
+  endif
+
   " Note: This has to be loaded first for neovim.
   " If the python3 provider hasn't yet been started, then starting it *after*
   " starting the subprocess means that when we call chanclose(b:vsh_job) the
