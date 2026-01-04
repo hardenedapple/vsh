@@ -7,9 +7,8 @@ It is different to the :terminal command for two main reasons:
 1. You run commands anywhere in the file.
 2. The buffer corresponds to a standard file on disk.
 
-It can also be thought of as an interactive version of script(1) -- interactive
-because you can go back and modify what's stored while you work -- that
-facilitates re-running the same session during reading.
+It can also be thought of as a "dumb" and plain-text format version of jupyter
+notebooks but for the pseudo-terminal rather than a specific language.
 
 Benefits are mainly around exploratory terminal sessions, where you want to
 
