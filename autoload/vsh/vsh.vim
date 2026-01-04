@@ -160,6 +160,10 @@ function s:move_next(mode, count, prompt)
   " to the start of the selection -- including <C-r>= commands.  So as yet I
   " don't know any way to save the window position before it has been lost by
   " the act of running a mapping.
+  "
+  " TODO Would be worth checking whether a mapping using `<Cmd>` might keep us
+  " in visual mode so that we don't need to do the `gv` thing -- maybe this
+  " will avoid the problem?
   if a:mode ==# 'v'
     normal! gv
   endif
@@ -470,9 +474,9 @@ function vsh#vsh#ShowCompletions(glob)
 endfunction
 
 function vsh#vsh#StartSubprocess()
-  let b = bufname('%')
-  if b == '' || !filereadable(b)
-    echom 'Not starting a vsh process for buffer "'.b.'" as it does not correspond to a file on disk.'
+  let d = expand('%:h')
+  if d == '' || !isdirectory(d)
+    echom 'Not starting a vsh process for buffer "'.d.'" as it is not open in a local directory.'
     return
   endif
 
